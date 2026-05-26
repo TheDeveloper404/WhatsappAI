@@ -13,10 +13,10 @@ import { env } from '../../config/env.js'
 const REFRESH_COOKIE = 'refreshToken'
 const COOKIE_OPTS = {
   httpOnly: true,
-  secure: env.NODE_ENV === 'production',
-  sameSite: 'lax' as const,
+  secure: true,
+  sameSite: 'none' as const,
   path: '/',
-  maxAge: 7 * 24 * 60 * 60, // 7 days in seconds
+  maxAge: 7 * 24 * 60 * 60,
 }
 
 function parseBody<T>(schema: { safeParse: (v: unknown) => { success: boolean; data?: T; error?: { errors: { path: (string | number)[]; message: string }[] } } }, body: unknown): T {
@@ -48,7 +48,7 @@ export const authController = {
   async logout(req: FastifyRequest, reply: FastifyReply) {
     const refreshToken = req.cookies[REFRESH_COOKIE]
     if (refreshToken) await authService.logout(refreshToken)
-    reply.clearCookie(REFRESH_COOKIE, { path: '/' })
+    reply.clearCookie(REFRESH_COOKIE, { path: '/', secure: true, sameSite: 'none' })
     return reply.status(204).send()
   },
 

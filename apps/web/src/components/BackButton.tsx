@@ -1,9 +1,12 @@
 'use client'
 
 export function BackButton() {
-  const handleBack = (e: React.MouseEvent) => {
+  const handleBack = async (e: React.MouseEvent) => {
     e.preventDefault()
     sessionStorage.setItem('scrollToFooter', '1')
+    document.body.style.transition = 'opacity 0.18s ease'
+    document.body.style.opacity = '0'
+    await new Promise(r => setTimeout(r, 180))
     window.location.href = '/'
   }
 

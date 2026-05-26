@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { BackButton } from '@/components/BackButton'
+import { ScrollRestoreTop } from '@/components/ScrollRestoreTop'
 
 export const metadata: Metadata = {
   title: 'Politică de confidențialitate — WhatsApp AI',
@@ -7,7 +8,8 @@ export const metadata: Metadata = {
 
 export default function ConfidentialitatePage() {
   return (
-    <main className="max-w-[760px] mx-auto px-6 py-20">
+    <main className="max-w-[760px] mx-auto px-6 py-20 fade-in">
+      <ScrollRestoreTop />
       <BackButton />
 
       <h1 className="font-display text-[36px] sm:text-[52px] text-ink mb-4">confidențialitate.</h1>

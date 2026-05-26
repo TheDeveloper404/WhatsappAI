@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, FormEvent } from 'react'
+import { useState, useEffect, useRef, FormEvent } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Input } from '@/components/ui/Input'
@@ -17,6 +17,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [passwordReset, setPasswordReset] = useState(false)
   const [emailVerified, setEmailVerified] = useState(false)
+  const passwordRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -24,8 +25,7 @@ export default function LoginPage() {
     setEmailVerified(params.get('verified') === '1')
   }, [])
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault()
+  async function doLogin() {
     setError('')
     setLoading(true)
     try {
@@ -37,6 +37,11 @@ export default function LoginPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault()
+    await doLogin()
   }
 
   return (
@@ -63,6 +68,7 @@ export default function LoginPage() {
           type="email"
           value={email}
           onChange={e => setEmail(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); passwordRef.current?.focus() } }}
           placeholder="tu@business.ro"
           autoComplete="email"
           required
@@ -72,6 +78,8 @@ export default function LoginPage() {
           type="password"
           value={password}
           onChange={e => setPassword(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter' && !loading) { e.preventDefault(); doLogin() } }}
+          ref={passwordRef}
           autoComplete="current-password"
           required
         />

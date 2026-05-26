@@ -2,7 +2,15 @@ import 'dotenv/config'
 import '../config/env.js'
 import { Pool } from 'pg'
 
-console.log('[MIGRATE] DATABASE_URL:', process.env.DATABASE_URL ? `SET -> ${process.env.DATABASE_URL.slice(0, 40)}...` : 'NOT SET / UNDEFINED')
+console.log('[DEBUG ENV]', JSON.stringify({
+  DATABASE_URL: process.env.DATABASE_URL ? 'SET' : 'MISSING',
+  DATABASE_PUBLIC_URL: process.env.DATABASE_PUBLIC_URL ? 'SET' : 'MISSING',
+  PGHOST: process.env.PGHOST || 'MISSING',
+  PGPORT: process.env.PGPORT || 'MISSING',
+  PGDATABASE: process.env.PGDATABASE || 'MISSING',
+  PGUSER: process.env.PGUSER ? 'SET' : 'MISSING',
+  PGPASSWORD: process.env.PGPASSWORD ? 'SET' : 'MISSING',
+}))
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL })
 

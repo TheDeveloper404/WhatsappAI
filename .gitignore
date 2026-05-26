@@ -1,0 +1,37 @@
+node_modules/
+dist/
+.next/
+
+# Environment — secretele nu merg pe GitHub niciodată
+.env
+.env.local
+.env.*.local
+
+# Baze de date locale
+*.db
+*.db-shm
+*.db-wal
+
+# WhatsApp session files (chei criptografice — date extrem de sensibile)
+apps/api/data/
+
+# Build cache
+*.tsbuildinfo
+
+# Playwright
+apps/e2e/playwright-report/
+apps/e2e/test-results/
+
+# Coverage
+coverage/
+
+# Claude Code (hooks personale — specifice mașinii locale)
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*

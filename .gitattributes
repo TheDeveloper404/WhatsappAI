@@ -1,0 +1,23 @@
+# Normalizează toate fișierele text la LF în repo (cross-platform)
+* text=auto eol=lf
+
+# Windows scripts — păstrează CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Fișiere binare — fără conversie
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.otf binary
+*.mp4 binary
+*.webm binary
+*.ogg binary
+*.mp3 binary

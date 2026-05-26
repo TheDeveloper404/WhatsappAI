@@ -1,0 +1,104 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── THEME TOKENS ───────────────────────────────────────────────── */
+:root {
+  --bg: #F6F4EF;
+  --ink: #0A0F0C;
+  --dim: rgba(10,15,12,0.62);
+  --dimmer: rgba(10,15,12,0.42);
+  --line: rgba(10,15,12,0.10);
+  --card-bg: rgba(10,15,12,0.025);
+  --card-hi: rgba(10,15,12,0.05);
+  --acid: #128C7E;
+  --acid-fill: #25D366;
+  --danger: #E04A3A;
+  --on-acid: #ffffff;
+  --on-acid-muted: rgba(255,255,255,0.72);
+  color-scheme: light;
+}
+html.dark {
+  --bg: #0A0F0C;
+  --ink: #E8E6E1;
+  --dim: rgba(232,230,225,0.58);
+  --dimmer: rgba(232,230,225,0.38);
+  --line: rgba(232,230,225,0.08);
+  --card-bg: rgba(255,255,255,0.025);
+  --card-hi: #1A211C;
+  --acid: #C8FB4A;
+  --acid-fill: #C8FB4A;
+  --danger: #FF5C4D;
+  --on-acid: #0A0F0C;
+  --on-acid-muted: rgba(10,15,12,0.65);
+  color-scheme: dark;
+}
+
+/* ─── BASE ───────────────────────────────────────────────────────── */
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'ss01','ss02';
+}
+
+/* ─── TYPOGRAPHY ─────────────────────────────────────────────────── */
+.font-display { font-family: 'Geist Mono', ui-monospace, monospace; letter-spacing: -0.04em; line-height: 0.92; font-weight: 700; }
+.font-display-md { font-family: 'Geist Mono', ui-monospace, monospace; letter-spacing: -0.03em; line-height: 0.96; font-weight: 600; }
+.font-mono-ui { font-family: 'Geist Mono', ui-monospace, monospace; font-feature-settings: 'zero'; }
+
+/* ─── SURFACE HELPERS ────────────────────────────────────────────── */
+.card-glass { background: linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.005)); border: 1px solid var(--line); }
+.card-elevated { background: var(--card-hi); border: 1px solid var(--line); }
+
+/* ─── GRID OVERLAY ───────────────────────────────────────────────── */
+.gridlines {
+  background-image:
+    linear-gradient(to right, var(--line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--line) 1px, transparent 1px);
+  background-size: 64px 64px;
+}
+.gridlines-mask {
+  -webkit-mask-image: radial-gradient(ellipse 80% 50% at 50% 0%, #000 30%, transparent 80%);
+  mask-image: radial-gradient(ellipse 80% 50% at 50% 0%, #000 30%, transparent 80%);
+}
+
+/* ─── CHAT BUBBLES ───────────────────────────────────────────────── */
+.bubble-r { border-radius: 14px 14px 4px 14px; }
+.bubble-l { border-radius: 14px 14px 14px 4px; }
+
+/* ─── ANIMATIONS ─────────────────────────────────────────────────── */
+@keyframes pulseSoft { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.6; transform:scale(1.35); } }
+.pulse-dot { animation: pulseSoft 1.8s ease-in-out infinite; }
+
+@keyframes typing { 0%,60%,100% { transform:translateY(0); opacity:.35; } 30% { transform:translateY(-3px); opacity:1; } }
+.typing-dot { animation: typing 1.2s infinite; display: inline-block; }
+.typing-dot:nth-child(2) { animation-delay: .12s; }
+.typing-dot:nth-child(3) { animation-delay: .24s; }
+
+@keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+.marquee-track { animation: marquee 35s linear infinite; }
+
+@keyframes barGrow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+.bar-anim { transform-origin: bottom; }
+
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.fade-in { animation: fadeIn 0.25s ease forwards; }
+
+/* ─── ACCORDION ──────────────────────────────────────────────────── */
+details summary { list-style: none; cursor: pointer; }
+details summary::-webkit-details-marker { display: none; }
+details[open] .chev { transform: rotate(45deg); }
+.chev { transition: transform 0.2s ease; }
+
+/* ─── MISC ───────────────────────────────────────────────────────── */
+.lift { transition: transform .25s ease, background-color .25s ease, border-color .25s ease; }
+.lift:hover { transform: translateY(-2px); }
+.nice-scroll::-webkit-scrollbar { display: none; }
+.nice-scroll { scrollbar-width: none; }
+
+@layer utilities {
+  .text-balance { text-wrap: balance; }
+}

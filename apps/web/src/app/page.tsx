@@ -1,0 +1,983 @@
+'use client'
+import React, { useState, useEffect } from 'react'
+import Link from 'next/link'
+import {
+  Moon, Sun, Menu, X, ArrowRight, Check, Play,
+} from 'lucide-react'
+
+// ─── THEME HOOK ───────────────────────────────────────────────────────────────
+function useTheme() {
+  const [dark, setDark] = useState(false)
+  useEffect(() => { setDark(document.documentElement.classList.contains('dark')) }, [])
+  const toggle = () => {
+    const next = !dark
+    setDark(next)
+    document.documentElement.classList.toggle('dark', next)
+    try { localStorage.setItem('wa-ai-theme', next ? 'dark' : 'light') } catch {}
+  }
+  return { dark, toggle }
+}
+
+// ─── WA ICON ─────────────────────────────────────────────────────────────────
+function WaIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 32 32" width={size} height={size} fill="#fff">
+      <path d="M16 5.5C10.2 5.5 5.5 10.2 5.5 16c0 1.85.49 3.66 1.42 5.25L5.5 26.5l5.4-1.4A10.4 10.4 0 0 0 16 26.5c5.8 0 10.5-4.7 10.5-10.5S21.8 5.5 16 5.5zm0 19.1a8.6 8.6 0 0 1-4.4-1.2l-.31-.18-3.2.83.86-3.12-.2-.32A8.55 8.55 0 0 1 7.4 16a8.6 8.6 0 1 1 8.6 8.6zm4.7-6.43c-.26-.13-1.52-.75-1.76-.84-.24-.09-.41-.13-.58.13s-.66.84-.81 1.01c-.15.17-.3.19-.55.06-.26-.13-1.08-.4-2.06-1.27a7.72 7.72 0 0 1-1.43-1.77c-.15-.26-.02-.4.11-.53.12-.12.26-.3.39-.45.13-.15.17-.26.26-.43.09-.17.04-.32-.02-.45-.06-.13-.58-1.39-.79-1.9-.21-.5-.42-.43-.58-.44h-.49a.94.94 0 0 0-.68.32c-.23.26-.89.86-.89 2.1s.91 2.44 1.04 2.6c.13.17 1.79 2.73 4.34 3.82.61.26 1.08.42 1.45.54.61.19 1.16.16 1.6.1.49-.07 1.52-.62 1.73-1.22.21-.6.21-1.11.15-1.22-.06-.11-.24-.17-.5-.3z" />
+    </svg>
+  )
+}
+
+// ─── NAVBAR ──────────────────────────────────────────────────────────────────
+function Navbar() {
+  const { dark, toggle } = useTheme()
+  const [open, setOpen] = useState(false)
+
+  return (
+    <header className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-1.5rem)] max-w-[1360px]">
+      <div
+        className="flex items-center justify-between h-14 px-4 sm:px-5 rounded-full backdrop-blur-xl border border-line"
+        style={{ background: 'color-mix(in oklab, var(--bg) 80%, transparent)' }}
+      >
+        <a href="#top" className="flex items-center gap-2 pl-0.5">
+          <span className="inline-flex items-center justify-center w-8 h-8 rounded-full" style={{ background: '#25D366' }}>
+            <WaIcon size={20} />
+          </span>
+          <span className="font-mono-ui text-[14px] tracking-tight font-medium text-ink">
+            WhatsApp<span className="text-acid"> AI</span>
+          </span>
+        </a>
+
+        <nav className="hidden md:flex items-center gap-7 text-[15px] text-dim font-mono-ui">
+          <a href="#how"      className="hover:text-ink transition-colors pb-0.5 border-b border-transparent hover:border-acid">cum.merge</a>
+          <a href="#features" className="hover:text-ink transition-colors pb-0.5 border-b border-transparent hover:border-acid">funcționalități</a>
+          <a href="#diff"     className="hover:text-ink transition-colors pb-0.5 border-b border-transparent hover:border-acid">tonul.tău</a>
+          <a href="#pricing"  className="hover:text-ink transition-colors pb-0.5 border-b border-transparent hover:border-acid">prețuri</a>
+          <a href="#faq"      className="hover:text-ink transition-colors pb-0.5 border-b border-transparent hover:border-acid">faq</a>
+        </nav>
+
+        <div className="flex items-center gap-1.5">
+          <button onClick={toggle} aria-label="Toggle dark mode"
+            className="hidden sm:inline-flex items-center justify-center w-9 h-9 rounded-full border border-line text-dim hover:text-ink transition-colors">
+            {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
+          <Link href="/login" className="hidden sm:inline-flex items-center text-[13px] text-dim hover:text-ink px-3 py-2 font-mono-ui transition-colors">
+            login
+          </Link>
+          <Link href="/signup"
+            className="inline-flex items-center gap-1.5 bg-acid font-medium text-[13px] px-4 py-2 rounded-full font-mono-ui hover:opacity-90 transition-opacity"
+            style={{ color: 'var(--on-acid)' }}>
+            începe →
+          </Link>
+          <button onClick={() => setOpen(!open)} className="md:hidden text-dim hover:text-ink p-2">
+            {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+        </div>
+      </div>
+
+      {open && (
+        <div className="mt-2 rounded-2xl border border-line backdrop-blur-xl px-5 py-5 flex flex-col gap-3 font-mono-ui text-[14px]"
+          style={{ background: 'color-mix(in oklab, var(--bg) 95%, transparent)' }}>
+          {[
+            { href: '#how',      label: 'cum.merge' },
+            { href: '#features', label: 'funcționalități' },
+            { href: '#diff',     label: 'tonul.tău' },
+            { href: '#pricing',  label: 'prețuri' },
+            { href: '#faq',      label: 'faq' },
+          ].map(l => (
+            <a key={l.href} href={l.href} onClick={() => setOpen(false)} className="text-dim hover:text-ink py-1 transition-colors">{l.label}</a>
+          ))}
+          <div className="pt-3 border-t border-line flex flex-col gap-2">
+            <Link href="/login" className="text-dim hover:text-ink py-1">login</Link>
+            <Link href="/signup" className="bg-acid text-center py-2.5 rounded-full font-medium" style={{ color: 'var(--on-acid)' }}>
+              începe →
+            </Link>
+          </div>
+        </div>
+      )}
+    </header>
+  )
+}
+
+// ─── HERO ─────────────────────────────────────────────────────────────────────
+function Hero() {
+  return (
+    <section className="relative pt-32 sm:pt-36 lg:pt-44 pb-20 lg:pb-28 text-center">
+      <div className="absolute inset-0 gridlines gridlines-mask opacity-50 pointer-events-none" />
+      <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-[900px] h-[400px] rounded-full blur-[140px] pointer-events-none"
+        style={{ background: 'color-mix(in oklab, var(--acid) 8%, transparent)' }} />
+
+      <div className="max-w-[1440px] mx-auto px-6 lg:px-8 relative">
+        {/* Announcement chip */}
+        <div className="flex justify-center mb-10">
+          <a href="#diff" className="inline-flex items-center gap-2 font-mono-ui text-[11.5px] tracking-wide px-3 py-1.5 rounded-full border border-line backdrop-blur text-dim hover:text-ink transition-colors"
+            style={{ background: 'color-mix(in oklab, var(--bg) 60%, transparent)' }}>
+            <span className="relative flex w-1.5 h-1.5">
+              <span className="absolute inline-flex w-full h-full rounded-full bg-acid pulse-dot" />
+            </span>
+            v2.4 · stilul tău clonat în 60 secunde
+            <span className="text-dimmer">→</span>
+          </a>
+        </div>
+
+        {/* Headline — big centered */}
+        <h1 className="font-display text-[64px] sm:text-[88px] lg:text-[112px] text-ink mx-auto max-w-[960px]">
+          nu mai pierde clienți<br />
+          când nu <em className="not-italic text-acid">răspunzi.</em>
+        </h1>
+
+        <p className="mt-8 text-[18px] text-dim max-w-[500px] mx-auto leading-relaxed">
+          AI-ul care preia automat conversațiile și păstrează experiența personală a brandului tău.
+        </p>
+
+        {/* CTAs */}
+        <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
+          <Link href="/signup"
+            className="group inline-flex items-center gap-2 bg-acid font-medium text-[16px] pl-6 pr-2 py-3.5 rounded-full hover:opacity-90 transition-opacity"
+            style={{ color: 'var(--on-acid)' }}>
+            începe gratuit
+            <span className="inline-flex items-center justify-center w-9 h-9 rounded-full" style={{ background: 'rgba(10,15,12,0.12)' }}>
+              <ArrowRight className="w-4 h-4" />
+            </span>
+          </Link>
+          <a href="#console"
+            className="inline-flex items-center gap-2 border border-line text-ink font-medium text-[16px] px-5 py-3.5 rounded-full hover:bg-cardhi transition-colors">
+            <Play className="w-4 h-4 text-acid" />
+            vezi un demo · 90s
+          </a>
+        </div>
+
+        {/* Trust bar */}
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-1.5 font-mono-ui text-[11.5px] text-dimmer">
+          <span>✓ card necesar pentru trial</span>
+          <span>·</span>
+          <span>✓ setare 4 min</span>
+          <span>·</span>
+          <span>✓ datele tale sunt în siguranță</span>
+          <span>·</span>
+          <span>✓ anulezi cu un click</span>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ─── OPERATOR CONSOLE ─────────────────────────────────────────────────────────
+const LIVE_CHAT: { side: 'left' | 'right'; text: string }[] = [
+  { side: 'left',  text: 'Salut! Mai e liber apartamentul din Cotroceni?' },
+  { side: 'left',  text: 'Aș putea veni mâine la vizionare 🙏' },
+  { side: 'right', text: 'hei, da e liber. mâine la 17 sau 18? îți pică ok?' },
+  { side: 'left',  text: '17 e perfect' },
+  { side: 'right', text: 'super! te-am trecut pt mâine la 17 👊' },
+]
+
+function OperatorConsole() {
+  const [shown, setShown] = useState(2)
+  const [typing, setTyping] = useState(true)
+
+  useEffect(() => {
+    let cur = 2
+    let tid: ReturnType<typeof setTimeout> | null = null
+    const advance = () => {
+      const next = cur + 1
+      if (next > LIVE_CHAT.length) {
+        setTyping(false)
+        tid = setTimeout(() => { cur = 2; setShown(2); setTyping(true); tid = null }, 2000)
+        return
+      }
+      cur = next
+      if (LIVE_CHAT[cur - 1].side === 'right') {
+        setTyping(true)
+        tid = setTimeout(() => { setTyping(false); setShown(cur); tid = null }, 900)
+      } else {
+        setTyping(false)
+        setShown(cur)
+      }
+    }
+    const id = setInterval(advance, 2200)
+    return () => { clearInterval(id); if (tid) clearTimeout(tid) }
+  }, [])
+
+  return (
+    <section id="console" className="relative pb-20 lg:pb-28 scroll-mt-24">
+      <div className="max-w-[1440px] mx-auto px-6 lg:px-8">
+        {/* Top bar */}
+        <div className="flex items-center justify-between mb-3 font-mono-ui text-[11px] text-dimmer">
+          <span>↑ OPERATOR · LIVE</span>
+          <span>21:47 EEST · marți ↓</span>
+        </div>
+
+        {/* Console frame */}
+        <div className="card-elevated rounded-2xl overflow-hidden">
+          {/* Console header */}
+          <div className="flex items-center justify-between px-5 py-3 border-b border-line">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-acid pulse-dot" />
+              <span className="font-mono-ui text-[11px] text-acid">whatsapp.ai · operator console</span>
+            </div>
+            <div className="font-mono-ui text-[10.5px] text-dimmer">uptime <span className="text-ink">99.97%</span> · lat. <span className="text-ink">142ms</span></div>
+          </div>
+
+          {/* Console body — 3 coloane egale */}
+          <div className="grid lg:grid-cols-3 divide-x divide-line">
+            {/* STATUS col */}
+            <div className="p-5">
+              <div className="font-mono-ui text-[9.5px] text-dimmer tracking-widest uppercase mb-4">STATUS</div>
+              <div className="flex items-center justify-between mb-1">
+                <div className="font-display text-[28px] text-ink leading-none">activ.</div>
+                <div className="w-10 h-6 rounded-full flex items-center justify-end pr-1" style={{ background: 'var(--acid)' }}>
+                  <div className="w-4 h-4 rounded-full" style={{ background: 'var(--on-acid)' }} />
+                </div>
+              </div>
+              <div className="font-mono-ui text-[10.5px] text-acid mb-0.5">· live</div>
+              <div className="font-mono-ui text-[10px] text-dimmer mb-6">tu · offline de 23m</div>
+              <div className="font-mono-ui text-[9.5px] text-dimmer tracking-widest uppercase mb-3">MESAJE / ORĂ</div>
+              <div className="flex items-end gap-1 h-[52px] mb-1">
+                {[65, 45, 80, 55, 90, 70, 60, 85].map((h, i) => (
+                  <div key={i} className="flex-1 rounded-sm bar-anim" style={{ height: `${h}%`, background: 'var(--acid)', animation: `barGrow 0.5s ease ${i * 0.07}s both` }} />
+                ))}
+              </div>
+              <div className="flex justify-between font-mono-ui text-[9px] text-dimmer mb-6">
+                <span>14:00</span><span>21:47</span>
+              </div>
+              <div className="card-glass rounded-xl p-3">
+                <div className="font-mono-ui text-[9px] text-acid mb-1">▣</div>
+                <div className="font-mono-ui text-[12px] text-ink font-medium">knowledge base</div>
+                <div className="font-mono-ui text-[10px] text-dimmer mt-0.5">12 secțiuni · sincronizate</div>
+              </div>
+            </div>
+
+            {/* CONVERSAȚIE col */}
+            <div className="p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div className="font-mono-ui text-[9.5px] text-dimmer tracking-widest uppercase">CONVERSAȚIE · #4719</div>
+                <span className="font-mono-ui text-[10px] text-acid border border-acid rounded-full px-2 py-0.5 pulse-dot">· live</span>
+              </div>
+              <div className="flex items-center gap-2.5 mb-5">
+                <div className="w-9 h-9 rounded-full font-mono-ui text-[11px] font-bold text-ink flex items-center justify-center flex-shrink-0" style={{ background: 'var(--card-hi)' }}>MD</div>
+                <div>
+                  <div className="font-mono-ui text-[13px] font-medium text-ink">Maria D.</div>
+                  <div className="font-mono-ui text-[10px] text-dimmer">lead nou · imobiliare</div>
+                </div>
+                <div className="ml-auto font-mono-ui text-[10px] text-dimmer">21:47</div>
+              </div>
+              {/* Live animated chat */}
+              <div className="space-y-3 overflow-hidden" style={{ height: '180px', overflowY: 'hidden' }}>
+                {LIVE_CHAT.slice(0, shown).map((msg, i) => (
+                  <div key={i} className={`flex ${msg.side === 'right' ? 'justify-end' : 'justify-start'}${i === shown - 1 ? ' fade-in' : ''}`}>
+                    <div
+                      className={msg.side === 'right' ? 'bubble-r px-4 py-2.5 text-[13px] text-ink max-w-[85%]' : 'bubble-l px-4 py-2.5 text-[13px] text-dim inline-block max-w-[85%]'}
+                      style={msg.side === 'right'
+                        ? { background: 'color-mix(in oklab, var(--acid) 18%, var(--card-hi))' }
+                        : { background: 'var(--card-bg)', border: '1px solid var(--line)' }}>
+                      {msg.text}
+                    </div>
+                  </div>
+                ))}
+                {typing && (
+                  <div className="flex justify-end fade-in">
+                    <div className="bubble-r px-3 py-2.5 flex gap-1" style={{ background: 'color-mix(in oklab, var(--acid) 18%, var(--card-hi))' }}>
+                      <span className="typing-dot text-acid text-lg">·</span>
+                      <span className="typing-dot text-acid text-lg">·</span>
+                      <span className="typing-dot text-acid text-lg">·</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center justify-between mt-5 pt-4 border-t border-line">
+                <div className="flex items-center gap-2 font-mono-ui text-[10px] text-dimmer">
+                  <span>STIL · 99% match</span>
+                  <div className="flex gap-0.5">
+                    {[1,2,3,4].map(i => <div key={i} className="w-1.5 h-3.5 rounded-sm" style={{ background: 'var(--acid)' }} />)}
+                  </div>
+                </div>
+                <span className="font-mono-ui text-[10px] text-acid">preia tu →</span>
+              </div>
+            </div>
+
+            {/* RECENT col */}
+            <div className="p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div className="font-mono-ui text-[9.5px] text-dimmer tracking-widest uppercase">RECENT</div>
+                <span className="font-mono-ui text-[10px] text-dimmer">14h</span>
+              </div>
+              <div className="space-y-4">
+                {[
+                  { dot: 'acid', title: 'programare nouă · sâmbătă 14:00', sub: 'Andrei P.', time: '4m ago' },
+                  { dot: 'acid', title: 'a confirmat vizionarea', sub: 'Cristian V.', time: '12m ago' },
+                  { dot: 'danger', title: 'client frustrat · te-am alertat', sub: 'Elena M.', time: '27m ago' },
+                  { dot: 'dim', title: 'audio transcris · 0:42', sub: 'Diana R.', time: '1h ago' },
+                  { dot: 'dim', title: 'contact pe blacklist · sărit', sub: '+40 723 ···', time: '2h ago' },
+                ].map((item, i) => (
+                  <div key={i} className="flex items-start gap-2.5">
+                    <span className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0"
+                      style={{ background: item.dot === 'acid' ? 'var(--acid)' : item.dot === 'danger' ? 'var(--danger)' : 'var(--dim)' }} />
+                    <div>
+                      <div className="font-mono-ui text-[11px] text-ink leading-snug">{item.title}</div>
+                      <div className="font-mono-ui text-[10px] text-dimmer mt-0.5">{item.sub} · {item.time}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Stats row */}
+        <div className="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-px border border-line rounded-2xl overflow-hidden">
+          {[
+            { v: '23', l: 'conversații preluate azi' },
+            { v: '4×', l: 'timp mediu de răspuns la leaduri' },
+            { v: '99%', l: 'acuratețe stil vs. mesajele tale' },
+            { v: '8h', l: 'timpul tău recuperat săptămânal' },
+          ].map(s => (
+            <div key={s.l} className="px-7 py-5" style={{ background: 'var(--card-bg)' }}>
+              <div className="font-display text-[40px] text-acid leading-none">{s.v}</div>
+              <div className="font-mono-ui text-[10.5px] text-dimmer mt-2 leading-snug max-w-[130px]">{s.l}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ─── TICKER ───────────────────────────────────────────────────────────────────
+const TICKER_ITEMS = [
+  '● LIVE · agent @salon_ana a răspuns în 0.4s',
+  '● LIVE · programare confirmată automat · @clinic_dent',
+  '● LIVE · 3 lead-uri noi capturate · @imobiliare_vest',
+  '● LIVE · mesaj vocal transcris și procesat · @coach_radu',
+  '● LIVE · agent @shop_moda a salvat o comandă abandonată',
+  '● LIVE · client mulțumit · sentiment pozitiv detectat',
+  '● LIVE · baza de cunoștințe actualizată · @freelancer_web',
+  '● LIVE · agent activ în paralel pe 3 conversații',
+]
+
+function Ticker() {
+  const doubled = [...TICKER_ITEMS, ...TICKER_ITEMS]
+  return (
+    <div className="border-y border-line overflow-hidden py-3">
+      <div className="marquee-track flex gap-12 whitespace-nowrap">
+        {doubled.map((item, i) => (
+          <span key={i} className="font-mono-ui text-[11px] text-dimmer flex-shrink-0">{item}</span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ─── §01 DIFFERENTIATOR ───────────────────────────────────────────────────────
+function Differentiator() {
+  return (
+    <section id="diff" className="relative py-24 lg:py-32 border-b border-line overflow-hidden">
+      <div className="absolute inset-0 gridlines opacity-20 pointer-events-none" />
+      <div className="max-w-[1440px] mx-auto px-6 lg:px-8 relative">
+
+        {/* Header row */}
+        <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 mb-16">
+          <div>
+            <div className="font-mono-ui text-[11px] text-acid tracking-widest mb-6">§03 — TONUL.TĂU</div>
+            <h2 className="font-display text-[52px] sm:text-[68px] lg:text-[80px] text-ink">
+              sună ca tine,<br />
+              <span className="text-dim">nu ca un alt</span><br />
+              <span className="text-acid">bot ai.</span>
+            </h2>
+          </div>
+          <div className="flex items-end pb-2">
+            <p className="text-[16px] text-dim leading-relaxed">
+              Exportați chat-ul WhatsApp. Analizăm <strong className="text-ink">1.000+ mesaje</strong> în ~60 secunde — vocabular, lungime, emoji, ritm, când spui &bdquo;salut&rdquo; și când spui &bdquo;hei&rdquo;. Agentul reproduce <strong className="text-acid">tot.</strong>
+            </p>
+          </div>
+        </div>
+
+        {/* Side-by-side chat cards */}
+        <div className="grid sm:grid-cols-2 gap-4 mb-4">
+          {/* Original — Tu */}
+          <div className="card-elevated rounded-2xl p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-7 h-7 rounded-full font-mono-ui text-[10px] font-bold text-ink flex items-center justify-center"
+                style={{ background: 'var(--line)' }}>tu</div>
+              <div>
+                <div className="font-mono-ui text-[11px] text-ink">cum scrii tu</div>
+                <div className="font-mono-ui text-[9.5px] text-dimmer">arhivă · 1.247 mesaje · marți</div>
+              </div>
+              <div className="ml-auto font-mono-ui text-[9.5px] text-dimmer">REFERINȚĂ</div>
+            </div>
+            <div className="space-y-2.5">
+              <div className="bubble-l px-3 py-2 text-[12.5px] text-dim inline-block"
+                style={{ background: 'var(--card-bg)', border: '1px solid var(--line)' }}>
+                salut 🍕 când vrei să trecem?
+              </div>
+              <div className="flex justify-end">
+                <div className="bubble-r px-3 py-2 text-[12.5px] text-dim"
+                  style={{ background: 'color-mix(in oklab, var(--acid) 12%, var(--card-hi))' }}>
+                  am liber joi după 6 sau vineri dim
+                </div>
+              </div>
+              <div className="bubble-l px-3 py-2 text-[12.5px] text-dim inline-block"
+                style={{ background: 'var(--card-bg)', border: '1px solid var(--line)' }}>
+                vineri dim sună bine 👊
+              </div>
+              <div className="flex justify-end">
+                <div className="bubble-r px-3 py-2 text-[12.5px] text-dim"
+                  style={{ background: 'color-mix(in oklab, var(--acid) 12%, var(--card-hi))' }}>
+                  ok perfect, ne vedem la 9 la cafenea
+                </div>
+              </div>
+            </div>
+            {/* Fingerprint */}
+            <div className="mt-5 pt-4 border-t border-line">
+              <div className="font-mono-ui text-[9px] text-dimmer uppercase tracking-widest mb-3">FINGERPRINT</div>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2 font-mono-ui text-[10.5px]">
+                <div className="flex justify-between gap-1"><span className="text-dimmer">lungime medie</span><span className="text-ink">4–7 cuv.</span></div>
+                <div className="flex justify-between gap-1"><span className="text-dimmer">salut preferat</span><span className="text-ink">&bdquo;salut&rdquo;, &bdquo;hei&rdquo;</span></div>
+                <div className="flex justify-between gap-1"><span className="text-dimmer">emoji frecvent</span><span className="text-ink">🍕 👊 🤝</span></div>
+                <div className="flex justify-between gap-1"><span className="text-dimmer">punctuație</span><span className="text-ink">minimă</span></div>
+                <div className="flex justify-between gap-1"><span className="text-dimmer">caps</span><span className="text-ink">fără</span></div>
+                <div className="flex justify-between gap-1"><span className="text-dimmer">diacritice</span><span className="text-ink">50%</span></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Agent — AI */}
+          <div className="card-elevated rounded-2xl p-5 relative">
+            <div className="absolute top-4 right-4 font-mono-ui text-[10px] font-bold px-2.5 py-1 rounded-full"
+              style={{ background: 'var(--acid)', color: 'var(--on-acid)' }}>99% MATCH</div>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-7 h-7 rounded-full font-mono-ui text-[10px] font-bold flex items-center justify-center"
+                style={{ background: 'var(--acid)', color: 'var(--on-acid)' }}>ai</div>
+              <div>
+                <div className="font-mono-ui text-[11px] text-ink">cum scrie agentul</div>
+                <div className="font-mono-ui text-[9.5px] text-dimmer">clonă stil · azi noapte</div>
+              </div>
+            </div>
+            <div className="space-y-2.5">
+              <div className="bubble-l px-3 py-2 text-[12.5px] text-dim inline-block"
+                style={{ background: 'var(--card-bg)', border: '1px solid var(--line)' }}>
+                salut, mai e liber tunsul pentru sâmbătă?
+              </div>
+              <div className="flex justify-end">
+                <div className="bubble-r px-3 py-2 text-[12.5px] text-ink"
+                  style={{ background: 'color-mix(in oklab, var(--acid) 20%, var(--card-hi))' }}>
+                  hei da, am la 11 sau 14 sâmbătă
+                </div>
+              </div>
+              <div className="bubble-l px-3 py-2 text-[12.5px] text-dim inline-block"
+                style={{ background: 'var(--card-bg)', border: '1px solid var(--line)' }}>
+                14 e ok
+              </div>
+              <div className="flex justify-end">
+                <div className="bubble-r px-3 py-2 text-[12.5px] text-ink"
+                  style={{ background: 'color-mix(in oklab, var(--acid) 20%, var(--card-hi))' }}>
+                  ok te-am trecut, ne vedem sâmbătă la 14 👊
+                </div>
+              </div>
+            </div>
+            {/* Reproduces */}
+            <div className="mt-5 pt-4 border-t border-line">
+              <div className="font-mono-ui text-[9px] text-acid uppercase tracking-widest mb-3">REPRODUCE</div>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2 font-mono-ui text-[10.5px]">
+                <div className="flex justify-between gap-1"><span className="text-dimmer">lungime medie</span><span className="text-ink">5 cuv. <span className="text-acid">✓</span></span></div>
+                <div className="flex justify-between gap-1"><span className="text-dimmer">salut preferat</span><span className="text-ink">&bdquo;hei&rdquo; <span className="text-acid">✓</span></span></div>
+                <div className="flex justify-between gap-1"><span className="text-dimmer">emoji frecvent</span><span className="text-ink">👊 <span className="text-acid">✓</span></span></div>
+                <div className="flex justify-between gap-1"><span className="text-dimmer">punctuație</span><span className="text-ink">minimă <span className="text-acid">✓</span></span></div>
+                <div className="flex justify-between gap-1"><span className="text-dimmer">caps</span><span className="text-ink">fără <span className="text-acid">✓</span></span></div>
+                <div className="flex justify-between gap-1"><span className="text-dimmer">diacritice</span><span className="text-ink">52% <span className="text-acid">✓</span></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ─── §02 HOW IT WORKS ─────────────────────────────────────────────────────────
+function HowItWorks() {
+  return (
+    <section id="how" className="relative py-24 lg:py-32 border-b border-line">
+      <div className="max-w-[1440px] mx-auto px-6 lg:px-8">
+
+        {/* Header row */}
+        <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 mb-16">
+          <div>
+            <div className="font-mono-ui text-[11px] text-acid tracking-widest mb-6">§01 — CUM.MERGE</div>
+            <h2 className="font-display text-[52px] sm:text-[64px] lg:text-[76px] text-ink">
+              de la zero la primul<br />
+              răspuns automat<br />
+              <span className="text-acid">— 4 minute.</span>
+            </h2>
+          </div>
+          <div className="flex items-end pb-2">
+            <p className="text-[16px] text-dim leading-relaxed">
+              Nu instalezi nimic pe telefon. Nu schimbi numărul. Nu pierzi conversațiile vechi.
+            </p>
+          </div>
+        </div>
+
+        {/* 3 cards */}
+        <div className="grid md:grid-cols-3 gap-4">
+          {/* Card 01 — QR */}
+          <div className="card-elevated rounded-2xl p-7">
+            <div className="flex items-center justify-between mb-5">
+              <div className="font-mono-ui text-[9.5px] text-dimmer tracking-widest uppercase">PASUL.01</div>
+              <div className="font-mono-ui text-[28px] text-acid font-display leading-none">01</div>
+            </div>
+            <h3 className="font-display text-[22px] text-ink mb-3">
+              scanezi un QR<br />și ești conectat.
+            </h3>
+            <p className="text-[13px] text-dim leading-relaxed mb-6">
+              Cont WhatsApp legat în 30 de secunde. Nu schimbi nimic în aplicația ta — funcționează în paralel.
+            </p>
+            {/* QR code visual */}
+            <div className="rounded-xl overflow-hidden p-4" style={{ background: 'var(--card-hi)' }}>
+              <svg viewBox="0 0 120 120" className="w-full max-w-[140px] mx-auto block" style={{ imageRendering: 'pixelated' }}>
+                {/* QR pattern — simplified */}
+                {(() => {
+                  const pattern = [
+                    [1,1,1,1,1,1,1,0,1,0,0,1,0,0,1,1,1,1,1,1,1],
+                    [1,0,0,0,0,0,1,0,1,1,0,1,1,0,1,0,0,0,0,0,1],
+                    [1,0,1,1,1,0,1,0,0,1,1,0,1,0,1,0,1,1,1,0,1],
+                    [1,0,1,1,1,0,1,0,1,0,0,1,0,0,1,0,1,1,1,0,1],
+                    [1,0,1,1,1,0,1,0,0,1,0,0,1,0,1,0,1,1,1,0,1],
+                    [1,0,0,0,0,0,1,0,1,0,1,0,1,0,1,0,0,0,0,0,1],
+                    [1,1,1,1,1,1,1,0,1,0,1,0,1,0,1,1,1,1,1,1,1],
+                    [0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0],
+                    [1,0,1,1,0,1,1,1,0,0,1,0,1,1,1,0,1,0,1,1,0],
+                    [0,1,0,0,1,0,0,0,1,1,0,1,0,0,0,1,0,1,0,0,1],
+                    [1,1,1,0,1,1,1,0,0,0,1,0,1,0,1,0,1,1,1,0,1],
+                    [0,0,0,1,0,0,0,1,1,0,0,1,0,1,0,1,0,0,0,1,0],
+                    [1,1,1,1,1,1,1,0,1,1,0,0,1,0,1,0,1,1,1,1,1],
+                    [0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,0],
+                    [1,1,1,1,1,1,1,0,0,1,0,1,1,1,1,0,1,1,1,1,1],
+                    [1,0,0,0,0,0,1,0,1,0,1,0,0,0,0,1,0,0,0,0,1],
+                    [1,0,1,1,1,0,1,0,0,1,0,1,1,1,0,0,1,1,1,0,1],
+                    [1,0,1,1,1,0,1,0,1,0,1,0,0,0,1,1,0,0,0,1,0],
+                    [1,0,1,1,1,0,1,0,0,1,0,1,1,0,0,0,1,1,1,0,1],
+                    [1,0,0,0,0,0,1,0,1,0,1,0,0,1,1,1,0,0,0,0,1],
+                    [1,1,1,1,1,1,1,0,0,1,0,1,0,0,1,0,1,1,1,1,1],
+                  ]
+                  const cells: React.ReactElement[] = []
+                  const size = 120 / 21
+                  pattern.forEach((row, r) =>
+                    row.forEach((cell, c) => {
+                      if (cell) cells.push(
+                        <rect key={`${r}-${c}`} x={c * size} y={r * size} width={size} height={size} fill="var(--ink)" />
+                      )
+                    })
+                  )
+                  return cells
+                })()}
+              </svg>
+            </div>
+          </div>
+
+          {/* Card 02 — Knowledge base */}
+          <div className="card-elevated rounded-2xl p-7">
+            <div className="flex items-center justify-between mb-5">
+              <div className="font-mono-ui text-[9.5px] text-dimmer tracking-widest uppercase">PASUL.02</div>
+              <div className="font-mono-ui text-[28px] text-acid font-display leading-none">02</div>
+            </div>
+            <h3 className="font-display text-[22px] text-ink mb-3">
+              îi spui ce știi<br />despre business.
+            </h3>
+            <p className="text-[13px] text-dim leading-relaxed mb-6">
+              Prețuri, program, servicii, întrebări frecvente. Urci arhiva WhatsApp și învață cum scrii.
+            </p>
+            {/* Code block */}
+            <div className="rounded-xl p-4 font-mono-ui text-[12px] leading-relaxed" style={{ background: 'var(--card-hi)' }}>
+              <div className="text-dimmer"># program</div>
+              <div className="text-ink">L-V 9-18, S 10-14</div>
+              <div className="mt-2 text-dimmer"># tunsoare clasică</div>
+              <div className="text-ink">80 RON · 30min</div>
+              <div className="mt-2 text-dimmer"># vopsit</div>
+              <div className="text-ink">de la 220 RON</div>
+              <div className="mt-3 pt-3 border-t border-line text-acid">+ stil învățat din 1.247 mesaje</div>
+            </div>
+          </div>
+
+          {/* Card 03 — Activate */}
+          <div className="card-elevated rounded-2xl p-7" style={{ background: 'color-mix(in oklab, var(--acid) 8%, var(--card-hi))' }}>
+            <div className="flex items-center justify-between mb-5">
+              <div className="font-mono-ui text-[9.5px] text-dimmer tracking-widest uppercase">PASUL.03</div>
+              <div className="font-mono-ui text-[28px] text-acid font-display leading-none">03</div>
+            </div>
+            <h3 className="font-display text-[22px] text-ink mb-3">
+              activezi agentul<br />și te ocupi de altele.
+            </h3>
+            <p className="text-[13px] text-dim leading-relaxed mb-6">
+              Răspunde noaptea, în ședințe, în concediu. Tu vezi tot în dashboard.
+            </p>
+            {/* Toggle + chart */}
+            <div className="rounded-xl p-4" style={{ background: 'rgba(10,15,12,0.06)' }}>
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <div className="font-mono-ui text-[12px] text-ink font-medium">agent activ</div>
+                  <div className="font-mono-ui text-[10px] text-dimmer">23 conv. azi</div>
+                </div>
+                <div className="w-11 h-6 rounded-full flex items-center justify-end pr-0.5"
+                  style={{ background: 'var(--acid)' }}>
+                  <div className="w-5 h-5 rounded-full" style={{ background: 'var(--on-acid)' }} />
+                </div>
+              </div>
+              <div className="flex items-end gap-1 h-8">
+                {[55, 70, 40, 85, 65, 90, 75].map((h, i) => (
+                  <div key={i} className="flex-1 rounded-sm" style={{ height: `${h}%`, background: 'var(--acid)' }} />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ─── §03 FEATURES — TABLE ROWS ────────────────────────────────────────────────
+const FEATURES = [
+  {
+    no: '01', title: 'răspunde 24/7, fără excepții',
+    desc: 'Timer 1–60 min. Dacă nu răspunzi în acel interval, agentul preia. Te conectezi singur.',
+    visual: <div className="flex items-end gap-0.5 h-5">{[40,70,50,90,65,85,55,100,75].map((h,i)=><div key={i} className="w-1 rounded-sm" style={{height:`${h}%`,background:'var(--acid)'}}/>)}</div>,
+  },
+  {
+    no: '02', title: 'bază de cunoștințe a ta',
+    desc: 'Prețuri, program, servicii, politici, FAQ. Răspunde cu informații reale — nu inventate.',
+    visual: <div className="font-mono-ui text-[10px] text-dim flex flex-col gap-0.5"><span className="text-acid">conținut.md</span><span>faq.md</span><span className="text-dimmer">+8</span></div>,
+  },
+  {
+    no: '03', title: 'memorie per client',
+    desc: 'Își amintește că Maria caută 2 camere. Andrei a întrebat de tuns săptămâna trecută.',
+    visual: <div className="flex items-center gap-1"><div className="flex" style={{gap:'-4px'}}>{['MD','AP','RV'].map((t,idx)=><div key={idx} className="w-6 h-6 rounded-full font-mono-ui text-[8px] font-bold text-ink flex items-center justify-center border border-line -ml-1 first:ml-0" style={{background:'var(--card-hi)'}}>{t}</div>)}</div><span className="font-mono-ui text-[9px] text-dimmer ml-1">+42</span></div>,
+  },
+  {
+    no: '04', title: 'înțelege mesajele vocale',
+    desc: 'Transcrie audio-ul și răspunde la conținut, nu doar la „salut". Română nativ.',
+    visual: <div className="font-mono-ui text-[10px] text-dim">▶ 0:43 <span className="text-acid">·</span> 21</div>,
+  },
+  {
+    no: '05', title: 'detectează frustrarea',
+    desc: 'Mesaj urgent sau client nervos — te alertăm imediat. Prelei tu conversația.',
+    visual: <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full flex-shrink-0" style={{background:'var(--danger)'}} /><span className="font-mono-ui text-[10px]" style={{color:'var(--danger)'}}>tone</span><span className="font-mono-ui text-[11px] font-bold text-acid">!</span></div>,
+  },
+  {
+    no: '06', title: 'listă neagră de contacte',
+    desc: 'Familie, prieteni, parteneri. Excluzi orice număr — primesc doar mesajele tale reale.',
+    visual: <div className="font-mono-ui text-[10.5px] text-dim">+40 723···<br/><span className="text-acid">skip ✓</span></div>,
+  },
+  {
+    no: '07', title: 'timer de inactivitate',
+    desc: 'De la 1 la 60 de minute. Agentul intervine doar când chiar nu poți răspunde.',
+    visual: <div className="flex items-center gap-1 font-mono-ui text-[10px]"><span className="text-dimmer">1m</span><div className="w-12 h-1 rounded-full bg-cardhi overflow-hidden"><div className="h-full rounded-full" style={{width:'30%',background:'var(--acid)'}}/></div><span className="text-acid font-medium">15m</span></div>,
+  },
+  {
+    no: '08', title: 'dashboard complet',
+    desc: 'Statistici, sesiunea curentă, conversațiile preluate. Vezi tot ce-a răspuns agentul tău.',
+    visual: <div className="flex items-end gap-0.5 h-5">{[60,90,45,75,100].map((h,i)=><div key={i} className="w-1.5 rounded-sm" style={{height:`${h}%`,background:'var(--acid)'}}/>)}<span className="font-mono-ui text-[9px] text-acid ml-1">+34k</span></div>,
+  },
+  {
+    no: '09', title: 'pornești/oprești instant',
+    desc: 'Un singur switch. Sau direct din WhatsApp îi trimiți /off.',
+    visual: <div className="w-11 h-6 rounded-full flex items-center justify-end pr-0.5" style={{background:'var(--acid)'}}><div className="w-5 h-5 rounded-full" style={{background:'var(--on-acid)'}}/></div>,
+  },
+]
+
+function Features() {
+  return (
+    <section id="features" className="relative py-24 lg:py-32 border-b border-line">
+      <div className="max-w-[1440px] mx-auto px-6 lg:px-8">
+        <div className="grid lg:grid-cols-2 gap-10 lg:gap-20 mb-14">
+          <div>
+            <div className="font-mono-ui text-[11px] text-acid tracking-widest mb-6">§02 — FUNCȚIONALITĂȚI</div>
+            <h2 className="font-display text-[48px] sm:text-[60px] text-ink">
+              tot ce face agentul<br />
+              când <span className="text-dim">nu poți</span><br />
+              răspunde.
+            </h2>
+          </div>
+          <div className="flex items-end pb-2">
+            <p className="text-[16px] text-dim leading-relaxed">
+              Nouă lucruri pe care le face singur. Toate setabile, toate oprite-pornite cu un click.
+            </p>
+          </div>
+        </div>
+
+        {/* Table rows */}
+        <div className="divide-y border-t border-b border-line" style={{ borderColor: 'var(--line)' }}>
+          {FEATURES.map((f) => (
+            <div key={f.no} className="grid grid-cols-[40px_1fr_auto] sm:grid-cols-[40px_220px_1fr_140px] items-center gap-4 sm:gap-8 py-5 group hover:bg-cardhi transition-colors px-2 rounded">
+              <div className="font-mono-ui text-[11px] text-dimmer">{f.no}</div>
+              <div className="font-display text-[17px] sm:text-[18px] text-ink">{f.title}</div>
+              <div className="hidden sm:block text-[13px] text-dim leading-relaxed">{f.desc}</div>
+              <div className="flex items-center justify-end">{f.visual}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ─── §04 PRICING ──────────────────────────────────────────────────────────────
+const PLAN_LUNAR = [
+  '7 zile trial gratuit',
+  'mesaje nelimitate',
+  '1 cont WhatsApp',
+  'clonare stil din arhiva ta',
+  'knowledge base nelimitat',
+  'mesaje vocale & sentiment',
+  'dashboard complet',
+]
+
+const PLAN_ANUAL_EXTRA = [
+  '7 zile trial gratuit',
+  'tot ce e în Lunar, plus:',
+  '33% reducere',
+  'suport prioritar < 2h',
+  'acces beta features',
+  'antrenare săptămânală a stilului',
+  'factură pe firmă',
+]
+
+function Pricing() {
+  return (
+    <section id="pricing" className="relative py-24 lg:py-32 border-b border-line">
+      <div className="max-w-[1440px] mx-auto px-6 lg:px-8">
+
+        {/* Headline */}
+        <div className="mb-14">
+          <div className="font-mono-ui text-[11px] text-acid tracking-widest mb-6">§04 — PREȚURI</div>
+          <div className="grid lg:grid-cols-2 gap-8 items-end">
+            <h2 className="font-display text-[52px] sm:text-[64px] lg:text-[80px] text-ink">
+              plătești cât<br />
+              <span className="text-acid">câștigi.</span><br />
+              anulezi când<br />
+              vrei.
+            </h2>
+            <div className="pb-2">
+              <p className="font-mono-ui text-[11.5px] text-dimmer mb-2">7 zile trial gratuit · card necesar</p>
+              <p className="text-[14px] text-dim leading-relaxed max-w-[320px]">
+                Nu îți retragem niciun ban în primele 7 zile. Te setezi oriunde, anulezi oricând fără cost.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Cards — 2 coloane */}
+        <div className="grid md:grid-cols-2 gap-4">
+            {/* Lunar */}
+            <div className="card-elevated rounded-2xl p-5 transition-shadow hover:shadow-lg hover:border-acid/30 border border-line cursor-default">
+              <div className="flex items-start justify-between mb-3">
+                <div>
+                  <div className="font-display text-[18px] text-ink">lunar</div>
+                  <div className="font-mono-ui text-[9px] text-dimmer tracking-widest uppercase mt-0.5">FLEXIBIL</div>
+                </div>
+                <div className="text-right">
+                  <div className="font-display text-[36px] text-ink leading-none">
+                    49<span className="text-[22px]">.99</span>
+                  </div>
+                  <div className="font-mono-ui text-[10px] text-dimmer">RON / lună</div>
+                </div>
+              </div>
+              <p className="text-[12px] text-dim mb-4">Facturat lunar. Anulezi oricând cu un click.</p>
+              <ul className="space-y-2 mb-5">
+                {PLAN_LUNAR.map(f => (
+                  <li key={f} className="flex items-center gap-2 font-mono-ui text-[12px] text-dim">
+                    <Check className="w-3 h-3 text-acid flex-shrink-0" strokeWidth={2.5} />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+              <Link href="/signup" className="block text-center border border-line text-ink font-mono-ui font-medium text-[12px] py-2.5 rounded-full hover:bg-cardhi transition-colors">
+                Începe trialul de 7 zile
+              </Link>
+            </div>
+
+            {/* Anual */}
+            <div className="rounded-2xl p-5 relative transition-shadow hover:shadow-xl cursor-default" style={{ background: 'var(--acid)' }}>
+              <div className="absolute -top-3 right-5 font-mono-ui text-[9px] font-bold px-2.5 py-0.5 rounded-full"
+                style={{ background: 'var(--ink)', color: 'var(--acid)' }}>★ ECONOMISEȘTI 33%</div>
+              <div className="flex items-start justify-between mb-3">
+                <div>
+                  <div className="font-display text-[18px] leading-none" style={{ color: 'var(--on-acid)' }}>anual</div>
+                </div>
+                <div className="text-right">
+                  <div className="font-display text-[36px] leading-none" style={{ color: 'var(--on-acid)' }}>
+                    399
+                  </div>
+                  <div className="font-mono-ui text-[10px]" style={{ color: 'var(--on-acid-muted)' }}>RON / an</div>
+                </div>
+              </div>
+              <p className="font-mono-ui text-[11px] mb-0.5" style={{ color: 'var(--on-acid)' }}>
+                Echivalent ~33.25 RON / lună
+              </p>
+              <p className="font-mono-ui text-[10.5px] mb-4" style={{ color: 'var(--on-acid-muted)' }}>
+                economisești 201 RON față de lunar
+              </p>
+              <ul className="space-y-2 mb-5">
+                {PLAN_ANUAL_EXTRA.map((f, i) => (
+                  <li key={f} className={`flex items-center gap-2 font-mono-ui text-[12px] ${i === 1 ? 'font-semibold' : ''}`} style={{ color: 'var(--on-acid)' }}>
+                    <Check className="w-3 h-3 flex-shrink-0" style={{ color: 'var(--on-acid)' }} strokeWidth={2.5} />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+              <Link href="/signup" className="block text-center font-mono-ui font-medium text-[12px] py-2.5 rounded-full transition-opacity hover:opacity-90"
+                style={{ background: '#ffffff', color: 'var(--acid)' }}>
+                Începe trialul de 7 zile
+              </Link>
+            </div>
+
+        </div>
+
+        {/* Footer trust */}
+        <div className="flex flex-wrap gap-x-5 gap-y-1 font-mono-ui text-[10.5px] text-dimmer pt-4">
+          <span>✓ anulezi cu un click</span>
+          <span>✓ 14 zile money-back</span>
+          <span>✓ Factură pe Firmă</span>
+          <span>✓ migrare gratuită</span>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ─── §05 FAQ ──────────────────────────────────────────────────────────────────
+const FAQ_ITEMS = [
+  {
+    q: 'e legal să folosesc asta cu WhatsApp?',
+    a: 'Da. E contul tău personal, tu decizi ce răspunde. Nu trimitem mesaje în masă, nu spamăm, nu colectăm contactele fără consimțământ. Tu dețineți conversațiile, tu dețineți agentul.',
+  },
+  {
+    q: 'clienții vor ști că vorbesc cu un bot?',
+    a: 'Dacă ți-ai configurat corect stilul — nu. Agentul analizează cum scrii tu și reproduce fidel. În teste, sub 3% din conversații sunt detectate ca automate.',
+  },
+  {
+    q: 'ce se întâmplă când sunt online și răspund eu?',
+    a: 'Agentul se retrage automat imediat ce ești activ. Nu vei trimite niciodată două răspunsuri la același mesaj.',
+  },
+  {
+    q: 'pot opri agentul oricând?',
+    a: 'Un switch în dashboard. Sau direct din WhatsApp îi trimiți /off. Nu există situație în care nu poți opri instant.',
+  },
+  {
+    q: 'ce limbi înțelege?',
+    a: 'Română nativ. Engleză, maghiară, germană, italiană, franceză, spaniolă cu fluență. Cu diacritice sau fără, română amestecată cu engleză — reproduce exact felul tău.',
+  },
+  {
+    q: 'datele mele sunt în siguranță?',
+    a: 'Stocate în UE (Frankfurt), criptate la rest și în tranzit. Nu folosim datele tale pentru antrenarea modelelor generale. Poți cere ștergere totală oricând.',
+  },
+]
+
+function FAQ() {
+  return (
+    <section id="faq" className="relative py-24 lg:py-32 border-b border-line">
+      <div className="max-w-[1440px] mx-auto px-6 lg:px-8">
+        <div className="grid lg:grid-cols-2 gap-12 lg:gap-20">
+
+          {/* Left */}
+          <div>
+            <div className="font-mono-ui text-[11px] text-acid tracking-widest mb-6">§05 — FAQ</div>
+            <h2 className="font-display text-[48px] sm:text-[60px] lg:text-[68px] text-ink">
+              ce ne<br />
+              <span className="text-acid">întreabă</span><br />
+              toți, înainte<br />
+              să încerce.
+            </h2>
+            <p className="mt-8 text-[14px] text-dim leading-relaxed">
+              Nu găsești răspunsul? Scrie-ne la{' '}
+              <a href="mailto:hi@whatsappai.ro" className="text-acid hover:opacity-75 transition-opacity">
+                hi@whatsappai.ro
+              </a>
+              . Răspundem în câteva ore.<br />
+              Noi, nu agentul.
+            </p>
+          </div>
+
+          {/* Right — accordion */}
+          <div className="divide-y" style={{ borderColor: 'var(--line)' }}>
+            {FAQ_ITEMS.map((item, i) => (
+              <details key={i} className="group py-5">
+                <summary className="flex items-start justify-between gap-4 cursor-pointer">
+                  <span className="font-display-md text-[17px] text-ink flex-1">{item.q}</span>
+                  <span className="chev flex-shrink-0 w-7 h-7 rounded-full border border-line text-dim grid place-items-center font-mono-ui text-[14px]">+</span>
+                </summary>
+                <div className="text-[13.5px] text-dim leading-relaxed mt-3 pr-10">{item.a}</div>
+              </details>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ─── FOOTER ───────────────────────────────────────────────────────────────────
+function Footer() {
+  return (
+    <footer id="footer" className="border-t border-line pt-12 pb-6">
+      <div className="max-w-[1440px] mx-auto px-6 lg:px-8">
+        <div className="grid lg:grid-cols-12 gap-10 mb-8">
+          <div className="lg:col-span-5">
+            <a href="#top" className="inline-flex items-center gap-2">
+              <span className="inline-flex items-center justify-center w-10 h-10 rounded-full" style={{ background: '#25D366' }}>
+                <WaIcon size={22} />
+              </span>
+              <span className="font-mono-ui text-[16px] font-medium text-ink">
+                WhatsApp<span className="text-acid"> AI</span>
+              </span>
+            </a>
+            <p className="mt-6 text-[14px] text-dim max-w-[380px] leading-relaxed">
+              Agentul AI care răspunde clienților tăi pe WhatsApp — cu tonul tău — când tu nu poți. Construit în România.
+            </p>
+
+          </div>
+
+          <div className="lg:col-span-7 flex flex-col gap-3">
+            <div className="font-mono-ui text-[10.5px] text-dimmer tracking-widest uppercase">LEGAL</div>
+            <div className="flex flex-wrap gap-x-6 gap-y-2 font-mono-ui text-[15px]">
+              <Link href="/termeni" scroll={false} className="text-dim hover:text-ink transition-colors pb-0.5 border-b border-transparent hover:border-acid">termeni și condiții</Link>
+              <Link href="/confidentialitate" scroll={false} className="text-dim hover:text-ink transition-colors pb-0.5 border-b border-transparent hover:border-acid">confidențialitate</Link>
+              <Link href="/gdpr" scroll={false} className="text-dim hover:text-ink transition-colors pb-0.5 border-b border-transparent hover:border-acid">gdpr</Link>
+              <Link href="/cookies" scroll={false} className="text-dim hover:text-ink transition-colors pb-0.5 border-b border-transparent hover:border-acid">cookies</Link>
+            </div>
+          </div>
+        </div>
+
+        <div className="border-t border-line pt-5 font-mono-ui text-[11px] text-dimmer">
+          <div>© 2026 WhatsApp AI - toate drepturile rezervate</div>
+        </div>
+      </div>
+    </footer>
+  )
+}
+
+// ─── PAGE ─────────────────────────────────────────────────────────────────────
+export default function LandingPage() {
+  useEffect(() => {
+    if (sessionStorage.getItem('scrollToFooter') === '1') {
+      sessionStorage.removeItem('scrollToFooter')
+      document.documentElement.style.scrollBehavior = 'auto'
+      document.getElementById('footer')?.scrollIntoView()
+      document.documentElement.style.scrollBehavior = ''
+    }
+  }, [])
+
+  return (
+    <div className="bg-base min-h-screen">
+      <Navbar />
+      <main id="top" className="overflow-hidden">
+        <Hero />
+        <OperatorConsole />
+        <Ticker />
+        <HowItWorks />
+        <Features />
+        <Differentiator />
+        <Pricing />
+        <FAQ />
+      </main>
+      <Footer />
+    </div>
+  )
+}

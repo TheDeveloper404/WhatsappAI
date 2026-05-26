@@ -1,0 +1,52 @@
+import { randomUUID } from 'crypto'
+import { whatsappRepository } from './whatsapp.repository.js'
+import { requestQrCode, disconnectSession } from './whatsapp.session-manager.js'
+import { Errors } from '../../utils/errors.js'
+import type { WhatsappSession } from '../../db/schema.js'
+
+export const whatsappService = {
+  async getSession(userId: string): Promise<WhatsappSession | null> {
+    return (await whatsappRepository.findByUserId(userId)) ?? null
+  },
+
+  async connect(userId: string): Promise<{ qrCode: string }> {
+    const now = Date.now()
+    await whatsappRepository.upsert({
+      id: randomUUID(),
+      userId,
+      phoneNumber: null,
+      status: 'pairing',
+      pairingCode: null,
+      pairingCodeExpiresAt: null,
+      connectedAt: null,
+      createdAt: now,
+      updatedAt: now,
+    })
+
+    let qrCode: string
+    try {
+      qrCode = await requestQrCode(userId)
+    } catch (err: any) {
+      await whatsappRepository.update(userId, {
+        status: 'disconnected',
+        pairingCode: null,
+        pairingCodeExpiresAt: null,
+      })
+      throw Errors.internal(err?.message ?? 'Eroare la conectare WhatsApp.')
+    }
+
+    await whatsappRepository.update(userId, {
+      status: 'pairing',
+      pairingCode: qrCode,
+      pairingCodeExpiresAt: Date.now() + 60_000,
+    })
+
+    return { qrCode }
+  },
+
+  async disconnect(userId: string): Promise<void> {
+    const session = await whatsappRepository.findByUserId(userId)
+    if (!session) throw Errors.notFound('Sesiune WhatsApp')
+    await disconnectSession(userId)
+  },
+}

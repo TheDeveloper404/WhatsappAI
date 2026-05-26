@@ -796,7 +796,7 @@ function Pricing() {
             {/* Anual */}
             <div className="rounded-2xl p-5 relative transition-shadow hover:shadow-xl cursor-default" style={{ background: 'var(--acid)' }}>
               <div className="absolute -top-3 right-5 font-mono-ui text-[9px] font-bold px-2.5 py-0.5 rounded-full"
-                style={{ background: 'var(--ink)', color: 'var(--acid)' }}>★ ECONOMISEȘTI 33%</div>
+                style={{ background: 'var(--ink)', color: 'var(--on-acid)' }}>★ ECONOMISEȘTI 33%</div>
               <div className="flex items-start justify-between mb-3">
                 <div>
                   <div className="font-display text-[18px] leading-none" style={{ color: 'var(--on-acid)' }}>anual</div>
@@ -823,7 +823,7 @@ function Pricing() {
                 ))}
               </ul>
               <Link href="/signup" className="block text-center font-mono-ui font-medium text-[12px] py-2.5 rounded-full transition-opacity hover:opacity-90"
-                style={{ background: '#ffffff', color: 'var(--acid)' }}>
+                style={{ background: '#ffffff', color: '#0A0F0C' }}>
                 Începe trialul de 7 zile
               </Link>
             </div>

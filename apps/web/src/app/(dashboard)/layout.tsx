@@ -101,8 +101,8 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
       <nav className="border-b border-line px-6 py-3.5 flex items-center justify-between">
         <div className="flex items-center gap-6">
           <Link href="/dashboard" className="flex items-center gap-2.5">
-            <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg" style={{ background: '#25D366' }}>
-              <WaIcon size={16} />
+            <span className="inline-flex items-center justify-center w-8 h-8 rounded-full" style={{ background: '#25D366' }}>
+              <WaIcon size={20} />
             </span>
             <span className="font-mono-ui text-[14px] font-medium text-ink">
               WhatsApp<span className="text-acid"> AI</span>

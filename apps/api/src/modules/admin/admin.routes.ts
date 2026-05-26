@@ -3,6 +3,7 @@ import { adminRepository } from './admin.repository.js'
 import { env } from '../../config/env.js'
 import { Errors } from '../../utils/errors.js'
 import { sendCustomEmail } from '../../utils/email.js'
+import { logger } from '../../utils/logger.js'
 
 function verifyAdminToken(req: { headers: { authorization?: string } }) {
   const header = req.headers.authorization
@@ -83,7 +84,7 @@ export async function adminRoutes(app: FastifyInstance) {
     const user = users.find(u => u.id === userId)
     if (!user) throw Errors.notFound('User negăsit.')
     await sendCustomEmail(user.email, subject, body).catch(err =>
-      console.error('[admin/email] send failed:', err.message)
+      logger.error('[admin] email send failed', { err: err.message })
     )
     return reply.send({ ok: true })
   })

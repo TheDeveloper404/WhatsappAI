@@ -4,6 +4,7 @@ import { users } from '../../db/schema.js'
 import { adminRepository } from './admin.repository.js'
 import { sendAdminNotificationEmail } from '../../utils/email.js'
 import { env } from '../../config/env.js'
+import { logger } from '../../utils/logger.js'
 
 async function getAdminUserId(): Promise<string | null> {
   if (!env.ADMIN_EMAIL) return null
@@ -21,6 +22,6 @@ export async function notifyAdmin(type: string, title: string, body: string): Pr
       await sendAdminNotificationEmail(env.ADMIN_EMAIL, title, body)
     }
   } catch (err) {
-    console.error('[Admin] Eroare la notificare:', err)
+    logger.error('[admin] notificare eșuată', { err: String(err) })
   }
 }

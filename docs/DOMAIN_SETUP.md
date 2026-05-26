@@ -70,3 +70,19 @@ Cloudflare nameservers
                 → test email înregistrare
                 → test plată Stripe
 ```
+
+---
+
+### Reminder — Testare features noi în producție
+
+Înainte să mergi live cu orice feature nou:
+
+1. Lucrezi pe un branch separat (ex: `feature/nume-feature`)
+2. Vercel face preview automat pe acel branch → testezi acolo
+3. Railway: ai un serviciu `api-staging` cu DB separată → `NEXT_PUBLIC_API_URL` pe branch pointează la staging
+4. Când totul e ok pe staging → merge pe `main` → deploy automat în producție
+
+**Setup staging Railway (o singură dată, ~10 min):**
+- Duplicate serviciul API în Railway → redenumești `api-staging`
+- Setezi variabilele de env (aceleași, dar `DATABASE_URL` = o bază de date nouă separată)
+- Pe Vercel, branch-ul `staging` primește `NEXT_PUBLIC_API_URL` = URL-ul `api-staging`

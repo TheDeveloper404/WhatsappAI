@@ -4,8 +4,9 @@ import { useRouter } from 'next/navigation'
 import {
   Loader2, Users, Bot, CreditCard, RefreshCw, Bell, LogOut, Phone,
   CheckCircle, XCircle, Clock, AlertCircle, TrendingUp, ChevronDown,
-  Mail, Trash2, WifiOff, CalendarPlus, Settings, Save, X, Sun, Moon,
+  Mail, Trash2, WifiOff, CalendarPlus, Settings, Save, X,
 } from 'lucide-react'
+import { ThemeToggle } from '@/components/ThemeToggle'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -63,22 +64,6 @@ function SubBadge({ status }: { status: string | null }) {
     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${cfg.color}`}>
       <Icon className="h-3 w-3" />{cfg.label}
     </span>
-  )
-}
-
-function ThemeToggle() {
-  const [dark, setDark] = useState(false)
-  useEffect(() => { setDark(document.documentElement.classList.contains('dark')) }, [])
-  function toggle() {
-    const next = !dark
-    setDark(next)
-    document.documentElement.classList.toggle('dark', next)
-    localStorage.setItem('wa-ai-theme', next ? 'dark' : 'light')
-  }
-  return (
-    <button onClick={toggle} className="p-2 text-dim hover:text-ink hover:bg-cardhi rounded-lg transition-colors" title={dark ? 'Mod luminos' : 'Mod întunecat'}>
-      {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-    </button>
   )
 }
 

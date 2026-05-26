@@ -115,15 +115,6 @@ export const contactMemory = pgTable('contact_memory', {
   userContactUnique: unique().on(t.userId, t.contactPhone),
 }))
 
-export const whatsappAuthState = pgTable('whatsapp_auth_state', {
-  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  keyType: text('key_type').notNull(),
-  keyId: text('key_id').notNull(),
-  data: text('data').notNull(),
-  updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
-}, (t) => ({
-  pk: primaryKey({ columns: [t.userId, t.keyType, t.keyId] }),
-}))
 
 export type ContactMemory = typeof contactMemory.$inferSelect
 

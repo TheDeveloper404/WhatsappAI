@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid'
 import { createHmac } from 'crypto'
+import { logger } from '../../utils/logger.js'
 import { authRepository } from './auth.repository.js'
 import { hashPassword, verifyPassword } from '../../utils/password.js'
 import {
@@ -45,7 +46,7 @@ export const authService = {
     })
 
     await sendVerificationEmail(user.email, user.name, verifyToken).catch(err =>
-      console.error('[register] verification email failed:', err.message)
+      logger.error('[auth] verification email failed', { err: err.message })
     )
     notifyAdmin('new_user', 'User nou înregistrat', `Nume: ${user.name}\nEmail: ${user.email}`).catch(() => {})
 
@@ -144,7 +145,7 @@ export const authService = {
     })
 
     await sendPasswordResetEmail(user.email, rawToken).catch(err =>
-      console.error('[forgotPassword] email send failed:', err.message)
+      logger.error('[auth] forgotPassword email failed', { err: err.message })
     )
   },
 

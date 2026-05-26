@@ -155,17 +155,11 @@ export const aiRepository = {
 
   async upsertContactMemory(userId: string, contactPhone: string, summary: string): Promise<void> {
     const now = Date.now()
-    const existing = await db.select({ id: contactMemory.id })
-      .from(contactMemory)
-      .where(and(eq(contactMemory.userId, userId), eq(contactMemory.contactPhone, contactPhone)))
-    if (existing[0]) {
-      await db.update(contactMemory)
-        .set({ summary, updatedAt: now })
-        .where(eq(contactMemory.id, existing[0].id))
-    } else {
-      await db.insert(contactMemory).values({
-        id: randomUUID(), userId, contactPhone, summary, createdAt: now, updatedAt: now,
+    await db.insert(contactMemory)
+      .values({ id: randomUUID(), userId, contactPhone, summary, createdAt: now, updatedAt: now })
+      .onConflictDoUpdate({
+        target: [contactMemory.userId, contactMemory.contactPhone],
+        set: { summary, updatedAt: now },
       })
-    }
   },
 }

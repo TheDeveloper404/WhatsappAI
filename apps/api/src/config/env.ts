@@ -29,6 +29,7 @@ const envSchema = z.object({
   ADMIN_EMAIL: z.string().email().optional(),
   ADMIN_SECRET: z.string().min(4).optional(),
   E2E_MODE: z.enum(['true', 'false']).optional(),
+  E2E_SECRET: z.string().min(16).optional(),
 })
 
 const parsed = envSchema.safeParse(process.env)

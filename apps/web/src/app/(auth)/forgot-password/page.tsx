@@ -31,13 +31,13 @@ export default function ForgotPasswordPage() {
   if (sent) {
     return (
       <div className="text-center">
-        <CheckCircle2 className="h-12 w-12 text-primary-600 mx-auto mb-4" />
-        <h2 className="text-xl font-bold text-gray-900 mb-2">Email trimis</h2>
-        <p className="text-sm text-gray-500">
-          Dacă există un cont cu adresa <strong>{email}</strong>, vei primi un link de resetare în câteva minute.
+        <CheckCircle2 className="h-12 w-12 text-acid mx-auto mb-4" />
+        <h2 className="font-display text-[28px] text-ink leading-none mb-2">email trimis.</h2>
+        <p className="font-mono-ui text-[12px] text-dim mt-2">
+          Dacă există un cont cu adresa <strong className="text-ink">{email}</strong>, vei primi un link de resetare în câteva minute.
         </p>
-        <Link href="/login" className="mt-6 inline-block text-sm text-primary-600 hover:text-primary-700 font-medium">
-          Înapoi la login
+        <Link href="/login" className="mt-6 inline-block font-mono-ui text-[12px] text-acid hover:opacity-75 transition-opacity">
+          ← înapoi la login
         </Link>
       </div>
     )
@@ -45,9 +45,10 @@ export default function ForgotPasswordPage() {
 
   return (
     <>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Resetează parola</h1>
-        <p className="text-sm text-gray-500 mt-1">Îți trimitem un link pe email</p>
+      <div className="mb-7">
+        <div className="font-mono-ui text-[10px] text-acid tracking-widest mb-3">→ RESETARE PAROLĂ</div>
+        <h1 className="font-display text-[32px] text-ink">ai uitat parola?</h1>
+        <p className="font-mono-ui text-[12px] text-dimmer mt-1.5">îți trimitem un link pe email</p>
       </div>
 
       {error && <Alert type="error" message={error} className="mb-4" />}
@@ -58,18 +59,18 @@ export default function ForgotPasswordPage() {
           type="email"
           value={email}
           onChange={e => setEmail(e.target.value)}
-          placeholder="tu@business.com"
+          placeholder="tu@business.ro"
           autoComplete="email"
           required
         />
-        <Button type="submit" loading={loading} className="w-full">
-          Trimite link de resetare
+        <Button type="submit" loading={loading} className="w-full h-11 text-[14px]">
+          trimite link de resetare →
         </Button>
       </form>
 
-      <p className="text-center text-sm text-gray-500 mt-6">
-        <Link href="/login" className="text-primary-600 hover:text-primary-700 font-medium">
-          Înapoi la login
+      <p className="font-mono-ui text-center text-[12px] text-dimmer mt-6">
+        <Link href="/login" className="text-acid hover:opacity-75 transition-opacity">
+          ← înapoi la login
         </Link>
       </p>
     </>

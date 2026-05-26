@@ -60,7 +60,15 @@ export async function buildApp() {
     },
     credentials: true,
   })
-  await app.register(helmet, { contentSecurityPolicy: false, crossOriginEmbedderPolicy: false })
+  await app.register(helmet, {
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'none'"],
+        frameAncestors: ["'none'"],
+      },
+    },
+    crossOriginEmbedderPolicy: false,
+  })
   await app.register(rateLimit, { global: false })
 
   await app.register(authRoutes, { prefix: '/api/v1/auth' })

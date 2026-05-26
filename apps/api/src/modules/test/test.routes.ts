@@ -15,6 +15,13 @@ import { env } from '../../config/env.js'
 // NU monta în producție
 
 export async function testRoutes(app: FastifyInstance) {
+  app.addHook('preHandler', async (req, reply) => {
+    const secret = req.headers['x-e2e-secret']
+    if (!env.E2E_SECRET || secret !== env.E2E_SECRET) {
+      return reply.status(401).send({ error: 'Unauthorized' })
+    }
+  })
+
   // Resetează toată baza de date (apelat în beforeEach din Playwright)
   // Șterge tabelele în ordinea corectă (fk constraints), ignoring missing tables
   app.post('/reset', async (_req, reply) => {

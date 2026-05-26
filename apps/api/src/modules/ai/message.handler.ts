@@ -66,7 +66,7 @@ function schedulePending(userId: string, contactPhone: string, jid: string, sock
 
   if (!pendingResponses.has(userId)) pendingResponses.set(userId, new Map())
   pendingResponses.get(userId)!.set(contactPhone, timeout)
-  logger.info(`[AI][${userId.slice(0, 8)}] răspuns programat`, { contact: contactPhone, timerMin: settings.timerMinutes })
+  logger.info(`[AI][${userId.slice(0, 8)}] răspuns programat`, { timerMin: settings.timerMinutes })
 }
 
 async function sendAiResponse(userId: string, contactPhone: string, jid: string, sock: WASocket, settings: AiSettings, sentiment: 'urgent' | 'frustrated' | 'normal' = 'normal'): Promise<void> {
@@ -100,11 +100,11 @@ async function sendAiResponse(userId: string, contactPhone: string, jid: string,
     })),
   ]
 
-  logger.info(`[AI][${userId.slice(0, 8)}] generez răspuns`, { contact: contactPhone })
+  logger.info(`[AI][${userId.slice(0, 8)}] generez răspuns`)
   const reply = await askGroq(groqMessages)
   await sock.sendMessage(jid, { text: reply })
   await aiRepository.saveMessage(userId, contactPhone, true, reply, Date.now())
-  logger.info(`[AI][${userId.slice(0, 8)}] răspuns trimis`, { contact: contactPhone })
+  logger.info(`[AI][${userId.slice(0, 8)}] răspuns trimis`)
 
   // Actualizează memoria în background, fără să blocheze răspunsul
   const messagesForMemory = [...ordered, { fromMe: true, body: reply }]
@@ -141,7 +141,7 @@ async function processMessage(userId: string, sock: WASocket, msg: any): Promise
       const buffer = await downloadMediaMessage(msg, 'buffer', {}) as Buffer
       const mimeType = m?.audioMessage?.mimetype ?? m?.pttMessage?.mimetype ?? 'audio/ogg'
       body = await transcribeAudio(buffer, mimeType)
-      logger.info(`[AI][${userId.slice(0, 8)}] vocal transcris`, { contact: contactPhone, preview: body?.slice(0, 60) })
+      logger.info(`[AI][${userId.slice(0, 8)}] vocal transcris`)
     } catch (err) {
       logger.error(`[AI][${userId.slice(0, 8)}] eroare transcriere vocal`, { err: String(err) })
       return

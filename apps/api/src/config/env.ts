@@ -27,7 +27,7 @@ const envSchema = z.object({
   GROQ_API_KEY: z.string().min(1),
 
   ADMIN_EMAIL: z.string().email().optional(),
-  ADMIN_SECRET: z.string().min(32).optional(),
+  ADMIN_SECRET: z.string().min(4).optional(),
   E2E_MODE: z.enum(['true', 'false']).optional(),
 })
 

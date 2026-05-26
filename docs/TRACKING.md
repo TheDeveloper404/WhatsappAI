@@ -1,7 +1,45 @@
 # E2E Tracking — WhatsApp AI Playwright Tests
 
 **Ultima actualizare**: 2026-05-26
-**Stare**: ✅ 54/54 E2E passed · 156/156 vitest passed
+**Stare**: ✅ 54/54 E2E passed · 156/156 vitest passed · ✅ Deployed Railway + Vercel
+
+---
+
+## DEPLOYMENT 2026-05-26 — Railway (API) + Vercel (Frontend)
+
+### Ce s-a deploiat
+- API: Railway cu Docker, `https://api-production-2318d.up.railway.app`
+- Frontend: Vercel, `https://whatsapp-ai-web-rho.vercel.app`
+
+### Probleme întâlnite și soluții
+
+**502 Bad Gateway Railway**
+- Cauza: `pool.end()` din `migrate.ts` atârna pe Railway Hobby Postgres (doarme la startup)
+- Fix: migrații mutate inline în `index.ts` cu 5 retry-uri + start command = `node apps/api/dist/index.js`
+
+**PORT mismatch**
+- Railway auto-injectează `PORT=8080`, dar Networking era configurat pe 3001
+- Fix: Networking → Public Networking → port schimbat la 8080
+
+**CORS cross-origin (Vercel → Railway)**
+- Cookie `SameSite=Lax` bloca automat cross-site cookies
+- Fix: `sameSite: 'none'`, `secure: true` în `auth.controller.ts`
+- CORS origin cu trailing slash mismatch → funcție normalizare în `app.ts`
+
+**Stripe customer ID din test mode în DB**
+- Customer `cus_...` creat cu chei test, inexistent în Stripe live
+- Fix: user a șters înregistrările din DB → creare automată customer nou în live
+
+### Fișiere modificate
+- `apps/api/src/index.ts` — migrații inline cu retry
+- `apps/api/src/app.ts` — CORS origin funcție cu normalizare trailing slash
+- `apps/api/src/modules/auth/auth.controller.ts` — cookie `sameSite: 'none'`, `secure: true`
+- `apps/web/src/app/layout.tsx` — Vercel Analytics adăugat
+- `Dockerfile` + `railway.json` — configurare deployment Railway
+
+### Rămas de făcut (post-lansare)
+- [ ] Resend: domeniu propriu verificat (acum emailurile merg doar la contul Resend)
+- [ ] Stripe: activare completă cont pentru plăți live (elimină badge "Sandbox")
 
 ---
 

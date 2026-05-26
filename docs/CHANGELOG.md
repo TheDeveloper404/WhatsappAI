@@ -8,6 +8,36 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.8.0] — 2026-05-26
+
+### Deployment — Railway (API) + Vercel (Frontend)
+
+#### Railway API
+- `Dockerfile` creat pentru build monorepo (`pnpm@9`, `apps/api`)
+- `railway.json` configurat cu `DOCKERFILE` builder + `ON_FAILURE` restart policy
+- Migrații mutate inline în `index.ts` cu **5 retry-uri** (3s delay) — Railway Hobby Postgres doarme la startup și cauzează `ETIMEDOUT` la prima tentativă
+- Start command: `node apps/api/dist/index.js` (un singur proces, fără `&&`)
+- Port: Railway auto-injectează `PORT=8080` → Networking configurat pe 8080
+- API live: `https://api-production-2318d.up.railway.app`
+
+#### Vercel Frontend
+- Root Directory: `apps/web` (nu repo root)
+- Singura variabilă necesară: `NEXT_PUBLIC_API_URL=https://api-production-2318d.up.railway.app`
+- Vercel Analytics adăugat (`@vercel/analytics/next` în `layout.tsx`)
+- Frontend live: `https://whatsapp-ai-web-rho.vercel.app`
+
+#### Fix CORS cross-origin (Vercel → Railway)
+- Cookie `refreshToken`: `sameSite: 'lax'` → `sameSite: 'none'`, `secure: true` (necesar cross-site)
+- `clearCookie` la logout: adăugat `{ secure: true, sameSite: 'none' }`
+- CORS origin: înlocuit string fix cu funcție care normalizează trailing slash din `APP_URL`
+- `APP_URL` în Railway: `https://whatsapp-ai-web-rho.vercel.app`
+
+### Known issues (post-lansare)
+- **Resend**: emailurile merg doar la adresa contului Resend (sandbox). Necesită domeniu propriu verificat în Resend pentru utilizatori reali.
+- **Stripe**: badge "Sandbox" apare dacă contul Stripe nu e complet activat/verificat pentru plăți live.
+
+---
+
 ## [0.7.1] — 2026-05-26
 
 ### Fixed

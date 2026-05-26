@@ -1,19 +1,44 @@
 'use client'
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Shield, Loader2, Eye, EyeOff } from 'lucide-react'
+import { Alert } from '@/components/ui/Alert'
+import { Button } from '@/components/ui/Button'
+import { Shield } from 'lucide-react'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 export default function AdminLoginPage() {
   const router = useRouter()
-  const [secret, setSecret] = useState('')
+  const [pin, setPin] = useState(['', '', '', ''])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [showSecret, setShowSecret] = useState(false)
+
+  const ref0 = useRef<HTMLInputElement>(null)
+  const ref1 = useRef<HTMLInputElement>(null)
+  const ref2 = useRef<HTMLInputElement>(null)
+  const ref3 = useRef<HTMLInputElement>(null)
+  const inputRefs = [ref0, ref1, ref2, ref3]
+
+  useEffect(() => { ref0.current?.focus() }, [])
+
+  function handleChange(index: number, value: string) {
+    if (!/^\d?$/.test(value)) return
+    const next = [...pin]
+    next[index] = value
+    setPin(next)
+    if (value && index < 3) inputRefs[index + 1].current?.focus()
+  }
+
+  function handleKeyDown(index: number, e: React.KeyboardEvent) {
+    if (e.key === 'Backspace' && !pin[index] && index > 0) {
+      inputRefs[index - 1].current?.focus()
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    const secret = pin.join('')
+    if (secret.length < 4) return
     setError('')
     setLoading(true)
     try {
@@ -23,81 +48,70 @@ export default function AdminLoginPage() {
         body: JSON.stringify({ secret }),
       })
       if (!res.ok) {
-        setError('Cod de acces incorect.')
+        setError('Cod incorect. Încearcă din nou.')
+        setPin(['', '', '', ''])
+        ref0.current?.focus()
         return
       }
       sessionStorage.setItem('admin_token', secret)
       router.push('/admin/dashboard')
     } catch {
-      setError('Eroare de conexiune. Verifică serverul.')
+      setError('Eroare de conexiune.')
     } finally {
       setLoading(false)
     }
   }
 
+  const pinComplete = pin.every(d => d !== '')
+
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-base flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
-        {/* Header */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-primary-600 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-lg shadow-primary-200">
-            <Shield className="h-8 w-8 text-white" />
-          </div>
-          <h1 className="text-2xl font-extrabold text-gray-900">Admin Panel</h1>
-          <p className="text-gray-500 text-sm mt-2">Acces restricționat — doar administratori</p>
+          <span
+            className="inline-flex items-center justify-center w-12 h-12 rounded-2xl mb-5"
+            style={{ background: 'var(--acid)' }}
+          >
+            <Shield className="h-6 w-6" style={{ color: 'var(--on-acid)' }} />
+          </span>
+          <div className="font-mono-ui text-[10px] text-acid tracking-widest mb-2">→ ACCES RESTRICȚIONAT</div>
+          <h1 className="font-display text-[32px] text-ink leading-none">admin panel.</h1>
+          <p className="font-mono-ui text-[12px] text-dimmer mt-2">introdu codul de 4 cifre</p>
         </div>
 
-        {/* Card */}
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-7">
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-                Cod secret
-              </label>
-              <div className="relative">
+        <div className="card-elevated rounded-2xl p-8">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+            <div className="flex gap-3 justify-center">
+              {pin.map((digit, i) => (
                 <input
-                  type={showSecret ? 'text' : 'password'}
-                  value={secret}
-                  onChange={e => setSecret(e.target.value)}
-                  placeholder="Introdu codul de acces"
-                  autoFocus
-                  className="w-full border border-gray-200 bg-gray-50 text-gray-900 placeholder-gray-400 rounded-xl px-4 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent pr-11 transition-all"
+                  key={i}
+                  ref={inputRefs[i]}
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={1}
+                  value={digit}
+                  onChange={e => handleChange(i, e.target.value)}
+                  onKeyDown={e => handleKeyDown(i, e)}
+                  className="w-14 h-16 text-center text-[28px] font-display text-ink bg-cardhi border border-line rounded-xl focus:outline-none focus:ring-2 focus:ring-acid/40 focus:border-acid transition-colors"
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowSecret(!showSecret)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  {showSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
+              ))}
             </div>
 
-            {error && (
-              <div className="bg-red-50 border border-red-100 rounded-xl px-4 py-3">
-                <p className="text-red-600 text-sm">{error}</p>
-              </div>
-            )}
+            {error && <Alert type="error" message={error} />}
 
-            <button
+            <Button
               type="submit"
-              disabled={loading || !secret.trim()}
-              className="w-full bg-primary-600 hover:bg-primary-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl text-sm transition-colors flex items-center justify-center gap-2 shadow-sm"
+              loading={loading}
+              disabled={!pinComplete}
+              className="w-full h-11"
             >
-              {loading ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Se verifică...
-                </>
-              ) : (
-                'Intră în admin'
-              )}
-            </button>
+              intră în admin →
+            </Button>
           </form>
         </div>
 
-        <p className="text-center text-gray-400 text-xs mt-8">
-          WhatsApp AI · Panou administrare intern
+        <p className="font-mono-ui text-center text-[11px] text-dimmer mt-6">
+          WhatsApp AI · panou administrare intern
         </p>
       </div>
     </div>

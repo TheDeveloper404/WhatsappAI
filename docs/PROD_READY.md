@@ -2,7 +2,8 @@
 
 **Ultima verificare:** 2026-05-26  
 **Stare cod:** 156/156 API ✅ · 54/54 E2E ✅  
-**Securitate auditată:** C1, C2, H1, H2, H3, H4, M1 fixate ✅
+**Securitate auditată:** C1, C2, H1, H2, H3, H4, M1 fixate ✅  
+**Deployment:** API pe Railway ✅ · Frontend pe Vercel ✅
 
 ---
 
@@ -10,12 +11,12 @@
 
 ### 🔴 BLOCKER — fără acestea nu poți lansa
 
-| # | Ce | Afectează teste? |
-|---|----|-----------------|
-| 1 | **PostgreSQL cloud** — DB locală = risc pierdere date la restart server. Opțiuni: Railway Postgres, Supabase, Neon (toate au free tier). Setezi `DATABASE_URL` în env prod. | NU |
-| 2 | **Resend domain verificat** — acum trimite email doar la adresa ta. Domeniu propriu necesar pentru utilizatori reali. | NU |
-| 3 | **Stripe live keys + webhook URL real** — acum e în test mode. `STRIPE_SECRET_KEY=sk_live_...`, `STRIPE_WEBHOOK_SECRET` nou din dashboard Stripe live. | NU |
-| 4 | **Deployment config** — Dockerfile + hosting ales (Railway / Fly.io / VPS). API pe port 3001, web pe port 3000 sau Vercel pentru Next.js. | NU |
+| # | Ce | Afectează teste? | Status |
+|---|----|-----------------|--------|
+| 1 | **PostgreSQL cloud** — DB locală = risc pierdere date la restart server. | NU | ✅ Railway Postgres |
+| 2 | **Resend domain verificat** — acum trimite email doar la adresa contului Resend. Domeniu propriu necesar pentru utilizatori reali. | NU | ⏳ Pending |
+| 3 | **Stripe live keys + webhook URL real** | NU | ✅ Live keys setate |
+| 4 | **Deployment config** — Dockerfile + hosting. | NU | ✅ Railway (API) + Vercel (web) |
 
 ---
 
@@ -71,6 +72,13 @@ Testele rulează cu `NODE_ENV=test` și baza de date separată — complet izola
 | Cod backend + securitate | ~95% |
 | Frontend app | ~85% |
 | Landing page | 100% |
-| Deployment / infra | ~10% |
-| Servicii externe configurate | ~30% |
-| **Overall** | **~75%** |
+| Deployment / infra | ~95% |
+| Servicii externe configurate | ~80% |
+| **Overall** | **~90%** |
+
+### URLs producție
+| Serviciu | URL |
+|----------|-----|
+| Frontend (Vercel) | https://whatsapp-ai-web-rho.vercel.app |
+| API (Railway) | https://api-production-2318d.up.railway.app |
+| Health check | https://api-production-2318d.up.railway.app/health |

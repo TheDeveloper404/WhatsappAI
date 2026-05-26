@@ -3,26 +3,30 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/store/auth'
 import { api } from '@/lib/api'
-import { Check, Loader2, Zap } from 'lucide-react'
+import { Alert } from '@/components/ui/Alert'
+import { Button } from '@/components/ui/Button'
+import { Check, Zap } from 'lucide-react'
 
 const PLANS = [
   {
     id: 'monthly' as const,
-    label: 'Lunar',
+    label: 'LUNAR',
     price: '49.99',
     period: 'lună',
     description: 'Ideal pentru a testa platforma',
     features: ['Agent AI activ 24/7', 'Răspunsuri personalizate', 'Comenzi WhatsApp', 'Suport email'],
+    recommended: false,
   },
   {
     id: 'annual' as const,
-    label: 'Anual',
+    label: 'ANUAL',
     price: '399',
     period: 'an',
-    pricePerMonth: '33.25',
-    badge: 'Economisești 33%',
+    pricePerMonth: '33.25 RON/lună',
+    badge: 'economisești 33%',
     description: 'Cel mai bun raport calitate-preț',
     features: ['Tot ce include planul lunar', 'Prioritate la noile funcții', 'Suport prioritar'],
+    recommended: true,
   },
 ]
 
@@ -46,29 +50,29 @@ export default function SubscribePage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className="max-w-2xl mx-auto py-4">
       <div className="text-center mb-10">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Alege planul tău</h1>
-        <p className="text-gray-500">7 zile trial gratuit — cardul nu este debitat imediat</p>
+        <div className="font-mono-ui text-[10px] text-acid tracking-widest mb-3">→ TRIAL GRATUIT 7 ZILE</div>
+        <h1 className="font-display text-[40px] text-ink leading-none mb-3">alege planul tău.</h1>
+        <p className="font-mono-ui text-[13px] text-dim">cardul nu este debitat în perioada de trial</p>
       </div>
 
-      {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 text-center">
-          {error}
-        </div>
-      )}
+      {error && <Alert type="error" message={error} className="mb-6" />}
 
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid md:grid-cols-2 gap-4">
         {PLANS.map((plan) => (
           <div
             key={plan.id}
-            className={`relative bg-white rounded-2xl border-2 p-6 flex flex-col ${
-              plan.id === 'annual' ? 'border-primary-500 shadow-lg shadow-primary-100' : 'border-gray-200'
+            className={`relative rounded-2xl border p-6 flex flex-col transition-all ${
+              plan.recommended ? 'border-acid bg-cardhi' : 'border-line bg-card'
             }`}
           >
             {plan.badge && (
               <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                <span className="bg-primary-600 text-white text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1">
+                <span
+                  className="font-mono-ui text-[10px] tracking-widest px-3 py-1 rounded-full inline-flex items-center gap-1"
+                  style={{ background: 'var(--acid)', color: 'var(--on-acid)' }}
+                >
                   <Zap className="h-3 w-3" />
                   {plan.badge}
                 </span>
@@ -76,47 +80,41 @@ export default function SubscribePage() {
             )}
 
             <div className="mb-6">
-              <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-1">{plan.label}</p>
-              <div className="flex items-end gap-1">
-                <span className="text-4xl font-bold text-gray-900">{plan.price}</span>
-                <span className="text-gray-500 mb-1">RON / {plan.period}</span>
+              <p className="font-mono-ui text-[10px] text-dimmer tracking-widest mb-2">{plan.label}</p>
+              <div className="flex items-end gap-1.5">
+                <span className="font-display text-[42px] text-ink leading-none">{plan.price}</span>
+                <span className="font-mono-ui text-[12px] text-dim mb-1">RON / {plan.period}</span>
               </div>
               {plan.pricePerMonth && (
-                <p className="text-sm text-primary-600 font-medium mt-1">{plan.pricePerMonth} RON/lună</p>
+                <p className="font-mono-ui text-[11px] text-acid mt-1">{plan.pricePerMonth}</p>
               )}
-              <p className="text-sm text-gray-500 mt-2">{plan.description}</p>
+              <p className="font-mono-ui text-[12px] text-dim mt-2">{plan.description}</p>
             </div>
 
             <ul className="flex flex-col gap-2 mb-8 flex-1">
               {plan.features.map((f) => (
-                <li key={f} className="flex items-start gap-2 text-sm text-gray-600">
-                  <Check className="h-4 w-4 text-primary-600 shrink-0 mt-0.5" />
+                <li key={f} className="flex items-start gap-2 font-mono-ui text-[12px] text-dim">
+                  <Check className="h-3.5 w-3.5 text-acid shrink-0 mt-0.5" />
                   {f}
                 </li>
               ))}
             </ul>
 
-            <button
+            <Button
               onClick={() => handleSelect(plan.id)}
               disabled={loading !== null}
-              className={`w-full py-3 px-4 rounded-xl font-semibold text-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-60 ${
-                plan.id === 'annual'
-                  ? 'bg-primary-600 hover:bg-primary-700 text-white'
-                  : 'bg-gray-100 hover:bg-gray-200 text-gray-900'
-              }`}
+              loading={loading === plan.id}
+              variant={plan.recommended ? 'primary' : 'secondary'}
+              className="w-full"
             >
-              {loading === plan.id ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                'Începe trial gratuit'
-              )}
-            </button>
+              începe trial gratuit →
+            </Button>
           </div>
         ))}
       </div>
 
-      <p className="text-center text-xs text-gray-400 mt-6">
-        Poți anula oricând din dashboard. Fără contracte, fără penalități.
+      <p className="font-mono-ui text-center text-[11px] text-dimmer mt-6">
+        poți anula oricând. fără contracte, fără penalități.
       </p>
     </div>
   )

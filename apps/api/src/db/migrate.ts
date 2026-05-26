@@ -2,6 +2,8 @@ import 'dotenv/config'
 import '../config/env.js'
 import { Pool } from 'pg'
 
+console.log('[MIGRATE] DATABASE_URL:', process.env.DATABASE_URL ? `SET -> ${process.env.DATABASE_URL.slice(0, 40)}...` : 'NOT SET / UNDEFINED')
+
 const pool = new Pool({ connectionString: process.env.DATABASE_URL })
 
 const statements = [

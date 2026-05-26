@@ -37,7 +37,7 @@ export async function askGroq(messages: GroqMessage[]): Promise<string> {
 
 export async function transcribeAudio(buffer: Buffer, mimeType = 'audio/ogg'): Promise<string> {
   const formData = new FormData()
-  formData.append('file', new Blob([buffer], { type: mimeType }), 'audio.ogg')
+  formData.append('file', new Blob([new Uint8Array(buffer)], { type: mimeType }), 'audio.ogg')
   formData.append('model', 'whisper-large-v3')
   formData.append('response_format', 'json')
 

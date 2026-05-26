@@ -138,4 +138,5 @@ for (const sql of statements) {
 }
 
 console.log('Database migrated successfully.')
-await pool.end()
+try { await pool.end() } catch {}
+process.exit(0)

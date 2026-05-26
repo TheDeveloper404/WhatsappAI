@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { CookieBanner } from "@/components/CookieBanner";
+import { Analytics } from "@vercel/analytics/next";
 
 export const metadata: Metadata = {
   title: "WhatsApp AI — răspunde singur. cu tonul tău.",
@@ -32,6 +33,7 @@ export default function RootLayout({
       <body className="antialiased font-sans bg-base text-ink">
         {children}
         <CookieBanner />
+        <Analytics />
       </body>
     </html>
   );

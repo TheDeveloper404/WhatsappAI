@@ -49,7 +49,17 @@ export async function buildApp() {
   const app = Fastify({ logger: env.NODE_ENV !== 'test', trustProxy: true })
 
   await app.register(cookie)
-  await app.register(cors, { origin: env.APP_URL, credentials: true })
+  const allowedOrigin = env.APP_URL.replace(/\/$/, '')
+  await app.register(cors, {
+    origin: (origin, cb) => {
+      if (!origin || origin.replace(/\/$/, '') === allowedOrigin) {
+        cb(null, true)
+      } else {
+        cb(new Error('Not allowed by CORS'), false)
+      }
+    },
+    credentials: true,
+  })
   await app.register(helmet, { contentSecurityPolicy: false, crossOriginEmbedderPolicy: false })
   await app.register(rateLimit, { global: false })
 

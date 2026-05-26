@@ -1,27 +1,63 @@
 import 'dotenv/config'
-import './config/env.js'
-import { env } from './config/env.js'
-import { buildApp } from './app.js'
-import { restoreAllSessions } from './modules/whatsapp/whatsapp.session-manager.js'
-import { authRepository } from './modules/auth/auth.repository.js'
 
-console.log('[INDEX] Starting, PORT:', env.PORT, 'NODE_ENV:', env.NODE_ENV)
+process.stdout.write('[INDEX] dotenv loaded\n')
+
+let env: any
+try {
+  const envMod = await import('./config/env.js')
+  env = envMod.env
+  process.stdout.write('[INDEX] env OK PORT=' + env.PORT + ' NODE_ENV=' + env.NODE_ENV + '\n')
+} catch (err) {
+  process.stdout.write('[INDEX] env FAILED: ' + String(err) + '\n')
+  process.exit(1)
+}
+
+let buildApp: any
+try {
+  const appMod = await import('./app.js')
+  buildApp = appMod.buildApp
+  process.stdout.write('[INDEX] app.js imported OK\n')
+} catch (err) {
+  process.stdout.write('[INDEX] app.js FAILED: ' + String(err) + '\n')
+  process.exit(1)
+}
+
+let restoreAllSessions: any
+try {
+  const waMod = await import('./modules/whatsapp/whatsapp.session-manager.js')
+  restoreAllSessions = waMod.restoreAllSessions
+  process.stdout.write('[INDEX] session-manager imported OK\n')
+} catch (err) {
+  process.stdout.write('[INDEX] session-manager FAILED: ' + String(err) + '\n')
+  process.exit(1)
+}
+
+let authRepository: any
+try {
+  const authMod = await import('./modules/auth/auth.repository.js')
+  authRepository = authMod.authRepository
+  process.stdout.write('[INDEX] auth.repository imported OK\n')
+} catch (err) {
+  process.stdout.write('[INDEX] auth.repository FAILED: ' + String(err) + '\n')
+  process.exit(1)
+}
 
 let app: any
 try {
   app = await buildApp()
+  process.stdout.write('[INDEX] buildApp OK\n')
 } catch (err) {
-  console.error('[INDEX] buildApp failed:', String(err))
+  process.stdout.write('[INDEX] buildApp FAILED: ' + String(err) + '\n')
   process.exit(1)
 }
 
 try {
   await app.listen({ port: env.PORT, host: '0.0.0.0' })
-  console.log(`[INDEX] API running on port ${env.PORT}`)
-  restoreAllSessions().catch(err => console.error('[WA] Eroare la restore startup:', err))
+  process.stdout.write('[INDEX] listening on port ' + env.PORT + '\n')
+  restoreAllSessions().catch((err: any) => process.stdout.write('[WA] restore error: ' + String(err) + '\n'))
   authRepository.cleanOldLoginAttempts().catch(() => {})
   setInterval(() => authRepository.cleanOldLoginAttempts().catch(() => {}), 60 * 60 * 1000)
 } catch (err) {
-  console.error('[INDEX] listen failed:', String(err))
+  process.stdout.write('[INDEX] listen FAILED: ' + String(err) + '\n')
   process.exit(1)
 }

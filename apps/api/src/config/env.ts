@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+process.stdout.write('[ENV] env.ts loaded\n')
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.coerce.number().default(3001),
@@ -38,3 +40,4 @@ if (!parsed.success) {
 }
 
 export const env = parsed.data
+process.stdout.write('[ENV] env.ts OK - PORT=' + parsed.data.PORT + ' NODE_ENV=' + parsed.data.NODE_ENV + '\n')

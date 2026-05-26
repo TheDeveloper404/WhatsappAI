@@ -3,7 +3,7 @@ import { BackButton } from '@/components/BackButton'
 import { ScrollRestoreTop } from '@/components/ScrollRestoreTop'
 
 export const metadata: Metadata = {
-  title: 'Termeni și condiții — WhatsApp AI',
+  title: 'Termeni și condiții — waai.',
 }
 
 export default function TermeniPage() {

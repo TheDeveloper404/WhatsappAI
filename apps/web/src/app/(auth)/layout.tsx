@@ -36,8 +36,8 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <span className="inline-flex items-center justify-center w-9 h-9 rounded-full" style={{ background: '#25D366' }}>
             <WaIcon size={20} />
           </span>
-          <span className="font-mono-ui text-[15px] font-medium" style={{ color: '#E8E6E1' }}>
-            WhatsApp<span style={{ color: '#C8FB4A' }}> AI</span>
+          <span className="font-mono-ui text-[20px] font-semibold" style={{ color: '#E8E6E1' }}>
+            wa<span style={{ color: '#C8FB4A' }}>ai.</span>
           </span>
         </Link>
 
@@ -105,8 +105,8 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <span className="inline-flex items-center justify-center w-9 h-9 rounded-full" style={{ background: '#25D366' }}>
             <WaIcon size={20} />
           </span>
-          <span className="font-mono-ui text-[15px] font-medium text-ink">
-            WhatsApp<span className="text-acid"> AI</span>
+          <span className="font-mono-ui text-[20px] font-semibold text-ink">
+            wa<span className="text-acid">ai.</span>
           </span>
         </Link>
 

@@ -4,8 +4,21 @@ import { CookieBanner } from "@/components/CookieBanner";
 import { Analytics } from "@vercel/analytics/next";
 
 export const metadata: Metadata = {
-  title: "WhatsApp AI — răspunde singur. cu tonul tău.",
-  description: "Agentul AI care răspunde clienților tăi pe WhatsApp cu tonul tău — când tu nu poți.",
+  title: "waai. — răspunde singur. cu tonul tău.",
+  description: "AI-ul care preia automat conversațiile și păstrează experiența personală a brandului tău.",
+  openGraph: {
+    title: "waai. — răspunde singur. cu tonul tău.",
+    description: "AI-ul care preia automat conversațiile și păstrează experiența personală a brandului tău.",
+    url: "https://waai.ro",
+    siteName: "waai.",
+    locale: "ro_RO",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "waai. — răspunde singur. cu tonul tău.",
+    description: "AI-ul care preia automat conversațiile și păstrează experiența personală a brandului tău.",
+  },
 };
 
 const themeScript = `

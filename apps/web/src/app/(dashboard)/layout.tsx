@@ -54,6 +54,12 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
       return
     }
 
+    if (user?.role === 'admin') {
+      subVerified.current = true
+      setChecking(false)
+      return
+    }
+
     if (!subVerified.current) {
       setChecking(true)
     }
@@ -89,8 +95,8 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
             <span className="inline-flex items-center justify-center w-8 h-8 rounded-full" style={{ background: '#25D366' }}>
               <WaIcon size={20} />
             </span>
-            <span className="font-mono-ui text-[14px] font-medium text-ink">
-              WhatsApp<span className="text-acid"> AI</span>
+            <span className="font-mono-ui text-[18px] font-semibold text-ink">
+              wa<span className="text-acid">ai.</span>
             </span>
           </Link>
           <div className="hidden sm:flex items-center gap-1">

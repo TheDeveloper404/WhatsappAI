@@ -3,7 +3,7 @@ import { BackButton } from '@/components/BackButton'
 import { DeleteAccountButton } from '@/components/DeleteAccountButton'
 
 export const metadata: Metadata = {
-  title: 'GDPR — WhatsApp AI',
+  title: 'GDPR — waai.',
 }
 
 export default function GdprPage() {

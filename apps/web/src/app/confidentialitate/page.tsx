@@ -3,7 +3,7 @@ import { BackButton } from '@/components/BackButton'
 import { ScrollRestoreTop } from '@/components/ScrollRestoreTop'
 
 export const metadata: Metadata = {
-  title: 'Politică de confidențialitate — WhatsApp AI',
+  title: 'Politică de confidențialitate — waai.',
 }
 
 export default function ConfidentialitatePage() {

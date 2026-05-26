@@ -937,10 +937,10 @@ function Footer() {
           <div className="lg:col-span-7 flex flex-col gap-3">
             <div className="font-mono-ui text-[10.5px] text-dimmer tracking-widest uppercase">LEGAL</div>
             <div className="flex flex-wrap gap-x-6 gap-y-2 font-mono-ui text-[15px]">
-              <Link href="/termeni" scroll={false} className="text-dim hover:text-ink transition-colors pb-0.5 border-b border-transparent hover:border-acid">termeni și condiții</Link>
-              <Link href="/confidentialitate" scroll={false} className="text-dim hover:text-ink transition-colors pb-0.5 border-b border-transparent hover:border-acid">confidențialitate</Link>
-              <Link href="/gdpr" scroll={false} className="text-dim hover:text-ink transition-colors pb-0.5 border-b border-transparent hover:border-acid">gdpr</Link>
-              <Link href="/cookies" scroll={false} className="text-dim hover:text-ink transition-colors pb-0.5 border-b border-transparent hover:border-acid">cookies</Link>
+              <Link href="/termeni" className="text-dim hover:text-ink transition-colors pb-0.5 border-b border-transparent hover:border-acid">termeni și condiții</Link>
+              <Link href="/confidentialitate" className="text-dim hover:text-ink transition-colors pb-0.5 border-b border-transparent hover:border-acid">confidențialitate</Link>
+              <Link href="/gdpr" className="text-dim hover:text-ink transition-colors pb-0.5 border-b border-transparent hover:border-acid">gdpr</Link>
+              <Link href="/cookies" className="text-dim hover:text-ink transition-colors pb-0.5 border-b border-transparent hover:border-acid">cookies</Link>
             </div>
           </div>
         </div>

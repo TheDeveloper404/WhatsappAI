@@ -423,16 +423,14 @@ export default function AdminDashboard() {
 
       {/* Navbar */}
       <nav className="border-b border-line px-6 py-3.5 flex items-center justify-between sticky top-0 z-10 bg-base">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <span className="inline-flex items-center justify-center w-8 h-8 rounded-full" style={{ background: '#25D366' }}>
             <svg viewBox="0 0 32 32" width="20" height="20" fill="#fff">
               <path d="M16 5.5C10.2 5.5 5.5 10.2 5.5 16c0 1.85.49 3.66 1.42 5.25L5.5 26.5l5.4-1.4A10.4 10.4 0 0 0 16 26.5c5.8 0 10.5-4.7 10.5-10.5S21.8 5.5 16 5.5zm4.7 13.67c-.26-.13-1.52-.75-1.76-.84-.24-.09-.41-.13-.58.13s-.66.84-.81 1.01c-.15.17-.3.19-.55.06-.26-.13-1.08-.4-2.06-1.27a7.72 7.72 0 0 1-1.43-1.77c-.15-.26-.02-.4.11-.53.12-.12.26-.3.39-.45.13-.15.17-.26.26-.43.09-.17.04-.32-.02-.45-.06-.13-.58-1.39-.79-1.9-.21-.5-.42-.43-.58-.44h-.49a.94.94 0 0 0-.68.32c-.23.26-.89.86-.89 2.1s.91 2.44 1.04 2.6c.13.17 1.79 2.73 4.34 3.82.61.26 1.08.42 1.45.54.61.19 1.16.16 1.6.1.49-.07 1.52-.62 1.73-1.22.21-.6.21-1.11.15-1.22-.06-.11-.24-.17-.5-.3z" />
             </svg>
           </span>
-          <div>
-            <p className="font-mono-ui text-[14px] font-medium text-ink">WhatsApp<span className="text-acid"> AI</span></p>
-            <p className="font-mono-ui text-[10px] text-dimmer tracking-widest">ADMIN PANEL</p>
-          </div>
+          <span className="font-mono-ui text-[14px] font-medium text-ink">WhatsApp<span className="text-acid"> AI</span></span>
+          <span className="font-mono-ui text-[9px] tracking-widest px-2 py-0.5 rounded-full bg-cardhi text-dimmer border border-line">ADMIN</span>
         </div>
         <div className="flex items-center gap-1">
           <ThemeToggle />

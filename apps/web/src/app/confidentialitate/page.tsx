@@ -10,7 +10,7 @@ export default function ConfidentialitatePage() {
     <main className="max-w-[760px] mx-auto px-6 py-20">
       <BackButton />
 
-      <h1 className="font-display text-[48px] sm:text-[64px] text-ink mb-4">confidenția-<br />litate.</h1>
+      <h1 className="font-display text-[36px] sm:text-[52px] text-ink mb-4">confidențialitate.</h1>
       <p className="font-mono-ui text-[11px] text-dimmer mb-12">Ultima actualizare: 25 mai 2026</p>
 
       <div className="space-y-10 text-[15px] text-dim leading-relaxed">

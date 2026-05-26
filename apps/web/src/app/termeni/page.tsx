@@ -10,7 +10,7 @@ export default function TermeniPage() {
     <main className="max-w-[760px] mx-auto px-6 py-20">
       <BackButton />
 
-      <h1 className="font-display text-[48px] sm:text-[64px] text-ink mb-4">termeni și<br />condiții.</h1>
+      <h1 className="font-display text-[32px] sm:text-[44px] text-ink mb-4">termeni și condiții.</h1>
       <p className="font-mono-ui text-[11px] text-dimmer mb-12">Ultima actualizare: 25 mai 2026</p>
 
       <div className="prose-custom space-y-10 text-[15px] text-dim leading-relaxed">

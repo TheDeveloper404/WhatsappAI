@@ -14,7 +14,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     const base = 'inline-flex items-center justify-center font-medium rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acid/50 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none font-mono-ui tracking-wide'
 
     const variants = {
-      primary: 'bg-acid hover:opacity-90 active:scale-[0.98]',
+      primary: 'bg-acid text-[var(--on-acid)] hover:opacity-90 active:scale-[0.98]',
       secondary: 'border border-line bg-cardhi text-ink hover:bg-card',
       ghost: 'text-dim hover:bg-cardhi hover:text-ink',
       danger: 'bg-[var(--danger)] text-white hover:opacity-90',
@@ -26,12 +26,9 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       lg: 'h-11 px-6 text-[14px]',
     }
 
-    const primaryColor = variant === 'primary' ? { color: 'var(--on-acid)' } : {}
-
     return (
       <button
         ref={ref}
-        style={primaryColor}
         className={cn(base, variants[variant], sizes[size], className)}
         disabled={disabled || loading}
         {...props}

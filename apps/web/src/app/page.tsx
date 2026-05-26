@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import {
-  Moon, Sun, Menu, X, ArrowRight, Check, Play,
+  Moon, Sun, Menu, X, ArrowRight, Check, Play, ChevronUp,
 } from 'lucide-react'
 
 // ─── THEME HOOK ───────────────────────────────────────────────────────────────
@@ -953,6 +953,45 @@ function Footer() {
   )
 }
 
+// ─── SCROLL TO TOP ────────────────────────────────────────────────────────────
+function ScrollToTop() {
+  const [visible, setVisible] = useState(false)
+
+  useEffect(() => {
+    const howSection = document.getElementById('how')
+    if (!howSection) return
+
+    const observer = new IntersectionObserver(
+      ([entry]) => setVisible(entry.isIntersecting || window.scrollY > howSection.offsetTop),
+      { rootMargin: '0px 0px -80% 0px' }
+    )
+    observer.observe(howSection)
+
+    const onScroll = () => {
+      if (howSection) setVisible(window.scrollY >= howSection.offsetTop - 100)
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('scroll', onScroll)
+    }
+  }, [])
+
+  return (
+    <button
+      onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+      aria-label="Înapoi sus"
+      style={{ background: 'var(--acid)', color: 'var(--on-acid)' }}
+      className={`fixed bottom-6 right-6 z-50 w-11 h-11 rounded-full flex items-center justify-center shadow-lg hover:opacity-90 transition-all duration-300 ${
+        visible ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 translate-y-4 pointer-events-none'
+      }`}
+    >
+      <ChevronUp className="h-5 w-5" />
+    </button>
+  )
+}
+
 // ─── PAGE ─────────────────────────────────────────────────────────────────────
 export default function LandingPage() {
   useEffect(() => {
@@ -967,6 +1006,7 @@ export default function LandingPage() {
   return (
     <div className="bg-base min-h-screen">
       <Navbar />
+      <ScrollToTop />
       <main id="top" className="overflow-hidden">
         <Hero />
         <OperatorConsole />

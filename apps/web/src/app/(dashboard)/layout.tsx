@@ -1,5 +1,5 @@
 'use client'
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuthStore } from '@/store/auth'
@@ -43,6 +43,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const searchParams = useSearchParams()
   const { user, isAuthenticated, accessToken, _hasHydrated, setAuth, clearAuth } = useAuthStore()
   const [checking, setChecking] = useState(true)
+  const subVerified = useRef(false)
 
   useEffect(() => {
     if (!_hasHydrated) return
@@ -63,15 +64,28 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     const checkoutSuccess = searchParams.get('checkout') === 'success'
 
     if (isSubscribePage || checkoutSuccess) {
+      subVerified.current = false
       setChecking(false)
       return
     }
 
+    if (!subVerified.current) {
+      setChecking(true)
+    }
+
     api.billing.getSubscription(accessToken!).then(({ subscription }) => {
       const needsSubscription = !subscription || subscription.status === 'incomplete'
-      if (needsSubscription) router.replace('/subscribe')
-      else setChecking(false)
-    }).catch(() => setChecking(false))
+      if (needsSubscription) {
+        subVerified.current = false
+        router.replace('/subscribe')
+      } else {
+        subVerified.current = true
+        setChecking(false)
+      }
+    }).catch(() => {
+      subVerified.current = true
+      setChecking(false)
+    })
   }, [isAuthenticated, accessToken, user, pathname, searchParams, router, _hasHydrated, setAuth, clearAuth])
 
   if (!isAuthenticated || checking) {

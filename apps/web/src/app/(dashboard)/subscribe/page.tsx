@@ -70,8 +70,8 @@ export default function SubscribePage() {
             {plan.badge && (
               <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                 <span
-                  className="font-mono-ui text-[10px] tracking-widest px-3 py-1 rounded-full inline-flex items-center gap-1"
-                  style={{ background: 'var(--acid)', color: 'var(--on-acid)' }}
+                  className="font-mono-ui text-[10px] tracking-widest px-3 py-1 rounded-full inline-flex items-center gap-1 text-[var(--on-acid)]"
+                  style={{ background: 'var(--acid)' }}
                 >
                   <Zap className="h-3 w-3" />
                   {plan.badge}

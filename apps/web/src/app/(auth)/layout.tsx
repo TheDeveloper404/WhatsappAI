@@ -1,5 +1,23 @@
 'use client'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { Sun, Moon } from 'lucide-react'
+
+function ThemeToggle() {
+  const [dark, setDark] = useState(false)
+  useEffect(() => { setDark(document.documentElement.classList.contains('dark')) }, [])
+  function toggle() {
+    const next = !dark
+    setDark(next)
+    document.documentElement.classList.toggle('dark', next)
+    localStorage.setItem('wa-ai-theme', next ? 'dark' : 'light')
+  }
+  return (
+    <button onClick={toggle} className="p-2 text-dimmer hover:text-dim hover:bg-cardhi rounded-lg transition-colors" title={dark ? 'Mod luminos' : 'Mod întunecat'}>
+      {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+    </button>
+  )
+}
 
 function WaIcon({ size = 20 }: { size?: number }) {
   return (
@@ -94,7 +112,10 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       </div>
 
       {/* ── RIGHT PANEL ───────────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col items-center justify-center px-5 sm:px-10 py-12 bg-base">
+      <div className="flex-1 flex flex-col items-center justify-center px-5 sm:px-10 py-12 bg-base relative">
+        <div className="absolute top-4 right-4">
+          <ThemeToggle />
+        </div>
 
         {/* Mobile logo */}
         <Link href="/" className="lg:hidden flex items-center gap-2.5 mb-10">

@@ -261,7 +261,7 @@ function OperatorConsole() {
                 <div className="ml-auto font-mono-ui text-[10px] text-dimmer">21:47</div>
               </div>
               {/* Live animated chat */}
-              <div className="space-y-3 overflow-hidden" style={{ height: '180px', overflowY: 'hidden' }}>
+              <div className="space-y-3 overflow-hidden" style={{ height: '260px', overflowY: 'hidden' }}>
                 {LIVE_CHAT.slice(0, shown).map((msg, i) => (
                   <div key={i} className={`flex ${msg.side === 'right' ? 'justify-end' : 'justify-start'}${i === shown - 1 ? ' fade-in' : ''}`}>
                     <div
@@ -322,20 +322,6 @@ function OperatorConsole() {
           </div>
         </div>
 
-        {/* Stats row */}
-        <div className="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-px border border-line rounded-2xl overflow-hidden">
-          {[
-            { v: '23', l: 'conversații preluate azi' },
-            { v: '4×', l: 'timp mediu de răspuns la leaduri' },
-            { v: '99%', l: 'acuratețe stil vs. mesajele tale' },
-            { v: '8h', l: 'timpul tău recuperat săptămânal' },
-          ].map(s => (
-            <div key={s.l} className="px-7 py-5" style={{ background: 'var(--card-bg)' }}>
-              <div className="font-display text-[40px] text-acid leading-none">{s.v}</div>
-              <div className="font-mono-ui text-[10.5px] text-dimmer mt-2 leading-snug max-w-[130px]">{s.l}</div>
-            </div>
-          ))}
-        </div>
       </div>
     </section>
   )

@@ -117,4 +117,5 @@ export const migrationStatements = [
   `CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id, read_at)`,
   `ALTER TABLE ai_settings ADD COLUMN IF NOT EXISTS knowledge_base TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE ai_settings ADD COLUMN IF NOT EXISTS writing_style TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS deletion_scheduled_at BIGINT`,
 ]

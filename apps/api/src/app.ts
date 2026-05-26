@@ -82,7 +82,7 @@ export async function buildApp() {
   await app.register(aiRoutes, { prefix: '/api/v1/ai' })
   await app.register(adminRoutes, { prefix: '/api/v1/admin' })
 
-  if (env.E2E_MODE === 'true') {
+  if (env.E2E_MODE === 'true' && env.NODE_ENV !== 'production') {
     await app.register(testRoutes, { prefix: '/api/v1/test' })
   }
 

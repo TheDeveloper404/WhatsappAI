@@ -81,4 +81,14 @@ export const authRepository = {
     const cutoff = Date.now() - 15 * 60 * 1000
     await db.delete(loginAttempts).where(lt(loginAttempts.createdAt, cutoff))
   },
+
+  async scheduleUserDeletion(userId: string): Promise<void> {
+    const deletionAt = Date.now() + 48 * 60 * 60 * 1000
+    await db.update(users).set({ deletionScheduledAt: deletionAt }).where(eq(users.id, userId))
+    await db.delete(refreshTokens).where(eq(refreshTokens.userId, userId))
+  },
+
+  async deletePendingDeletionUsers(): Promise<void> {
+    await db.delete(users).where(lt(users.deletionScheduledAt!, Date.now()))
+  },
 }

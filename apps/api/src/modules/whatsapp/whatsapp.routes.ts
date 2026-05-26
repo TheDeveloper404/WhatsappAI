@@ -8,7 +8,7 @@ export async function whatsappRoutes(app: FastifyInstance) {
     return reply.send({ session })
   })
 
-  app.post('/connect', { preHandler: authenticate }, async (req, reply) => {
+  app.post('/connect', { config: { rateLimit: { max: 5, timeWindow: '1 minute' } }, preHandler: authenticate }, async (req, reply) => {
     const { qrCode } = await whatsappService.connect(req.user!.id)
     return reply.send({ qrCode })
   })

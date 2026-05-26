@@ -46,8 +46,13 @@ GROQ_API_KEY=gsk_XXXXXXXXXXXXXXXXXXXXXXXXXXXX
 ADMIN_EMAIL=admin@domeniultau.com
 ADMIN_SECRET=SCHIMBA_CU_UN_STRING_RANDOM_MIN_32_CARACTERE
 
+# ─── CORS (opțional) ─────────────────────────────────
+# Origini extra permise, separate prin virgulă (ex: Vercel preview URLs)
+# CORS_ORIGINS=https://preview-xxx.vercel.app,https://alt-domeniu.com
+
 # ─── E2E TESTING (nu seta în producție) ──────────────
 # E2E_MODE=true
+# E2E_SECRET=SCHIMBA_CU_UN_STRING_RANDOM_MIN_16_CARACTERE
 ```
 
 ---
@@ -74,7 +79,9 @@ ADMIN_SECRET=SCHIMBA_CU_UN_STRING_RANDOM_MIN_32_CARACTERE
 | `GROQ_API_KEY` | **Da** | API key de la [console.groq.com](https://console.groq.com) |
 | `ADMIN_EMAIL` | Nu | Email-ul contului de admin |
 | `ADMIN_SECRET` | Nu | Secret pentru autentificarea în panoul admin. Min 32 chars |
+| `CORS_ORIGINS` | Nu | Origini CORS extra, separate prin virgulă. Util pentru Vercel preview URLs |
 | `E2E_MODE` | Nu | **Doar pentru teste E2E.** Activează endpoint-urile de test. NICIODATĂ în producție |
+| `E2E_SECRET` | Nu | Header secret pentru rutele de test (`x-e2e-secret`). Min 16 chars |
 
 ---
 
@@ -97,26 +104,10 @@ openssl rand -hex 32
 | Mediu | Fișier | Note |
 |---|---|---|
 | Development | `apps/api/.env` | Nu se commitează niciodată |
-| Teste API (vitest) | `vitest.config.ts` (hardcodat) | `DATABASE_URL=postgresql://localhost/whatsapp_ai_test` — DB cu `ENCODING='UTF8'`! |
+| Teste API (vitest) | `vitest.config.ts` (hardcodat) | `DATABASE_URL=postgresql://localhost/whatsapp_ai_test` |
 | E2E Testing | Setate automat de Playwright | `E2E_MODE=true`, `DATABASE_URL=postgresql://localhost/whatsapp_ai_e2e` |
-| Production | Secret manager / hosting env vars | Nu se folosesc fișiere `.env` |
-
-### Setup DB (o singură dată pe mașină nouă)
-
-```sql
--- Rulează în psql -U postgres
-CREATE DATABASE whatsapp_ai      ENCODING='UTF8' LC_COLLATE='C' LC_CTYPE='C' TEMPLATE=template0;
-CREATE DATABASE whatsapp_ai_test ENCODING='UTF8' LC_COLLATE='C' LC_CTYPE='C' TEMPLATE=template0;
-CREATE DATABASE whatsapp_ai_e2e  ENCODING='UTF8' LC_COLLATE='C' LC_CTYPE='C' TEMPLATE=template0;
-```
-
-Apoi rulează migrațiile pentru fiecare:
-```powershell
-$env:DATABASE_URL = "postgresql://localhost/whatsapp_ai";      pnpm --filter api db:migrate
-$env:DATABASE_URL = "postgresql://localhost/whatsapp_ai_test"; pnpm --filter api db:migrate
-$env:DATABASE_URL = "postgresql://localhost/whatsapp_ai_e2e";  pnpm --filter api db:migrate
-```
-
-> ⚠️ Pe Windows, PostgreSQL creează DB cu encoding **WIN1252** implicit. Diacriticele românești (ș, ț, ă etc.) nu pot fi stocate în WIN1252 → eroare PostgreSQL `22P05`. Întotdeauna specifică `ENCODING='UTF8' TEMPLATE=template0`.
+| Production | Railway env vars | Nu se folosesc fișiere `.env` |
 
 > ⚠️ **NICIODATĂ** nu commita fișierul `.env`. Este în `.gitignore`.
+>
+> Setup DB și comenzi dev → vezi `DEV_SETUP.md`.

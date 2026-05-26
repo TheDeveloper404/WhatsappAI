@@ -8,6 +8,40 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.9.0] — 2026-05-27
+
+### Security
+
+- **SEC-005** — PII eliminat din logurile de producție: numere de telefon și preview-uri de mesaje nu mai apar în logs
+- **SEC-007** — GDPR: ștergere cont self-service în 48h (`DELETE /api/v1/users/me`); buton în pagina `/gdpr`; email de confirmare trimis; cleanup automat la startup + interval orar
+- **SEC-008** — CSP activat pe API (`@fastify/helmet`); HSTS adăugat pe frontend (`next.config.mjs`); CSP pe frontend cu domenii explicite (Google Fonts, Vercel Analytics)
+- **SEC-010** — `E2E_MODE` blocat în producție (`NODE_ENV !== 'production'`); rutele de test nu mai pot fi activate pe Railway
+- **SEC-011** — XSS escaping consistent în emailuri admin: `escapeHtml()` aplicat pe `name`, `title`, `body` în toate template-urile
+- **SEC-014** — Rate limiting adăugat pe `POST /whatsapp/connect` (5/min) și `POST /ai/analyze-style` (3/min)
+- **SEC-003/004** — Rate limiting adăugat pe `POST /admin/auth` (10/15min); PIN-ul rămâne mecanismul de autentificare admin
+- **CORS** — `CORS_ORIGINS` env var pentru origini multiple (util pentru Vercel preview URLs)
+- **E2E** — Rutele de test securizate cu header `x-e2e-secret`
+
+### Refactoring & Code Quality
+
+- **CR-007/08/09** — `console.error` înlocuit cu `logger.error` în `auth.service.ts`, `notifications.service.ts`, `admin.routes.ts`
+- **CR-013** — `ThemeToggle` extras ca component shared (`apps/web/src/components/ThemeToggle.tsx`); eliminat din 4 locuri cu cod duplicat
+- **CR-014** — Schema DB centralizată în `apps/api/src/db/migration-statements.ts`; `migrate.ts` și `index.ts` importă din același loc
+- **CR-006** — `console.log('[DEBUG ENV]')` eliminat din `migrate.ts`
+- **CR-015** — `upsertContactMemory` refactorizat cu `INSERT ... ON CONFLICT DO UPDATE` (un singur query în loc de SELECT + UPDATE/INSERT)
+- **CR-022** — Rutele E2E securizate cu `x-e2e-secret` header verificat în `preHandler`
+- **CR-002** — `whatsappAuthState` export eliminat din `schema.ts` (dead code — raw SQL folosit pentru Baileys)
+- **CR-003** — Tipuri neutilizate eliminate din `auth.schemas.ts` (`ForgotPasswordInput`, `ResetPasswordInput`, `VerifyEmailInput`)
+- **CR-004** — `getActiveSocket()` eliminat din `whatsapp.session-manager.ts` (folosit doar în mock-uri de test)
+
+### Docs
+
+- Creat `docs/RUNBOOK.md` — proceduri de incident (restart Railway, rollback, migrare manuală, GDPR, rate limit blocat)
+- Creat `docs/ARCHITECTURE.md` — decizii de design non-evidente (dual migration, Baileys în Postgres, CJS/ESM, JWT pattern, rate limiting, GDPR flow, design tokens)
+- Șters `docs/FIX.md` — toate itemele rezolvate
+
+---
+
 ## [0.8.0] — 2026-05-26
 
 ### Deployment — Railway (API) + Vercel (Frontend)
@@ -34,7 +68,6 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Known issues (post-lansare)
 - **Resend**: emailurile merg doar la adresa contului Resend (sandbox). Necesită domeniu propriu verificat în Resend pentru utilizatori reali.
-- **Stripe**: badge "Sandbox" apare dacă contul Stripe nu e complet activat/verificat pentru plăți live.
 
 ---
 

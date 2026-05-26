@@ -14,7 +14,7 @@ function verifyAdminToken(req: { headers: { authorization?: string } }) {
 
 export async function adminRoutes(app: FastifyInstance) {
   // POST /admin/auth
-  app.post('/auth', async (req, reply) => {
+  app.post('/auth', { config: { rateLimit: { max: 10, timeWindow: '15 minutes' } } }, async (req, reply) => {
     const { secret } = req.body as { secret?: string }
     if (!secret || !env.ADMIN_SECRET || secret !== env.ADMIN_SECRET) {
       throw Errors.unauthorized('Cod incorect.')

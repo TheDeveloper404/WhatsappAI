@@ -11,6 +11,7 @@ export const users = pgTable('users', {
   resetPasswordToken: text('reset_password_token'),
   resetPasswordTokenExpiry: bigint('reset_password_token_expiry', { mode: 'number' }),
   role: text('role').notNull().default('user'),
+  deletionScheduledAt: bigint('deletion_scheduled_at', { mode: 'number' }),
   createdAt: bigint('created_at', { mode: 'number' }).notNull(),
   updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
 })

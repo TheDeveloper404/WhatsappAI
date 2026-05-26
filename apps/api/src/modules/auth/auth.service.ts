@@ -76,6 +76,10 @@ export const authService = {
       throw Errors.forbidden('Trebuie să îți verifici emailul înainte de a te loga. Verifică inbox-ul.')
     }
 
+    if (user.deletionScheduledAt) {
+      throw Errors.forbidden('Acest cont este programat pentru ștergere și nu mai poate fi accesat.')
+    }
+
     const accessToken = createAccessToken(user.id, user.role)
     const refreshToken = createRefreshToken(user.id, user.role)
     const tokenHash = hashToken(refreshToken)

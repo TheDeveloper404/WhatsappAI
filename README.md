@@ -2,6 +2,8 @@
 
 SaaS platform care conectează WhatsApp-ul unui business cu un agent AI. Agentul răspunde automat în locul proprietarului când acesta este inactiv, folosind stilul lui de scriere.
 
+**Producție:** [whatsapp-ai-web-rho.vercel.app](https://whatsapp-ai-web-rho.vercel.app) · API: [api-production-2318d.up.railway.app](https://api-production-2318d.up.railway.app)
+
 ## Funcționalități
 
 - **Agent AI** — răspunde automat la mesaje WhatsApp când proprietarul e inactiv
@@ -10,11 +12,22 @@ SaaS platform care conectează WhatsApp-ul unui business cu un agent AI. Agentul
 - **Knowledge base** — informații despre business injectate în prompt (servicii, prețuri, program)
 - **Transcriere vocale** — mesajele audio sunt transcrise automat (Groq Whisper)
 - **Detecție sentiment** — mesajele urgente sau frustrante primesc răspunsuri adaptate
-- **Timer de inactivitate** — configurable, implicit 5 minute
+- **Timer de inactivitate** — configurabil, implicit 5 minute
 - **Blacklist contacte** — exclude anumiți clienți de la răspunsuri automate
 - **Pauză temporară** — agent oprit X ore fără a-l dezactiva complet
 - **Admin panel** — gestionare utilizatori, subscripții, configurare platformă
 - **Subscripții Stripe** — plan lunar și anual cu perioadă de trial
+- **GDPR** — ștergere cont self-service în 48h din pagina `/gdpr`
+
+## Securitate
+
+- CSP + HSTS pe API și frontend
+- Rate limiting per rută (login, register, admin auth, WhatsApp connect, AI analyze)
+- JWT access token 15min + refresh token 7 zile cu rotație, hash în DB
+- Token hash stocat în DB (compromiterea DB nu expune tokens)
+- XSS escaping în toate emailurile trimise
+- PII exclus din loguri de producție
+- E2E_MODE blocat în producție
 
 ## Comenzi WhatsApp
 
@@ -45,6 +58,7 @@ Controlezi agentul direct din WhatsApp, trimițindu-ți ție însuți comenzi:
 | Email | Resend |
 | Plăți | Stripe |
 | Monorepo | pnpm workspaces |
+| Deploy | Railway (API) + Vercel (Frontend) |
 
 ## Structură
 
@@ -53,6 +67,13 @@ apps/
   api/          — backend Fastify (REST API)
   web/          — frontend Next.js
   e2e/          — teste Playwright
+docs/
+  ARCHITECTURE.md   — decizii de design non-evidente
+  CHANGELOG.md      — istoricul versiunilor
+  DEV_SETUP.md      — comenzi dev și setup local
+  DOMAIN_SETUP.md   — configurare domeniu custom
+  RUNBOOK.md        — proceduri de incident
+  env_vars.md       — documentație variabile de mediu
 ```
 
 ## Rulare locală
@@ -71,22 +92,21 @@ pnpm install
 
 # Configurează variabilele de mediu
 cp apps/api/.env.example apps/api/.env
-# editează apps/api/.env cu valorile tale
+# editează apps/api/.env cu valorile tale (vezi docs/env_vars.md)
 
-cp apps/web/.env.local.example apps/web/.env.local
-# editează apps/web/.env.local
-
-# Creează baza de date (UTF-8 obligatoriu)
-createdb -E UTF8 -l C -T template0 whatsapp_ai
+# Creează bazele de date (UTF-8 obligatoriu pe Windows)
+# În psql -U postgres:
+# CREATE DATABASE whatsapp_ai      ENCODING='UTF8' LC_COLLATE='C' LC_CTYPE='C' TEMPLATE=template0;
+# CREATE DATABASE whatsapp_ai_test ENCODING='UTF8' LC_COLLATE='C' LC_CTYPE='C' TEMPLATE=template0;
+# CREATE DATABASE whatsapp_ai_e2e  ENCODING='UTF8' LC_COLLATE='C' LC_CTYPE='C' TEMPLATE=template0;
 
 # Rulează migrările
 pnpm --filter api db:migrate
 
 # Pornește în development
-pnpm dev
+pnpm dev:api   # Terminal 1 — API pe http://localhost:3001
+pnpm dev:web   # Terminal 2 — Frontend pe http://localhost:3000
 ```
-
-API rulează pe `http://localhost:3001`, frontend pe `http://localhost:3000`.
 
 ### Creare cont admin
 
@@ -96,7 +116,7 @@ pnpm --filter api exec tsx src/scripts/set-admin.ts admin@example.com
 
 ## Variabile de mediu
 
-Vezi [`apps/api/.env.example`](apps/api/.env.example) pentru lista completă.
+Vezi [`docs/env_vars.md`](docs/env_vars.md) pentru documentație completă și template `.env`.
 
 Variabilele obligatorii:
 
@@ -113,7 +133,9 @@ Variabilele obligatorii:
 | `RESEND_API_KEY` | Cheie API Resend (email) |
 | `EMAIL_FROM` | Adresa expeditor email |
 | `APP_URL` | URL frontend (ex: `https://app.example.com`) |
-| `API_URL` | URL backend (ex: `https://api.example.com`) |
+| `CORS_ORIGINS` | Origini CORS extra, separate prin virgulă (opțional) |
+| `ADMIN_SECRET` | PIN acces panou admin (min 32 chars) |
+| `E2E_SECRET` | Header secret pentru rutele de test (opțional, min 16 chars) |
 
 ## Teste
 
@@ -122,7 +144,7 @@ Variabilele obligatorii:
 pnpm --filter api test
 
 # E2E Playwright (54 teste)
-pnpm test:e2e
+cd apps/e2e && pnpm exec playwright test
 ```
 
 ## Licență

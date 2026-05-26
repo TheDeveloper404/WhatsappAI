@@ -1,0 +1,66 @@
+'use client'
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { api } from '@/lib/api'
+import { useAuthStore } from '@/store/auth'
+
+export function DeleteAccountButton() {
+  const [confirm, setConfirm] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const accessToken = useAuthStore(s => s.accessToken)
+  const logout = useAuthStore(s => s.clearAuth)
+  const router = useRouter()
+
+  if (!accessToken) return null
+
+  async function handleDelete() {
+    setLoading(true)
+    setError('')
+    try {
+      await api.users.deleteAccount(accessToken!)
+      logout()
+      router.push('/')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'A apărut o eroare.')
+      setLoading(false)
+    }
+  }
+
+  if (!confirm) {
+    return (
+      <button
+        onClick={() => setConfirm(true)}
+        className="font-mono-ui text-[12px] text-red-500 hover:text-red-400 transition-colors underline underline-offset-2"
+      >
+        șterge contul meu
+      </button>
+    )
+  }
+
+  return (
+    <div className="border border-red-500/30 rounded-xl p-5 bg-red-500/5">
+      <p className="font-mono-ui text-[13px] text-ink mb-1">ești sigur?</p>
+      <p className="font-mono-ui text-[12px] text-dim mb-4">
+        Contul și toate datele tale vor fi șterse definitiv în <strong className="text-ink">48 de ore</strong>. Această acțiune nu poate fi anulată.
+      </p>
+      {error && <p className="font-mono-ui text-[12px] text-red-500 mb-3">{error}</p>}
+      <div className="flex gap-3">
+        <button
+          onClick={handleDelete}
+          disabled={loading}
+          className="font-mono-ui text-[12px] bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
+        >
+          {loading ? 'se procesează...' : 'da, șterge contul'}
+        </button>
+        <button
+          onClick={() => { setConfirm(false); setError('') }}
+          disabled={loading}
+          className="font-mono-ui text-[12px] text-dim hover:text-ink transition-colors"
+        >
+          anulează
+        </button>
+      </div>
+    </div>
+  )
+}

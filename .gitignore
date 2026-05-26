@@ -27,7 +27,7 @@ coverage/
 
 # Claude Code (hooks personale — specifice mașinii locale)
 .claude/
-docs/
+
 
 # OS
 .DS_Store

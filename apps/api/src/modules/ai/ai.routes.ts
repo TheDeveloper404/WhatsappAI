@@ -24,7 +24,7 @@ export async function aiRoutes(app: FastifyInstance) {
     return reply.send({ settings })
   })
 
-  app.post('/analyze-style', { preHandler: authenticate }, async (req, reply) => {
+  app.post('/analyze-style', { config: { rateLimit: { max: 3, timeWindow: '1 minute' } }, preHandler: authenticate }, async (req, reply) => {
     const writingStyle = await aiService.analyzeAndSaveWritingStyle(req.user!.id)
     return reply.send({ writingStyle })
   })

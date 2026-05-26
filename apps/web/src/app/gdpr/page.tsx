@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { BackButton } from '@/components/BackButton'
+import { DeleteAccountButton } from '@/components/DeleteAccountButton'
 
 export const metadata: Metadata = {
   title: 'GDPR — WhatsApp AI',
@@ -32,7 +33,10 @@ export default function GdprPage() {
 
         <section>
           <h2 className="font-display-md text-[22px] text-ink mb-3">Dreptul la ștergere (Art. 17)</h2>
-          <p>Poți solicita ștergerea datelor tale când: nu mai sunt necesare pentru scopul colectării, îți retragi consimțământul, te opui prelucrării și nu există un interes legitim prevalent, sau datele au fost prelucrate ilegal. Ștergerea se efectuează în 30 de zile, cu excepția datelor pe care suntem obligați legal să le păstrăm.</p>
+          <p>Poți solicita ștergerea datelor tale când: nu mai sunt necesare pentru scopul colectării, îți retragi consimțământul, te opui prelucrării și nu există un interes legitim prevalent, sau datele au fost prelucrate ilegal. Ștergerea se efectuează în <strong className="text-ink">48 de ore</strong>, cu excepția datelor pe care suntem obligați legal să le păstrăm.</p>
+          <div className="mt-6">
+            <DeleteAccountButton />
+          </div>
         </section>
 
         <section>
@@ -52,7 +56,7 @@ export default function GdprPage() {
 
         <section>
           <h2 className="font-display-md text-[22px] text-ink mb-3">Cum exerciți aceste drepturi</h2>
-          <p>Trimite un email la <a href="mailto:hi@whatsappai.ro" className="text-acid hover:underline">hi@whatsappai.ro</a> cu subiectul &bdquo;Cerere GDPR&rdquo; și specifică dreptul pe care dorești să-l exerciți. Răspundem în maxim 30 de zile calendaristice. Serviciul este gratuit; în cazuri complexe sau repetitive putem solicita o taxă rezonabilă.</p>
+          <p>Trimite un email la <a href="mailto:hi@waai.ro" className="text-acid hover:underline">hi@waai.ro</a> cu subiectul &bdquo;Cerere GDPR&rdquo; și specifică dreptul pe care dorești să-l exerciți. Răspundem în maxim 30 de zile calendaristice. Serviciul este gratuit; în cazuri complexe sau repetitive putem solicita o taxă rezonabilă.</p>
         </section>
 
         <section>

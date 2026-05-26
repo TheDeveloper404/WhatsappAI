@@ -129,6 +129,15 @@ export const api = {
         },
         credentials: 'include',
       }),
+    deleteAccount: (accessToken: string) =>
+      request<{ ok: boolean }>('/api/v1/users/me', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        credentials: 'include',
+      }),
   },
 
   billing: {

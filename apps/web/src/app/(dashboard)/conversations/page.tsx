@@ -56,26 +56,28 @@ function ContactRow({
   }
 
   return (
-    <div className="border border-gray-200 rounded-xl overflow-hidden">
+    <div className="border border-line rounded-xl overflow-hidden">
       {/* Header row */}
-      <div className="flex items-center gap-3 p-4 bg-white hover:bg-gray-50 transition-colors">
-        <div className="w-9 h-9 rounded-full bg-primary-50 flex items-center justify-center shrink-0">
-          <MessageSquare className="h-4 w-4 text-primary-600" />
+      <div className="flex items-center gap-3 p-4 bg-card hover:bg-cardhi transition-colors">
+        <div className="w-9 h-9 rounded-full bg-acid/10 flex items-center justify-center shrink-0">
+          <MessageSquare className="h-4 w-4 text-acid" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-gray-900">+{conv.contactPhone}</p>
-          <p className="text-xs text-gray-400 truncate">{conv.lastMessage}</p>
+          <p className="font-mono-ui text-[12px] text-ink font-medium">+{conv.contactPhone}</p>
+          <p className="font-mono-ui text-[11px] text-dimmer truncate">{conv.lastMessage}</p>
         </div>
         <div className="text-right shrink-0">
-          <p className="text-xs text-gray-400">{formatTime(conv.lastAt)}</p>
-          <p className="text-xs text-gray-300 mt-0.5">{conv.count} mesaje</p>
+          <p className="font-mono-ui text-[11px] text-dimmer">{formatTime(conv.lastAt)}</p>
+          <p className="font-mono-ui text-[10px] text-dimmer mt-0.5">{conv.count} mesaje</p>
         </div>
         <div className="flex items-center gap-1 ml-2">
           <button
             onClick={handleDelete}
             disabled={deleting}
             className={`p-1.5 rounded-lg transition-colors ${
-              confirmDelete ? 'bg-red-100 text-red-600 hover:bg-red-200' : 'text-gray-300 hover:text-red-500 hover:bg-red-50'
+              confirmDelete
+                ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50'
+                : 'text-dimmer hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20'
             }`}
             title={confirmDelete ? 'Confirmă ștergerea' : 'Șterge istoricul'}
             onBlur={() => setTimeout(() => setConfirmDelete(false), 200)}
@@ -84,7 +86,7 @@ function ContactRow({
           </button>
           <button
             onClick={toggle}
-            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-1.5 text-dimmer hover:text-ink hover:bg-cardhi rounded-lg transition-colors"
           >
             {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </button>
@@ -93,28 +95,31 @@ function ContactRow({
 
       {/* Messages thread */}
       {expanded && (
-        <div className="border-t border-gray-100 bg-gray-50 p-4 space-y-2 max-h-80 overflow-y-auto">
+        <div className="border-t border-line bg-base p-4 space-y-2 max-h-80 overflow-y-auto">
           {loadingMsgs ? (
             <div className="flex justify-center py-4">
-              <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+              <Loader2 className="h-5 w-5 animate-spin text-dimmer" />
             </div>
           ) : messages && messages.length > 0 ? (
             messages.map(msg => (
               <div key={msg.id} className={`flex ${msg.fromMe ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-xs lg:max-w-md px-3 py-2 rounded-xl text-sm ${
-                  msg.fromMe
-                    ? 'bg-primary-600 text-white rounded-br-sm'
-                    : 'bg-white text-gray-800 border border-gray-200 rounded-bl-sm'
-                }`}>
-                  <p className="whitespace-pre-wrap break-words">{msg.body}</p>
-                  <p className={`text-xs mt-1 ${msg.fromMe ? 'text-primary-200' : 'text-gray-400'}`}>
+                <div
+                  className={`max-w-xs lg:max-w-md px-3 py-2 rounded-xl text-sm ${
+                    msg.fromMe
+                      ? 'rounded-br-sm'
+                      : 'bg-cardhi text-ink border border-line rounded-bl-sm'
+                  }`}
+                  style={msg.fromMe ? { background: 'var(--acid)', color: 'var(--on-acid)' } : undefined}
+                >
+                  <p className="whitespace-pre-wrap break-words font-mono-ui text-[12px]">{msg.body}</p>
+                  <p className={`font-mono-ui text-[10px] mt-1 ${msg.fromMe ? 'opacity-70' : 'text-dimmer'}`}>
                     {formatTime(msg.waTimestamp)}
                   </p>
                 </div>
               </div>
             ))
           ) : (
-            <p className="text-sm text-gray-400 text-center py-2">Niciun mesaj salvat.</p>
+            <p className="font-mono-ui text-[12px] text-dimmer text-center py-2">Niciun mesaj salvat.</p>
           )}
         </div>
       )}
@@ -149,7 +154,7 @@ export default function ConversationsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-6 w-6 animate-spin text-primary-600" />
+        <Loader2 className="h-6 w-6 animate-spin text-acid" />
       </div>
     )
   }
@@ -158,8 +163,8 @@ export default function ConversationsPage() {
     <div className="max-w-2xl mx-auto">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Conversații</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 className="font-display text-[32px] text-ink leading-none">Conversații</h1>
+          <p className="font-mono-ui text-[12px] text-dim mt-1">
             {conversations.length > 0
               ? `${conversations.length} contact${conversations.length !== 1 ? 'e' : ''} cu mesaje salvate`
               : 'Nicio conversație salvată încă.'}
@@ -168,7 +173,7 @@ export default function ConversationsPage() {
         <button
           onClick={() => load(true)}
           disabled={refreshing}
-          className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+          className="p-2 text-dimmer hover:text-ink hover:bg-cardhi rounded-lg transition-colors disabled:opacity-50"
           title="Reîncarcă"
         >
           <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
@@ -176,10 +181,10 @@ export default function ConversationsPage() {
       </div>
 
       {conversations.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-          <MessageSquare className="h-10 w-10 text-gray-200 mx-auto mb-3" />
-          <p className="text-gray-500 text-sm">Agentul nu a salvat nicio conversație încă.</p>
-          <p className="text-gray-400 text-xs mt-1">Mesajele apar aici după ce agentul începe să răspundă.</p>
+        <div className="card-elevated rounded-xl p-12 text-center">
+          <MessageSquare className="h-10 w-10 text-dimmer mx-auto mb-3" />
+          <p className="font-mono-ui text-[12px] text-dim">Agentul nu a salvat nicio conversație încă.</p>
+          <p className="font-mono-ui text-[11px] text-dimmer mt-1">Mesajele apar aici după ce agentul începe să răspundă.</p>
         </div>
       ) : (
         <div className="space-y-3">

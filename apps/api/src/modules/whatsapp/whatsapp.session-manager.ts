@@ -19,7 +19,7 @@ const noop = () => {}
 const waLogger: any = {
   level: 'warn',
   trace: noop, debug: noop, info: noop,
-  warn:  (...a: any[]) => logger.warn('[WA]', { detail: a.join(' ') }),
+  warn:  noop,
   error: (...a: any[]) => {
     const first = a[0]
     const errMsg = first?.err?.message ?? first?.message ?? ''
@@ -96,7 +96,8 @@ function attachPersistentHandlers(sock: WASocket, userId: string) {
 
       if (connection === 'close') {
         const reason = (lastDisconnect?.error as Boom)?.output?.statusCode
-        const shouldReconnect = reason !== DisconnectReason.loggedOut
+        // 440 = altă instanță a preluat sesiunea (deploy Railway) — nu reconecta, instanța nouă e activă
+        const shouldReconnect = reason !== DisconnectReason.loggedOut && reason !== 440
         logger.info(`[WA][${userId.slice(0, 8)}] closed`, { reason, shouldReconnect })
 
         await whatsappRepository.update(userId, {

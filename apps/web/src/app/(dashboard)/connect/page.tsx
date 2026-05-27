@@ -137,7 +137,7 @@ export default function ConnectPage() {
               Agentul AI poate acum prelua conversațiile când ești indisponibil.
             </p>
             <button
-              onClick={() => router.push('/dashboard')}
+              onClick={() => { router.refresh(); router.push('/dashboard') }}
               className="mt-2 flex items-center gap-1 font-mono-ui text-[12px] text-acid font-medium hover:underline"
             >
               Înapoi la dashboard <ChevronRight className="h-4 w-4" />

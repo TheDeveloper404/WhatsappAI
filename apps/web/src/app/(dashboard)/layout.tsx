@@ -60,10 +60,12 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
       return
     }
 
-    if (!subVerified.current) {
-      setChecking(true)
+    if (subVerified.current) {
+      setChecking(false)
+      return
     }
 
+    setChecking(true)
     api.billing.getSubscription(accessToken!).then(({ subscription }) => {
       const needsSubscription = !subscription || subscription.status === 'incomplete'
       if (needsSubscription) {

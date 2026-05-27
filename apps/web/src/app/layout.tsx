@@ -13,11 +13,13 @@ export const metadata: Metadata = {
     siteName: "waai.",
     locale: "ro_RO",
     type: "website",
+    images: [{ url: "https://waai.ro/opengraph-image", width: 1200, height: 630 }],
   },
   twitter: {
     card: "summary_large_image",
     title: "waai. — răspunde singur. cu tonul tău.",
     description: "AI-ul care preia automat conversațiile și păstrează experiența personală a brandului tău.",
+    images: ["https://waai.ro/opengraph-image"],
   },
 };
 

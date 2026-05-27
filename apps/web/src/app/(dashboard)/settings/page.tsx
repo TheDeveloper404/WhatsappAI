@@ -209,37 +209,39 @@ export default function SettingsPage() {
             Agentul a fost dezactivat de administrator. Contactează suportul pentru reactivare.
           </div>
         ) : (
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-mono-ui text-[12px] text-ink font-medium">
-                {settings?.isActive ? 'Agentul este activ' : 'Agentul este inactiv'}
-              </p>
-              <p className="font-mono-ui text-[11px] text-dimmer mt-0.5">
-                {settings?.isActive
-                  ? 'Răspunde automat când ești indisponibil.'
-                  : 'Nu răspunde la mesaje automat.'}
-              </p>
+          <>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-mono-ui text-[12px] text-ink font-medium">
+                  {settings?.isActive ? 'Agentul este activ' : 'Agentul este inactiv'}
+                </p>
+                <p className="font-mono-ui text-[11px] text-dimmer mt-0.5">
+                  {settings?.isActive
+                    ? 'Răspunde automat când ești indisponibil.'
+                    : 'Nu răspunde la mesaje automat.'}
+                </p>
+              </div>
+              <button
+                onClick={handleToggleAI}
+                disabled={togglingAI}
+                style={settings?.isActive ? { background: 'var(--acid)' } : undefined}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none disabled:opacity-50 ${
+                  settings?.isActive ? '' : 'bg-cardhi border border-line'
+                }`}
+              >
+                {togglingAI
+                  ? <Loader2 className="h-3 w-3 animate-spin text-white absolute left-1/2 -translate-x-1/2" />
+                  : <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${settings?.isActive ? 'translate-x-6' : 'translate-x-1'}`} />
+                }
+              </button>
             </div>
-            <button
-              onClick={handleToggleAI}
-              disabled={togglingAI}
-              style={settings?.isActive ? { background: 'var(--acid)' } : undefined}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none disabled:opacity-50 ${
-                settings?.isActive ? '' : 'bg-cardhi border border-line'
-              }`}
-            >
-              {togglingAI
-                ? <Loader2 className="h-3 w-3 animate-spin text-white absolute left-1/2 -translate-x-1/2" />
-                : <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${settings?.isActive ? 'translate-x-6' : 'translate-x-1'}`} />
-              }
-            </button>
-          </div>
-          {settings?.isActive && waSession?.status !== 'connected' && (
-            <div className="mt-3 rounded-lg px-3 py-2 font-mono-ui text-[11px] text-orange-700 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800">
-              Agentul e activ dar WhatsApp nu este conectat — mesajele nu vor primi răspuns.{' '}
-              <a href="/connect" className="underline underline-offset-2">Conectează numărul</a>
-            </div>
-          )}
+            {settings?.isActive && waSession?.status !== 'connected' && (
+              <div className="mt-3 rounded-lg px-3 py-2 font-mono-ui text-[11px] text-orange-700 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800">
+                Agentul e activ dar WhatsApp nu este conectat — mesajele nu vor primi răspuns.{' '}
+                <a href="/connect" className="underline underline-offset-2">Conectează numărul</a>
+              </div>
+            )}
+          </>
         )}
       </div>
 

@@ -78,8 +78,12 @@ export const aiRepository = {
   },
 
   async clearHistory(userId: string, contactPhone: string): Promise<void> {
-    await db.delete(conversationMessages)
-      .where(and(eq(conversationMessages.userId, userId), eq(conversationMessages.contactPhone, contactPhone)))
+    await Promise.all([
+      db.delete(conversationMessages)
+        .where(and(eq(conversationMessages.userId, userId), eq(conversationMessages.contactPhone, contactPhone))),
+      db.delete(contactMemory)
+        .where(and(eq(contactMemory.userId, userId), eq(contactMemory.contactPhone, contactPhone))),
+    ])
   },
 
   async clearHistoryForChat(userId: string, contactPhone: string, jid: string): Promise<void> {

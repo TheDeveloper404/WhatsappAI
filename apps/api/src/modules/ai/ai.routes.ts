@@ -19,6 +19,7 @@ export async function aiRoutes(app: FastifyInstance) {
       systemPrompt: z.string().min(10).max(2000).optional(),
       knowledgeBase: z.string().max(5000).optional(),
       writingStyle: z.string().max(2000).optional(),
+      notifyOnAiTakeover: z.boolean().optional(),
     })
     const result = schema.safeParse(req.body)
     if (!result.success) throw Errors.validation(result.error.errors.map(e => ({ field: String(e.path[0]), message: e.message })))

@@ -235,6 +235,26 @@ export default function SettingsPage() {
                 }
               </button>
             </div>
+            <div className="flex items-center justify-between mt-4 pt-4 border-t border-line">
+              <div>
+                <p className="font-mono-ui text-[12px] text-ink font-medium">Notificare când AI preia</p>
+                <p className="font-mono-ui text-[11px] text-dimmer mt-0.5">Primești un mesaj pe WhatsApp când AI răspunde în locul tău.</p>
+              </div>
+              <button
+                onClick={async () => {
+                  if (!accessToken || !settings) return
+                  const { settings: updated } = await api.ai.updateSettings(accessToken, { notifyOnAiTakeover: !settings.notifyOnAiTakeover })
+                  setSettings(updated)
+                }}
+                style={settings?.notifyOnAiTakeover ? { background: 'var(--acid)' } : undefined}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                  settings?.notifyOnAiTakeover ? '' : 'bg-cardhi border border-line'
+                }`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${settings?.notifyOnAiTakeover ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
+            </div>
+
             {settings?.isActive && waSession?.status !== 'connected' && (
               <div className="mt-3 rounded-lg px-3 py-2 font-mono-ui text-[11px] text-orange-700 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800">
                 Agentul e activ dar WhatsApp nu este conectat — mesajele nu vor primi răspuns.{' '}

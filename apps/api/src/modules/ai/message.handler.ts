@@ -43,6 +43,10 @@ export function detectSentiment(text: string): 'urgent' | 'frustrated' | 'normal
 // Mesaje programate: când owner e activ, le trimitem după ce expiră timer-ul
 const pendingResponses = new Map<string, Map<string, NodeJS.Timeout>>()
 
+// Throttle notificări: nu trimitem mai mult de o notificare la 30 min per contact
+const NOTIFY_THROTTLE_MS = 30 * 60 * 1000
+const lastNotified = new Map<string, Map<string, number>>()
+
 function cancelPending(userId: string, contactPhone: string) {
   const t = pendingResponses.get(userId)?.get(contactPhone)
   if (t) {
@@ -106,6 +110,26 @@ async function sendAiResponse(userId: string, contactPhone: string, jid: string,
   await sock.sendMessage(jid, { text: reply })
   await aiRepository.saveMessage(userId, contactPhone, true, reply, Date.now(), true)
   logger.info(`[AI][${userId.slice(0, 8)}] răspuns trimis`)
+
+  if (settings.notifyOnAiTakeover) {
+    const ownerJid = sock.user?.id
+    if (ownerJid) {
+      const now = Date.now()
+      const userThrottle = lastNotified.get(userId) ?? new Map<string, number>()
+      const last = userThrottle.get(contactPhone) ?? 0
+      const throttle = sentiment === 'normal' ? NOTIFY_THROTTLE_MS : 5 * 60 * 1000
+      if (now - last > throttle) {
+        userThrottle.set(contactPhone, now)
+        lastNotified.set(userId, userThrottle)
+        const text = sentiment === 'frustrated'
+          ? `⚠️ Client frustrat (+${contactPhone}) — AI a răspuns, dar ar trebui să preiei tu conversația.`
+          : sentiment === 'urgent'
+            ? `🚨 Cerere urgentă (+${contactPhone}) — AI a răspuns, verifică și tu.`
+            : `🤖 AI a preluat conversația cu +${contactPhone}`
+        sock.sendMessage(ownerJid, { text }).catch(() => {})
+      }
+    }
+  }
 
   // Actualizează memoria în background, fără să blocheze răspunsul
   const messagesForMemory = [...ordered, { fromMe: true, body: reply }]

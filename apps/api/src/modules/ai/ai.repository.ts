@@ -31,7 +31,7 @@ export const aiRepository = {
     return rows[0]
   },
 
-  async updateSettings(userId: string, data: Partial<Pick<AiSettings, 'isActive' | 'adminDisabled' | 'timerMinutes' | 'systemPrompt' | 'knowledgeBase' | 'writingStyle' | 'pauseUntil'>>): Promise<void> {
+  async updateSettings(userId: string, data: Partial<Pick<AiSettings, 'isActive' | 'adminDisabled' | 'timerMinutes' | 'systemPrompt' | 'knowledgeBase' | 'writingStyle' | 'pauseUntil' | 'notifyOnAiTakeover'>>): Promise<void> {
     await this.getSettings(userId)
     await db.update(aiSettings)
       .set({ ...data, updatedAt: Date.now() })

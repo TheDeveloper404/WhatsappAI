@@ -178,7 +178,7 @@ export const api = {
         body: '{}',
       }),
 
-    updateSettings: (accessToken: string, data: { isActive?: boolean; timerMinutes?: number; systemPrompt?: string; knowledgeBase?: string; writingStyle?: string }) =>
+    updateSettings: (accessToken: string, data: { isActive?: boolean; timerMinutes?: number; systemPrompt?: string; knowledgeBase?: string; writingStyle?: string; notifyOnAiTakeover?: boolean }) =>
       request<{ settings: AiSettings }>('/api/v1/ai/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
@@ -328,6 +328,7 @@ export interface AiSettings {
   systemPrompt: string
   knowledgeBase: string
   writingStyle: string
+  notifyOnAiTakeover: boolean
   pauseUntil: number | null
   createdAt: number
   updatedAt: number

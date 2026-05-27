@@ -736,7 +736,7 @@ function HowItWorks() {
 const FEATURES = [
   {
     no: '01', title: 'răspunde 24/7, fără excepții',
-    desc: 'Timer 1–60 min. Dacă nu răspunzi în acel interval, agentul preia. Te conectezi singur.',
+    desc: 'Timer 1–60 min. Dacă nu răspunzi în acel interval, agentul preia automat conversația.',
     visual: <div className="flex items-end gap-0.5 h-5">{[40,70,50,90,65,85,55,100,75].map((h,i)=><div key={i} className="w-1 rounded-sm" style={{height:`${h}%`,background:'var(--acid)'}}/>)}</div>,
   },
   {
@@ -755,8 +755,8 @@ const FEATURES = [
     visual: <div className="font-mono-ui text-[10px] text-dim">▶ 0:43 <span className="text-acid">·</span> 21</div>,
   },
   {
-    no: '05', title: 'detectează frustrarea',
-    desc: 'Mesaj urgent sau client nervos — te alertăm imediat. Prelei tu conversația.',
+    no: '05', title: 'detectează frustrarea și urgența',
+    desc: 'Client nervos sau cerere urgentă — primești alertă pe WhatsApp și AI ajustează tonul răspunsului.',
     visual: <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full flex-shrink-0" style={{background:'var(--danger)'}} /><span className="font-mono-ui text-[10px]" style={{color:'var(--danger)'}}>tone</span><span className="font-mono-ui text-[11px] font-bold text-acid">!</span></div>,
   },
   {
@@ -765,18 +765,18 @@ const FEATURES = [
     visual: <div className="font-mono-ui text-[10.5px] text-dim">+40 723···<br/><span className="text-acid">skip ✓</span></div>,
   },
   {
-    no: '07', title: 'timer de inactivitate',
-    desc: 'De la 1 la 60 de minute. Agentul intervine doar când chiar nu poți răspunde.',
-    visual: <div className="flex items-center gap-1 font-mono-ui text-[10px]"><span className="text-dimmer">1m</span><div className="w-12 h-1 rounded-full bg-cardhi overflow-hidden"><div className="h-full rounded-full" style={{width:'30%',background:'var(--acid)'}}/></div><span className="text-acid font-medium">15m</span></div>,
+    no: '07', title: 'notificări în timp real',
+    desc: 'Când AI preia o conversație primești mesaj pe WhatsApp. Ești mereu în control.',
+    visual: <div className="flex items-center gap-1.5"><span className="font-mono-ui text-[18px] leading-none">🤖</span><span className="font-mono-ui text-[9px] text-dim">AI a preluat<br/><span className="text-acid">+40 758···</span></span></div>,
   },
   {
-    no: '08', title: 'dashboard complet',
-    desc: 'Statistici, sesiunea curentă, conversațiile preluate. Vezi tot ce-a răspuns agentul tău.',
+    no: '08', title: 'statistici și dashboard',
+    desc: 'Câte mesaje a răspuns AI azi, în 7 și 30 de zile. Conversații preluate, sesiune activă.',
     visual: <div className="flex items-end gap-0.5 h-5">{[60,90,45,75,100].map((h,i)=><div key={i} className="w-1.5 rounded-sm" style={{height:`${h}%`,background:'var(--acid)'}}/>)}<span className="font-mono-ui text-[9px] text-acid ml-1">+34k</span></div>,
   },
   {
     no: '09', title: 'pornești/oprești instant',
-    desc: 'Un singur switch. Sau direct din WhatsApp îi trimiți /off.',
+    desc: 'Un singur switch din dashboard. Sau direct din WhatsApp cu /activateAI și /deactivateAI.',
     visual: <div className="w-11 h-6 rounded-full flex items-center justify-end pr-0.5" style={{background:'var(--acid)'}}><div className="w-5 h-5 rounded-full" style={{background:'var(--on-acid)'}}/></div>,
   },
 ]

@@ -1,13 +1,25 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { CookieBanner } from "@/components/CookieBanner";
 import { Analytics } from "@vercel/analytics/next";
 
+export const viewport: Viewport = {
+  themeColor: '#0d0d0d',
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+}
+
 export const metadata: Metadata = {
-  title: "waai. — răspunde singur. cu tonul tău.",
+  title: "waai. — răspunde ca tine. chiar când nu ești.",
   description: "AI-ul care preia automat conversațiile și păstrează experiența personală a brandului tău.",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'waai.',
+  },
   openGraph: {
-    title: "waai. — răspunde singur. cu tonul tău.",
+    title: "waai. — răspunde ca tine. chiar când nu ești.",
     description: "AI-ul care preia automat conversațiile și păstrează experiența personală a brandului tău.",
     url: "https://waai.ro",
     siteName: "waai.",
@@ -17,7 +29,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "waai. — răspunde singur. cu tonul tău.",
+    title: "waai. — răspunde ca tine. chiar când nu ești.",
     description: "AI-ul care preia automat conversațiile și păstrează experiența personală a brandului tău.",
     images: ["https://waai.ro/opengraph-image"],
   },

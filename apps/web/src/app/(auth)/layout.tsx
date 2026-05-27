@@ -47,8 +47,8 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             → AGENT ACTIV
           </div>
           <h2 className="font-display text-[44px] lg:text-[52px] leading-none mb-6" style={{ color: '#E8E6E1' }}>
-            răspunde singur<br />
-            <em className="not-italic" style={{ color: '#C8FB4A' }}>cu tonul tău.</em>
+            răspunde ca tine.<br />
+            <em className="not-italic" style={{ color: '#C8FB4A' }}>chiar când nu ești.</em>
           </h2>
           <p className="text-[14px] leading-relaxed max-w-[320px] mb-10" style={{ color: 'rgba(232,230,225,0.55)' }}>
             AI-ul tău analizează stilul tău de scriere și preia conversațiile când ești ocupat.

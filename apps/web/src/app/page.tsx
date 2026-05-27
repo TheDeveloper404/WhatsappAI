@@ -823,22 +823,24 @@ function Features() {
 // ─── §04 PRICING ──────────────────────────────────────────────────────────────
 const PLAN_LUNAR = [
   '7 zile trial gratuit',
+  'agent AI activ 24/7',
   'mesaje nelimitate',
   '1 cont WhatsApp',
-  'clonare stil din arhiva ta',
-  'knowledge base nelimitat',
-  'mesaje vocale & sentiment',
-  'dashboard complet',
+  'stilul tău clonat din conversații',
+  'knowledge base personalizat',
+  'transcriere mesaje vocale',
+  'detecție sentiment & notificări',
+  'dashboard cu statistici în timp real',
 ]
 
 const PLAN_ANUAL_EXTRA = [
   '7 zile trial gratuit',
   'tot ce e în Lunar, plus:',
-  '33% reducere',
+  '33% reducere față de lunar',
+  'echivalent ~33.25 RON / lună',
   'suport prioritar < 2h',
-  'acces beta features',
-  'antrenare săptămânală a stilului',
   'factură pe firmă',
+  'acces beta features',
 ]
 
 function Pricing() {
@@ -935,9 +937,9 @@ function Pricing() {
         {/* Footer trust */}
         <div className="flex flex-wrap gap-x-5 gap-y-1 font-mono-ui text-[10.5px] text-dimmer pt-4">
           <span>✓ anulezi cu un click</span>
-          <span>✓ 14 zile money-back</span>
-          <span>✓ Factură pe Firmă</span>
-          <span>✓ migrare gratuită</span>
+          <span>✓ fără contracte</span>
+          <span>✓ date stocate în UE</span>
+          <span>✓ factură pe firmă (plan anual)</span>
         </div>
       </div>
     </section>
@@ -945,7 +947,7 @@ function Pricing() {
 }
 
 // ─── §05 FAQ ──────────────────────────────────────────────────────────────────
-const FAQ_ITEMS = [
+const FAQ_ITEMS: { q: string; a: React.ReactNode }[] = [
   {
     q: 'e legal să folosesc asta cu WhatsApp?',
     a: 'Da. E contul tău personal, tu decizi ce răspunde. Nu trimitem mesaje în masă, nu spamăm, nu colectăm contactele fără consimțământ. Tu dețineți conversațiile, tu dețineți agentul.',
@@ -960,7 +962,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'pot opri agentul oricând?',
-    a: 'Un switch în dashboard. Sau direct din WhatsApp îi trimiți /off. Nu există situație în care nu poți opri instant.',
+    a: 'Un switch în dashboard. Sau direct din WhatsApp îi trimiți /deactivateAI. Nu există situație în care nu poți opri instant.',
   },
   {
     q: 'ce limbi înțelege?',
@@ -969,6 +971,27 @@ const FAQ_ITEMS = [
   {
     q: 'datele mele sunt în siguranță?',
     a: 'Stocate în UE (Frankfurt), criptate la rest și în tranzit. Nu folosim datele tale pentru antrenarea modelelor generale. Poți cere ștergere totală oricând.',
+  },
+  {
+    q: 'ce modele AI sunt folosite?',
+    a: (
+      <div className="flex flex-col gap-3">
+        {[
+          { model: 'Llama 3.3 70B', by: 'Meta', role: 'conversații', note: 'model open-source, rulat pe Groq LPU pentru răspunsuri rapide' },
+          { model: 'Whisper Large V3', by: 'OpenAI', role: 'mesaje vocale', note: 'transcriere automată a audio-urilor și PTT-urilor' },
+          { model: 'Gemini 2.0 Flash', by: 'Google', role: 'backup', note: 'disponibil ca alternativă în caz de indisponibilitate' },
+        ].map(m => (
+          <div key={m.model} className="flex items-start gap-3">
+            <span className="mt-0.5 flex-shrink-0 w-1.5 h-1.5 rounded-full bg-acid" />
+            <div>
+              <span className="text-ink font-medium">{m.model}</span>
+              <span className="text-dimmer"> · {m.by} · {m.role}</span>
+              <div className="text-dimmer text-[12px] mt-0.5">{m.note}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    ),
   },
 ]
 

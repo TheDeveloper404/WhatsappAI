@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useAuthStore } from '@/store/auth'
-import { api, type AiSettings } from '@/lib/api'
+import { api, type AiSettings, type WhatsappSession } from '@/lib/api'
 import { Loader2, Save, Plus, X, Bot, Clock, Shield, Terminal } from 'lucide-react'
 
 const inputCls = 'w-full rounded-xl border border-line px-3 py-2 text-sm text-ink bg-cardhi focus:outline-none focus:ring-2 focus:ring-acid/40 focus:border-acid transition-colors resize-y'
@@ -26,6 +26,7 @@ export default function SettingsPage() {
   const [savedTimer, setSavedTimer] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const [waSession, setWaSession] = useState<WhatsappSession | null>(null)
   const [blacklist, setBlacklist] = useState<string[]>([])
   const [newPhone, setNewPhone] = useState('')
   const [addingPhone, setAddingPhone] = useState(false)
@@ -36,14 +37,16 @@ export default function SettingsPage() {
     Promise.all([
       api.ai.getSettings(accessToken),
       api.ai.getBlacklist(accessToken),
+      api.whatsapp.getSession(accessToken).catch(() => ({ session: null })),
     ])
-      .then(([{ settings: s }, { phones }]) => {
+      .then(([{ settings: s }, { phones }, { session }]) => {
         setSettings(s)
         setSystemPrompt(s.systemPrompt)
         setKnowledgeBase(s.knowledgeBase ?? '')
         setWritingStyle(s.writingStyle ?? '')
         setTimerMinutes(s.timerMinutes)
         setBlacklist(phones)
+        setWaSession(session)
       })
       .catch(() => setError('Nu s-au putut încărca setările.'))
       .finally(() => setLoading(false))
@@ -231,6 +234,12 @@ export default function SettingsPage() {
               }
             </button>
           </div>
+          {settings?.isActive && waSession?.status !== 'connected' && (
+            <div className="mt-3 rounded-lg px-3 py-2 font-mono-ui text-[11px] text-orange-700 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800">
+              Agentul e activ dar WhatsApp nu este conectat — mesajele nu vor primi răspuns.{' '}
+              <a href="/connect" className="underline underline-offset-2">Conectează numărul</a>
+            </div>
+          )}
         )}
       </div>
 

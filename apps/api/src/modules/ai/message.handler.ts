@@ -130,6 +130,7 @@ async function processMessage(userId: string, sock: WASocket, msg: any): Promise
   const fromMe: boolean = msg.key?.fromMe ?? false
   const contactPhone = extractPhone(jid)
   const waTimestamp = (msg.messageTimestamp as number) * 1000
+  logger.info(`[AI][${userId.slice(0, 8)}] procesez mesaj`, { fromMe, contactPhone })
 
   const m = msg.message
   const isAudio = !fromMe && (m?.audioMessage || m?.pttMessage)
@@ -170,8 +171,18 @@ async function processMessage(userId: string, sock: WASocket, msg: any): Promise
   }
 
   const settings = await aiRepository.getSettings(userId)
-  if (!settings.isActive || settings.adminDisabled) return
-  if (settings.pauseUntil && Date.now() < settings.pauseUntil) return
+  if (!settings.isActive) {
+    logger.info(`[AI][${userId.slice(0, 8)}] agent inactiv (isActive=false)`)
+    return
+  }
+  if (settings.adminDisabled) {
+    logger.info(`[AI][${userId.slice(0, 8)}] agent dezactivat de admin`)
+    return
+  }
+  if (settings.pauseUntil && Date.now() < settings.pauseUntil) {
+    logger.info(`[AI][${userId.slice(0, 8)}] agent în pauză`)
+    return
+  }
   if (await aiRepository.isBlacklisted(userId, contactPhone)) return
 
   const sentiment = detectSentiment(body)

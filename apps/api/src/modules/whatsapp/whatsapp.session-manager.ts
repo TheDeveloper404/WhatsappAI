@@ -21,11 +21,13 @@ const waLogger: any = {
   trace: noop, debug: noop, info: noop,
   warn:  (...a: any[]) => logger.warn('[WA]', { detail: a.join(' ') }),
   error: (...a: any[]) => {
-    const errMsg = a[0]?.err?.message ?? ''
+    const first = a[0]
+    const errMsg = first?.err?.message ?? first?.message ?? ''
     if (errMsg === 'Timed Out') return
     if (errMsg === 'Invalid PreKey ID') return
     if (errMsg === 'No session record') return
-    logger.error('[WA]', { detail: String(a[0]) })
+    const detail = first?.err?.message ?? first?.message ?? (typeof first === 'string' ? first : JSON.stringify(first))
+    logger.error('[WA]', { detail })
   },
   fatal: (...a: any[]) => logger.error('[WA:fatal]', { detail: a.join(' ') }),
   child: () => waLogger,
@@ -113,6 +115,7 @@ function attachPersistentHandlers(sock: WASocket, userId: string) {
       if (connection === 'open') {
         reconnectAttempts.delete(userId)
         sock.ev.on('messages.upsert', async ({ messages, type }) => {
+          logger.info(`[WA][${userId.slice(0, 8)}] messages.upsert`, { type, count: messages.length })
           if (type !== 'notify') return
           await handleMessages(userId, sock, messages)
         })

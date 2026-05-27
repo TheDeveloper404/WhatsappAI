@@ -198,7 +198,7 @@ function OperatorConsole() {
   }, [])
 
   return (
-    <section id="console" className="relative pb-20 lg:pb-28 scroll-mt-24">
+    <section id="console" className="relative pb-20 lg:pb-28 scroll-mt-24 overflow-x-hidden">
       <div className="max-w-[1440px] mx-auto px-6 lg:px-8">
         {/* Top bar */}
         <div className="flex items-center justify-between mb-3 font-mono-ui text-[11px] text-dimmer">
@@ -209,12 +209,12 @@ function OperatorConsole() {
         {/* Console frame */}
         <div className="card-elevated rounded-2xl overflow-hidden">
           {/* Console header */}
-          <div className="flex items-center justify-between px-5 py-3 border-b border-line">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-acid pulse-dot" />
-              <span className="font-mono-ui text-[11px] text-acid">whatsapp.ai · operator console</span>
+          <div className="flex items-center justify-between gap-2 px-5 py-3 border-b border-line">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="w-2 h-2 rounded-full bg-acid pulse-dot flex-shrink-0" />
+              <span className="font-mono-ui text-[11px] text-acid truncate">whatsapp.ai · operator console</span>
             </div>
-            <div className="font-mono-ui text-[10.5px] text-dimmer">uptime <span className="text-ink">99.97%</span> · lat. <span className="text-ink">142ms</span></div>
+            <div className="font-mono-ui text-[10.5px] text-dimmer flex-shrink-0">uptime <span className="text-ink">99.97%</span> · lat. <span className="text-ink">142ms</span></div>
           </div>
 
           {/* Console body — 3 coloane egale */}

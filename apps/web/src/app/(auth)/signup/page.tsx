@@ -83,8 +83,8 @@ export default function SignupPage() {
   return (
     <>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Creează cont</h1>
-        <p className="text-sm text-gray-500 mt-1">Pornește trial-ul gratuit de 7 zile</p>
+        <h1 className="text-2xl font-bold text-ink">Creează cont</h1>
+        <p className="text-sm text-dim mt-1">Pornește trial-ul gratuit de 7 zile</p>
       </div>
 
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">

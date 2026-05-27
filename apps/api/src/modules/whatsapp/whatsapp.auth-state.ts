@@ -54,7 +54,7 @@ export async function usePostgresAuthState(userId: string) {
           const params: any[] = [userId, now]
           const rows = toUpsert.map(([id, value], i) => {
             params.push(type, id, JSON.stringify(value, BufferJSON.replacer))
-            const b = 2 + i * 3
+            const b = 3 + i * 3
             return `($1, $${b}, $${b + 1}, $${b + 2}, $2)`
           })
           await pool.query(

@@ -589,10 +589,6 @@ const BUSINESSES = [
 function HowItWorks() {
   const sectionRef = useRef<HTMLDivElement>(null)
   const [visible, setVisible] = useState(false)
-  const [qrIndex, setQrIndex] = useState(0)
-  const [qrFade, setQrFade] = useState(true)
-  const [bizIndex, setBizIndex] = useState(0)
-  const [bizFade, setBizFade] = useState(true)
   const [toggleOn, setToggleOn] = useState(true)
 
   useEffect(() => {
@@ -602,22 +598,6 @@ function HowItWorks() {
     )
     if (sectionRef.current) observer.observe(sectionRef.current)
     return () => observer.disconnect()
-  }, [])
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      setQrFade(false)
-      setTimeout(() => { setQrIndex(i => (i + 1) % QR_PATTERNS.length); setQrFade(true) }, 350)
-    }, 2200)
-    return () => clearInterval(id)
-  }, [])
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      setBizFade(false)
-      setTimeout(() => { setBizIndex(i => (i + 1) % BUSINESSES.length); setBizFade(true) }, 350)
-    }, 2600)
-    return () => clearInterval(id)
   }, [])
 
   useEffect(() => {
@@ -664,11 +644,11 @@ function HowItWorks() {
             <div className="rounded-xl overflow-hidden p-4" style={{ background: 'var(--card-hi)' }}>
               <svg
                 viewBox="0 0 120 120"
-                className="w-full max-w-[140px] mx-auto block transition-opacity duration-300"
-                style={{ imageRendering: 'pixelated', opacity: qrFade ? 1 : 0 }}
+                className="w-full max-w-[140px] mx-auto block"
+                style={{ imageRendering: 'pixelated' }}
               >
                 {(() => {
-                  const pattern = QR_PATTERNS[qrIndex]
+                  const pattern = QR_PATTERNS[0]
                   const cells: React.ReactElement[] = []
                   const size = 120 / 21
                   pattern.forEach((row, r) =>
@@ -698,16 +678,16 @@ function HowItWorks() {
             </p>
             {/* Code block */}
             <div
-              className="rounded-xl p-4 font-mono-ui text-[12px] leading-relaxed transition-opacity duration-300"
-              style={{ background: 'var(--card-hi)', opacity: bizFade ? 1 : 0 }}
+              className="rounded-xl p-4 font-mono-ui text-[12px] leading-relaxed"
+              style={{ background: 'var(--card-hi)' }}
             >
-              {BUSINESSES[bizIndex].lines.map(({ label, value }) => (
+              {BUSINESSES[0].lines.map(({ label, value }) => (
                 <div key={label} className="mt-2 first:mt-0">
                   <div className="text-dimmer">{label}</div>
                   <div className="text-ink">{value}</div>
                 </div>
               ))}
-              <div className="mt-3 pt-3 border-t border-line text-acid">{BUSINESSES[bizIndex].footer}</div>
+              <div className="mt-3 pt-3 border-t border-line text-acid">{BUSINESSES[0].footer}</div>
             </div>
           </div>
 

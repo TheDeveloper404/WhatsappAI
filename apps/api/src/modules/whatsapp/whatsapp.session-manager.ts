@@ -26,6 +26,7 @@ const waLogger: any = {
     if (errMsg === 'Timed Out') return
     if (errMsg === 'Invalid PreKey ID') return
     if (errMsg === 'No session record') return
+    if (errMsg.includes('SenderKey')) return
     const detail = first?.err?.message ?? first?.message ?? (typeof first === 'string' ? first : JSON.stringify(first))
     logger.error('[WA]', { detail })
   },

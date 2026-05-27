@@ -479,9 +479,121 @@ function Differentiator() {
 }
 
 // ─── §02 HOW IT WORKS ─────────────────────────────────────────────────────────
+const QR_PATTERNS = [
+  [
+    [1,1,1,1,1,1,1,0,1,0,0,1,0,0,1,1,1,1,1,1,1],
+    [1,0,0,0,0,0,1,0,1,1,0,1,1,0,1,0,0,0,0,0,1],
+    [1,0,1,1,1,0,1,0,0,1,1,0,1,0,1,0,1,1,1,0,1],
+    [1,0,1,1,1,0,1,0,1,0,0,1,0,0,1,0,1,1,1,0,1],
+    [1,0,1,1,1,0,1,0,0,1,0,0,1,0,1,0,1,1,1,0,1],
+    [1,0,0,0,0,0,1,0,1,0,1,0,1,0,1,0,0,0,0,0,1],
+    [1,1,1,1,1,1,1,0,1,0,1,0,1,0,1,1,1,1,1,1,1],
+    [0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0],
+    [1,0,1,1,0,1,1,1,0,0,1,0,1,1,1,0,1,0,1,1,0],
+    [0,1,0,0,1,0,0,0,1,1,0,1,0,0,0,1,0,1,0,0,1],
+    [1,1,1,0,1,1,1,0,0,0,1,0,1,0,1,0,1,1,1,0,1],
+    [0,0,0,1,0,0,0,1,1,0,0,1,0,1,0,1,0,0,0,1,0],
+    [1,1,1,1,1,1,1,0,1,1,0,0,1,0,1,0,1,1,1,1,1],
+    [0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,0],
+    [1,1,1,1,1,1,1,0,0,1,0,1,1,1,1,0,1,1,1,1,1],
+    [1,0,0,0,0,0,1,0,1,0,1,0,0,0,0,1,0,0,0,0,1],
+    [1,0,1,1,1,0,1,0,0,1,0,1,1,1,0,0,1,1,1,0,1],
+    [1,0,1,1,1,0,1,0,1,0,1,0,0,0,1,1,0,0,0,1,0],
+    [1,0,1,1,1,0,1,0,0,1,0,1,1,0,0,0,1,1,1,0,1],
+    [1,0,0,0,0,0,1,0,1,0,1,0,0,1,1,1,0,0,0,0,1],
+    [1,1,1,1,1,1,1,0,0,1,0,1,0,0,1,0,1,1,1,1,1],
+  ],
+  [
+    [1,1,1,1,1,1,1,0,0,1,1,0,1,0,1,1,1,1,1,1,1],
+    [1,0,0,0,0,0,1,0,0,0,1,1,0,0,1,0,0,0,0,0,1],
+    [1,0,1,1,1,0,1,0,1,1,0,0,1,0,1,0,1,1,1,0,1],
+    [1,0,1,1,1,0,1,0,0,1,1,0,1,0,1,0,1,1,1,0,1],
+    [1,0,1,1,1,0,1,0,1,0,1,1,0,0,1,0,1,1,1,0,1],
+    [1,0,0,0,0,0,1,0,0,1,0,1,1,0,1,0,0,0,0,0,1],
+    [1,1,1,1,1,1,1,0,1,0,1,0,1,0,1,1,1,1,1,1,1],
+    [0,0,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0],
+    [0,1,1,0,1,1,1,0,0,1,0,0,1,0,1,1,0,1,0,1,1],
+    [1,0,1,1,0,0,0,1,0,0,1,1,0,0,1,0,1,0,1,1,0],
+    [0,0,1,1,0,1,1,1,1,0,0,0,1,1,0,1,0,0,1,1,0],
+    [1,1,0,0,1,1,0,0,1,1,0,0,1,0,1,0,1,1,0,0,1],
+    [0,0,1,0,1,0,1,1,0,0,1,1,0,1,0,1,0,0,1,0,0],
+    [0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0],
+    [1,1,1,1,1,1,1,0,1,0,1,0,0,0,1,1,0,1,1,0,1],
+    [1,0,0,0,0,0,1,0,0,1,0,1,1,0,0,0,1,0,0,1,0],
+    [1,0,1,1,1,0,1,0,1,0,1,0,0,1,1,1,0,0,1,1,0],
+    [1,0,1,1,1,0,1,0,0,1,0,1,0,1,0,0,1,1,0,0,1],
+    [1,0,1,1,1,0,1,0,1,0,0,0,1,1,1,0,0,0,1,1,0],
+    [1,0,0,0,0,0,1,0,0,1,1,0,0,0,0,1,1,0,1,0,1],
+    [1,1,1,1,1,1,1,0,1,0,0,1,1,0,0,1,0,0,1,0,0],
+  ],
+  [
+    [1,1,1,1,1,1,1,0,1,1,0,0,1,0,1,1,1,1,1,1,1],
+    [1,0,0,0,0,0,1,0,0,1,0,1,0,0,1,0,0,0,0,0,1],
+    [1,0,1,1,1,0,1,0,0,0,1,1,0,0,1,0,1,1,1,0,1],
+    [1,0,1,1,1,0,1,0,1,1,0,0,1,1,1,0,1,1,1,0,1],
+    [1,0,1,1,1,0,1,0,0,1,1,0,0,1,1,0,1,1,1,0,1],
+    [1,0,0,0,0,0,1,0,1,0,0,1,1,0,1,0,0,0,0,0,1],
+    [1,1,1,1,1,1,1,0,1,0,1,0,1,0,1,1,1,1,1,1,1],
+    [0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0],
+    [1,1,0,1,0,0,1,0,1,0,0,1,0,1,0,0,1,1,0,0,1],
+    [0,0,1,0,1,1,0,1,1,0,1,0,1,1,0,1,0,1,1,0,0],
+    [1,0,0,1,1,0,1,0,0,1,1,0,0,1,1,0,1,0,0,1,1],
+    [0,1,1,0,0,1,0,1,0,0,1,1,0,0,0,1,0,1,1,0,1],
+    [1,0,1,1,0,0,1,0,1,1,0,0,1,0,1,0,1,0,0,1,0],
+    [0,0,0,0,0,0,0,0,1,0,0,1,0,1,0,0,0,0,0,0,0],
+    [1,1,1,1,1,1,1,0,0,0,1,0,1,0,0,1,1,0,1,1,0],
+    [1,0,0,0,0,0,1,0,1,1,0,1,0,1,1,0,0,1,0,0,1],
+    [1,0,1,1,1,0,1,0,0,0,1,0,1,0,0,1,0,1,1,0,0],
+    [1,0,1,1,1,0,1,0,1,0,0,1,0,1,0,0,1,0,0,1,1],
+    [1,0,1,1,1,0,1,0,0,1,1,0,0,0,1,1,0,1,0,0,1],
+    [1,0,0,0,0,0,1,0,1,0,0,1,1,0,0,0,1,1,1,0,0],
+    [1,1,1,1,1,1,1,0,0,1,1,0,0,1,1,0,0,1,0,1,1],
+  ],
+]
+
+const BUSINESSES = [
+  {
+    lines: [
+      { label: '# program', value: 'L-V 9-18, S 10-14' },
+      { label: '# tunsoare clasică', value: '80 RON · 30min' },
+      { label: '# vopsit', value: 'de la 220 RON' },
+    ],
+    footer: '+ stil învățat din 1.247 mesaje',
+  },
+  {
+    lines: [
+      { label: '# consultație', value: '150 RON · 30min' },
+      { label: '# program cabinet', value: 'L-V 8-20, S 9-14' },
+      { label: '# urgențe', value: 'redirecționare 24/7' },
+    ],
+    footer: '+ stil învățat din 892 mesaje',
+  },
+  {
+    lines: [
+      { label: '# apmt. 2 cam.', value: 'de la 89.000 EUR' },
+      { label: '# chirii active', value: '34 oferte disponibile' },
+      { label: '# vizionări', value: 'L-D cu programare' },
+    ],
+    footer: '+ stil învățat din 3.421 mesaje',
+  },
+  {
+    lines: [
+      { label: '# pizza margherita', value: '32 RON · 500g' },
+      { label: '# livrare', value: '11-23, inclusiv S-D' },
+      { label: '# timp mediu', value: '35-45 min' },
+    ],
+    footer: '+ stil învățat din 2.108 mesaje',
+  },
+]
+
 function HowItWorks() {
   const sectionRef = useRef<HTMLDivElement>(null)
   const [visible, setVisible] = useState(false)
+  const [qrIndex, setQrIndex] = useState(0)
+  const [qrFade, setQrFade] = useState(true)
+  const [bizIndex, setBizIndex] = useState(0)
+  const [bizFade, setBizFade] = useState(true)
+  const [toggleOn, setToggleOn] = useState(true)
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -490,6 +602,27 @@ function HowItWorks() {
     )
     if (sectionRef.current) observer.observe(sectionRef.current)
     return () => observer.disconnect()
+  }, [])
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setQrFade(false)
+      setTimeout(() => { setQrIndex(i => (i + 1) % QR_PATTERNS.length); setQrFade(true) }, 350)
+    }, 2200)
+    return () => clearInterval(id)
+  }, [])
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setBizFade(false)
+      setTimeout(() => { setBizIndex(i => (i + 1) % BUSINESSES.length); setBizFade(true) }, 350)
+    }, 2600)
+    return () => clearInterval(id)
+  }, [])
+
+  useEffect(() => {
+    const id = setInterval(() => setToggleOn(v => !v), 1800)
+    return () => clearInterval(id)
   }, [])
 
   return (
@@ -529,32 +662,13 @@ function HowItWorks() {
             </p>
             {/* QR code visual */}
             <div className="rounded-xl overflow-hidden p-4" style={{ background: 'var(--card-hi)' }}>
-              <svg viewBox="0 0 120 120" className="w-full max-w-[140px] mx-auto block" style={{ imageRendering: 'pixelated' }}>
-                {/* QR pattern — simplified */}
+              <svg
+                viewBox="0 0 120 120"
+                className="w-full max-w-[140px] mx-auto block transition-opacity duration-300"
+                style={{ imageRendering: 'pixelated', opacity: qrFade ? 1 : 0 }}
+              >
                 {(() => {
-                  const pattern = [
-                    [1,1,1,1,1,1,1,0,1,0,0,1,0,0,1,1,1,1,1,1,1],
-                    [1,0,0,0,0,0,1,0,1,1,0,1,1,0,1,0,0,0,0,0,1],
-                    [1,0,1,1,1,0,1,0,0,1,1,0,1,0,1,0,1,1,1,0,1],
-                    [1,0,1,1,1,0,1,0,1,0,0,1,0,0,1,0,1,1,1,0,1],
-                    [1,0,1,1,1,0,1,0,0,1,0,0,1,0,1,0,1,1,1,0,1],
-                    [1,0,0,0,0,0,1,0,1,0,1,0,1,0,1,0,0,0,0,0,1],
-                    [1,1,1,1,1,1,1,0,1,0,1,0,1,0,1,1,1,1,1,1,1],
-                    [0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0],
-                    [1,0,1,1,0,1,1,1,0,0,1,0,1,1,1,0,1,0,1,1,0],
-                    [0,1,0,0,1,0,0,0,1,1,0,1,0,0,0,1,0,1,0,0,1],
-                    [1,1,1,0,1,1,1,0,0,0,1,0,1,0,1,0,1,1,1,0,1],
-                    [0,0,0,1,0,0,0,1,1,0,0,1,0,1,0,1,0,0,0,1,0],
-                    [1,1,1,1,1,1,1,0,1,1,0,0,1,0,1,0,1,1,1,1,1],
-                    [0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,0],
-                    [1,1,1,1,1,1,1,0,0,1,0,1,1,1,1,0,1,1,1,1,1],
-                    [1,0,0,0,0,0,1,0,1,0,1,0,0,0,0,1,0,0,0,0,1],
-                    [1,0,1,1,1,0,1,0,0,1,0,1,1,1,0,0,1,1,1,0,1],
-                    [1,0,1,1,1,0,1,0,1,0,1,0,0,0,1,1,0,0,0,1,0],
-                    [1,0,1,1,1,0,1,0,0,1,0,1,1,0,0,0,1,1,1,0,1],
-                    [1,0,0,0,0,0,1,0,1,0,1,0,0,1,1,1,0,0,0,0,1],
-                    [1,1,1,1,1,1,1,0,0,1,0,1,0,0,1,0,1,1,1,1,1],
-                  ]
+                  const pattern = QR_PATTERNS[qrIndex]
                   const cells: React.ReactElement[] = []
                   const size = 120 / 21
                   pattern.forEach((row, r) =>
@@ -583,14 +697,17 @@ function HowItWorks() {
               Prețuri, program, servicii, întrebări frecvente. Urci arhiva WhatsApp și învață cum scrii.
             </p>
             {/* Code block */}
-            <div className="rounded-xl p-4 font-mono-ui text-[12px] leading-relaxed" style={{ background: 'var(--card-hi)' }}>
-              <div className="text-dimmer"># program</div>
-              <div className="text-ink">L-V 9-18, S 10-14</div>
-              <div className="mt-2 text-dimmer"># tunsoare clasică</div>
-              <div className="text-ink">80 RON · 30min</div>
-              <div className="mt-2 text-dimmer"># vopsit</div>
-              <div className="text-ink">de la 220 RON</div>
-              <div className="mt-3 pt-3 border-t border-line text-acid">+ stil învățat din 1.247 mesaje</div>
+            <div
+              className="rounded-xl p-4 font-mono-ui text-[12px] leading-relaxed transition-opacity duration-300"
+              style={{ background: 'var(--card-hi)', opacity: bizFade ? 1 : 0 }}
+            >
+              {BUSINESSES[bizIndex].lines.map(({ label, value }) => (
+                <div key={label} className="mt-2 first:mt-0">
+                  <div className="text-dimmer">{label}</div>
+                  <div className="text-ink">{value}</div>
+                </div>
+              ))}
+              <div className="mt-3 pt-3 border-t border-line text-acid">{BUSINESSES[bizIndex].footer}</div>
             </div>
           </div>
 
@@ -610,17 +727,21 @@ function HowItWorks() {
             <div className="rounded-xl p-4" style={{ background: 'rgba(10,15,12,0.06)' }}>
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <div className="font-mono-ui text-[12px] text-ink font-medium">agent activ</div>
+                  <div className="font-mono-ui text-[12px] text-ink font-medium transition-opacity duration-300" style={{ opacity: toggleOn ? 1 : 0.45 }}>
+                    {toggleOn ? 'agent activ' : 'agent inactiv'}
+                  </div>
                   <div className="font-mono-ui text-[10px] text-dimmer">23 conv. azi</div>
                 </div>
-                <div className="w-11 h-6 rounded-full flex items-center justify-end pr-0.5"
-                  style={{ background: 'var(--acid)' }}>
-                  <div className="w-5 h-5 rounded-full" style={{ background: 'var(--on-acid)' }} />
+                <div
+                  className="w-11 h-6 rounded-full flex items-center px-0.5 transition-all duration-500 cursor-pointer"
+                  style={{ background: toggleOn ? 'var(--acid)' : 'var(--line)', justifyContent: toggleOn ? 'flex-end' : 'flex-start' }}
+                >
+                  <div className="w-5 h-5 rounded-full transition-all duration-500" style={{ background: toggleOn ? 'var(--on-acid)' : 'var(--dimmer)' }} />
                 </div>
               </div>
               <div className="flex items-end gap-1 h-8">
                 {[55, 70, 40, 85, 65, 90, 75].map((h, i) => (
-                  <div key={i} className="flex-1 rounded-sm" style={{ height: `${h}%`, background: 'var(--acid)' }} />
+                  <div key={i} className="flex-1 rounded-sm transition-all duration-500" style={{ height: `${h}%`, background: toggleOn ? 'var(--acid)' : 'var(--dimmer)', opacity: toggleOn ? 1 : 0.4 }} />
                 ))}
               </div>
             </div>

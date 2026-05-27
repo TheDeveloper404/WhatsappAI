@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useAuthStore } from '@/store/auth'
 import { api, type AiSettings } from '@/lib/api'
-import { Loader2, Save, Plus, X, Bot, Clock, Shield } from 'lucide-react'
+import { Loader2, Save, Plus, X, Bot, Clock, Shield, Terminal } from 'lucide-react'
 
 const inputCls = 'w-full rounded-xl border border-line px-3 py-2 text-sm text-ink bg-cardhi focus:outline-none focus:ring-2 focus:ring-acid/40 focus:border-acid transition-colors resize-y'
 
@@ -354,6 +354,36 @@ export default function SettingsPage() {
             Salvează informațiile
           </button>
           {savedKB && <span className="font-mono-ui text-[12px] text-green-600 dark:text-green-400 font-medium">Salvat!</span>}
+        </div>
+      </div>
+
+      {/* Comenzi WhatsApp */}
+      <div className="card-elevated rounded-xl p-6">
+        <div className="flex items-center gap-2 mb-1">
+          <Terminal className="h-4 w-4 text-dimmer" />
+          <h2 className="font-mono-ui text-[12px] text-ink font-medium">Comenzi WhatsApp</h2>
+        </div>
+        <p className="font-mono-ui text-[12px] text-dim mb-4">
+          Trimite aceste comenzi de pe numărul tău conectat direct în WhatsApp pentru a controla agentul în timp real.
+        </p>
+        <div className="divide-y divide-line">
+          {([
+            { cmd: '/activateAI', desc: 'Activează agentul' },
+            { cmd: '/deactivateAI', desc: 'Dezactivează agentul' },
+            { cmd: '/pauseAI 2h', desc: 'Pauză X ore — înlocuiește 2 cu numărul dorit' },
+            { cmd: '/resumeAI', desc: 'Scoate agentul din pauză' },
+            { cmd: '/setTimer 5min', desc: 'Setează timer-ul de inactivitate (1–60 min)' },
+            { cmd: '/status', desc: 'Verifică starea curentă a agentului' },
+            { cmd: '/skipAI +407...', desc: 'Ignoră un contact — agentul nu îi mai răspunde' },
+            { cmd: '/unskipAI +407...', desc: 'Re-activează un contact ignorat' },
+            { cmd: '/clearHistory', desc: 'Șterge istoricul conversației curente cu un contact' },
+            { cmd: '/help', desc: 'Afișează lista comenzilor direct în WhatsApp' },
+          ] as { cmd: string; desc: string }[]).map(({ cmd, desc }) => (
+            <div key={cmd} className="flex items-start gap-3 py-2.5">
+              <code className="font-mono text-[11px] text-acid bg-acid/10 px-2 py-0.5 rounded shrink-0 mt-0.5">{cmd}</code>
+              <span className="font-mono-ui text-[12px] text-dim">{desc}</span>
+            </div>
+          ))}
         </div>
       </div>
 

@@ -1063,7 +1063,9 @@ function Footer() {
           <div className="lg:col-span-4">
             <div className="font-mono-ui text-[10.5px] text-dimmer tracking-widest uppercase mb-4">CONTACT</div>
             <div className="flex flex-col gap-3 font-mono-ui text-[14px]">
-              <span className="text-dimmer">support@waai.ro</span>
+              <a href="mailto:support@waai.ro" className="text-dim hover:text-ink transition-colors w-fit pb-0.5 border-b border-transparent hover:border-acid">support@waai.ro</a>
+              <a href="https://waai.ro" className="text-dim hover:text-ink transition-colors w-fit pb-0.5 border-b border-transparent hover:border-acid">waai.ro</a>
+              <a href="tel:+40758154490" className="text-dim hover:text-ink transition-colors w-fit pb-0.5 border-b border-transparent hover:border-acid">0758 154 490</a>
             </div>
           </div>
         </div>

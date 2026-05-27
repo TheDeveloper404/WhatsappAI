@@ -822,25 +822,17 @@ function Features() {
 
 // ─── §04 PRICING ──────────────────────────────────────────────────────────────
 const PLAN_LUNAR = [
-  '7 zile trial gratuit',
   'agent AI activ 24/7',
   'mesaje nelimitate',
-  '1 cont WhatsApp',
   'stilul tău clonat din conversații',
-  'knowledge base personalizat',
-  'transcriere mesaje vocale',
-  'detecție sentiment & notificări',
-  'dashboard cu statistici în timp real',
+  'transcriere vocale & detecție sentiment',
 ]
 
 const PLAN_ANUAL_EXTRA = [
-  '7 zile trial gratuit',
   'tot ce e în Lunar, plus:',
-  '33% reducere față de lunar',
-  'echivalent ~33.25 RON / lună',
   'suport prioritar < 2h',
-  'factură pe firmă',
   'acces beta features',
+  'economisești 201 RON / an',
 ]
 
 function Pricing() {
@@ -870,7 +862,7 @@ function Pricing() {
         {/* Cards — 2 coloane */}
         <div className="grid md:grid-cols-2 gap-4">
             {/* Lunar */}
-            <div className="card-elevated rounded-2xl p-5 transition-shadow hover:shadow-lg hover:border-acid/30 border border-line cursor-default">
+            <div className="card-elevated rounded-2xl p-5 flex flex-col transition-shadow hover:shadow-lg hover:border-acid/30 border border-line cursor-default">
               <div className="flex items-start justify-between mb-3">
                 <div>
                   <div className="font-display text-[18px] text-ink">lunar</div>
@@ -884,7 +876,7 @@ function Pricing() {
                 </div>
               </div>
               <p className="text-[12px] text-dim mb-4">Facturat lunar. Anulezi oricând cu un click.</p>
-              <ul className="space-y-2 mb-5">
+              <ul className="space-y-2 mb-5 flex-1">
                 {PLAN_LUNAR.map(f => (
                   <li key={f} className="flex items-center gap-2 font-mono-ui text-[12px] text-dim">
                     <Check className="w-3 h-3 text-acid flex-shrink-0" strokeWidth={2.5} />
@@ -898,7 +890,7 @@ function Pricing() {
             </div>
 
             {/* Anual */}
-            <div className="rounded-2xl p-5 relative transition-shadow hover:shadow-xl cursor-default" style={{ background: 'var(--acid)' }}>
+            <div className="rounded-2xl p-5 flex flex-col relative transition-shadow hover:shadow-xl cursor-default" style={{ background: 'var(--acid)' }}>
               <div className="absolute -top-3 right-5 font-mono-ui text-[9px] font-bold px-2.5 py-0.5 rounded-full"
                 style={{ background: 'var(--ink)', color: 'var(--on-acid)' }}>★ ECONOMISEȘTI 33%</div>
               <div className="flex items-start justify-between mb-3">
@@ -918,9 +910,9 @@ function Pricing() {
               <p className="font-mono-ui text-[10.5px] mb-4" style={{ color: 'var(--on-acid-muted)' }}>
                 economisești 201 RON față de lunar
               </p>
-              <ul className="space-y-2 mb-5">
+              <ul className="space-y-2 mb-5 flex-1">
                 {PLAN_ANUAL_EXTRA.map((f, i) => (
-                  <li key={f} className={`flex items-center gap-2 font-mono-ui text-[12px] ${i === 1 ? 'font-semibold' : ''}`} style={{ color: 'var(--on-acid)' }}>
+                  <li key={f} className={`flex items-center gap-2 font-mono-ui text-[12px] ${i === 0 ? 'font-semibold' : ''}`} style={{ color: 'var(--on-acid)' }}>
                     <Check className="w-3 h-3 flex-shrink-0" style={{ color: 'var(--on-acid)' }} strokeWidth={2.5} />
                     {f}
                   </li>

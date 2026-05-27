@@ -23,6 +23,7 @@ async function callGemini(messages: GeminiMessage[], options?: { max_tokens?: nu
     body.system_instruction = { parts: [{ text: systemMsg.content }] }
   }
 
+  if (!env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY not configured')
   const res = await fetch(`${GEMINI_API_URL}?key=${env.GEMINI_API_KEY}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

@@ -34,13 +34,16 @@ function DashboardContent() {
   const [loadingPortal, setLoadingPortal] = useState(false)
   const [portalError, setPortalError] = useState(false)
   const [togglingAI, setTogglingAI] = useState(false)
+  const [initialLoaded, setInitialLoaded] = useState(false)
   const checkoutSuccess = searchParams.get('checkout') === 'success'
 
   useEffect(() => {
     if (!accessToken) return
-    api.billing.getSubscription(accessToken).then(({ subscription }) => setSub(subscription))
-    api.whatsapp.getSession(accessToken).then(({ session }) => setWaSession(session)).catch(() => {})
-    api.ai.getSettings(accessToken).then(({ settings }) => setAiSettings(settings)).catch(() => {})
+    Promise.all([
+      api.billing.getSubscription(accessToken).then(({ subscription }) => setSub(subscription)).catch(() => {}),
+      api.whatsapp.getSession(accessToken).then(({ session }) => setWaSession(session)).catch(() => {}),
+      api.ai.getSettings(accessToken).then(({ settings }) => setAiSettings(settings)).catch(() => {}),
+    ]).finally(() => setInitialLoaded(true))
   }, [accessToken])
 
   async function handlePortal() {
@@ -145,12 +148,14 @@ function DashboardContent() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         {/* AI Toggle */}
         <div className={`rounded-xl border-2 p-5 flex flex-col gap-3 transition-colors bg-card ${
+          !initialLoaded ? 'border-line' :
           aiSettings?.adminDisabled ? 'border-orange-400 dark:border-orange-600' :
           aiSettings?.isActive ? 'border-acid' : 'border-line'
         }`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                !initialLoaded ? 'bg-cardhi text-dimmer' :
                 aiSettings?.adminDisabled ? 'bg-orange-50 dark:bg-orange-900/30 text-orange-500' :
                 aiSettings?.isActive ? 'bg-acid/10 text-acid' : 'bg-cardhi text-dimmer'
               }`}>
@@ -160,31 +165,34 @@ function DashboardContent() {
             </div>
             <button
               onClick={handleToggleAI}
-              disabled={togglingAI || !canToggleAI}
-              style={aiSettings?.isActive ? { background: 'var(--acid)' } : undefined}
+              disabled={!initialLoaded || togglingAI || !canToggleAI}
+              style={initialLoaded && aiSettings?.isActive ? { background: 'var(--acid)' } : undefined}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none disabled:opacity-40 disabled:cursor-not-allowed ${
-                aiSettings?.isActive ? '' : 'bg-cardhi border border-line'
+                initialLoaded && aiSettings?.isActive ? '' : 'bg-cardhi border border-line'
               }`}
               title={aiSettings?.adminDisabled ? 'Dezactivat de administrator' : undefined}
             >
               <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${
-                aiSettings?.isActive ? 'translate-x-6' : 'translate-x-1'
+                initialLoaded && aiSettings?.isActive ? 'translate-x-6' : 'translate-x-1'
               }`} />
             </button>
           </div>
           <div>
             <p className={`font-display text-[20px] leading-none ${
+              !initialLoaded ? 'text-dimmer' :
               aiSettings?.adminDisabled ? 'text-orange-600 dark:text-orange-400' :
               aiSettings?.isActive ? 'text-acid' : 'text-dimmer'
             }`}>
-              {aiSettings?.adminDisabled ? 'Blocat' : aiSettings?.isActive ? 'Activ' : 'Inactiv'}
+              {!initialLoaded ? '—' : aiSettings?.adminDisabled ? 'Blocat' : aiSettings?.isActive ? 'Activ' : 'Inactiv'}
             </p>
             <p className="font-mono-ui text-[11px] text-dimmer mt-1">
-              {aiSettings?.adminDisabled
-                ? 'Contactează suportul'
-                : aiSettings?.isActive
-                  ? `Timer: ${aiSettings.timerMinutes} min inactivitate`
-                  : 'Apasă toggle pentru a activa'}
+              {!initialLoaded
+                ? '—'
+                : aiSettings?.adminDisabled
+                  ? 'Contactează suportul'
+                  : aiSettings?.isActive
+                    ? `Timer: ${aiSettings.timerMinutes} min inactivitate`
+                    : 'Apasă toggle pentru a activa'}
             </p>
           </div>
           {canToggleAI && (
@@ -211,15 +219,16 @@ function DashboardContent() {
           </div>
           <div>
             <p className={`font-display text-[20px] leading-none ${
+              !initialLoaded ? 'text-dimmer' :
               waSession?.status === 'connected' ? 'text-green-600 dark:text-green-400' : 'text-dimmer'
             }`}>
-              {waSession?.status === 'connected' ? 'Conectat' : waSession?.status === 'pairing' ? 'Asociere…' : 'Neconectat'}
+              {!initialLoaded ? '—' : waSession?.status === 'connected' ? 'Conectat' : waSession?.status === 'pairing' ? 'Asociere…' : 'Neconectat'}
             </p>
             <p className="font-mono-ui text-[11px] text-dimmer mt-1">
-              {waSession?.phoneNumber ? `+${waSession.phoneNumber}` : 'Niciun număr asociat'}
+              {!initialLoaded ? '—' : waSession?.phoneNumber ? `+${waSession.phoneNumber}` : 'Niciun număr asociat'}
             </p>
           </div>
-          {waSession?.status !== 'connected' && (
+          {initialLoaded && waSession?.status !== 'connected' && (
             <button
               onClick={() => router.push('/connect')}
               className="font-mono-ui text-[11px] text-acid hover:underline mt-auto"

@@ -3,6 +3,8 @@ import { z } from 'zod'
 import { authenticate } from '../../middleware/authenticate.js'
 import { aiService } from './ai.service.js'
 import { Errors } from '../../utils/errors.js'
+import { appEvents } from '../../utils/events.js'
+import { verifyAccessToken } from '../../utils/tokens.js'
 
 export async function aiRoutes(app: FastifyInstance) {
   app.get('/settings', { preHandler: authenticate }, async (req, reply) => {
@@ -63,5 +65,36 @@ export async function aiRoutes(app: FastifyInstance) {
     const phone = (req.params as any).phone as string
     await aiService.clearConversation(req.user!.id, phone)
     return reply.status(204).send()
+  })
+
+  app.get('/stream', async (req, reply) => {
+    const token = (req.query as any).token as string | undefined
+    if (!token) return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Token lipsă.' } })
+
+    let userId: string
+    try {
+      const payload = verifyAccessToken(token)
+      userId = payload.userId
+    } catch {
+      return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Token invalid sau expirat.' } })
+    }
+
+    reply.header('Content-Type', 'text/event-stream')
+    reply.header('Cache-Control', 'no-cache')
+    reply.header('Connection', 'keep-alive')
+    reply.header('X-Accel-Buffering', 'no')
+    reply.raw.flushHeaders()
+
+    const heartbeat = setInterval(() => { reply.raw.write(': ping\n\n') }, 25000)
+
+    const onMsg = (data: object) => {
+      reply.raw.write(`data: ${JSON.stringify(data)}\n\n`)
+    }
+    appEvents.on(`conv:${userId}`, onMsg)
+
+    await new Promise<void>(resolve => req.raw.on('close', resolve))
+
+    clearInterval(heartbeat)
+    appEvents.off(`conv:${userId}`, onMsg)
   })
 }

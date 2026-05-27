@@ -1,7 +1,7 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAuthStore } from '@/store/auth'
-import { api, type Conversation, type ConversationMessage } from '@/lib/api'
+import { api, API_URL, type Conversation, type ConversationMessage } from '@/lib/api'
 import { Loader2, MessageSquare, ChevronDown, ChevronUp, Trash2, RefreshCw } from 'lucide-react'
 
 function formatTime(ts: number) {
@@ -132,6 +132,7 @@ export default function ConversationsPage() {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const esRef = useRef<EventSource | null>(null)
 
   async function load(showRefresh = false) {
     if (!accessToken) return
@@ -146,6 +147,32 @@ export default function ConversationsPage() {
   }
 
   useEffect(() => { load() }, [accessToken])
+
+  useEffect(() => {
+    if (!accessToken) return
+    const url = `${API_URL}/api/v1/ai/stream?token=${encodeURIComponent(accessToken)}`
+    const es = new EventSource(url, { withCredentials: true })
+    esRef.current = es
+
+    es.onmessage = (e) => {
+      try {
+        const data = JSON.parse(e.data) as { contactPhone: string; lastMessage: string; lastAt: number; fromMe: boolean }
+        setConversations(prev => {
+          const idx = prev.findIndex(c => c.contactPhone === data.contactPhone)
+          let next: Conversation[]
+          if (idx !== -1) {
+            next = [...prev]
+            next[idx] = { ...next[idx], lastMessage: data.lastMessage, lastAt: data.lastAt, fromMe: data.fromMe, count: next[idx].count + 1 }
+          } else {
+            next = [{ contactPhone: data.contactPhone, lastMessage: data.lastMessage, lastAt: data.lastAt, fromMe: data.fromMe, count: 1 }, ...prev]
+          }
+          return next.sort((a, b) => b.lastAt - a.lastAt)
+        })
+      } catch {}
+    }
+
+    return () => { es.close(); esRef.current = null }
+  }, [accessToken])
 
   function handleDeleted(phone: string) {
     setConversations(prev => prev.filter(c => c.contactPhone !== phone))

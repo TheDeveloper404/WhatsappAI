@@ -5,6 +5,7 @@ import { askGroq, extractContactMemory, transcribeAudio, type GroqMessage } from
 import { parseCommand, HELP_TEXT } from './command.parser.js'
 import { recordOwnerReply, isOwnerActive } from './inactivity.tracker.js'
 import { logger } from '../../utils/logger.js'
+import { appEvents } from '../../utils/events.js'
 import type { AiSettings } from '../../db/schema.js'
 
 function extractText(msg: any): string | null {
@@ -154,6 +155,7 @@ async function processMessage(userId: string, sock: WASocket, msg: any): Promise
   if (!body) return
 
   await aiRepository.saveMessage(userId, contactPhone, fromMe, body, waTimestamp)
+  appEvents.emit(`conv:${userId}`, { contactPhone, lastMessage: body, lastAt: waTimestamp, fromMe })
 
   if (fromMe) {
     cancelPending(userId, contactPhone)

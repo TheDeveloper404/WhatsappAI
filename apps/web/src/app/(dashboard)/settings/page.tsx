@@ -235,8 +235,8 @@ export default function SettingsPage() {
                 }
               </button>
             </div>
-            <div className="flex items-center justify-between mt-4 pt-4 border-t border-line">
-              <div>
+            <div className="flex items-start justify-between gap-4 mt-4 pt-4 border-t border-line">
+              <div className="min-w-0">
                 <p className="font-mono-ui text-[12px] text-ink font-medium">Notificare când AI preia</p>
                 <p className="font-mono-ui text-[11px] text-dimmer mt-0.5">Primești un mesaj pe WhatsApp când AI răspunde în locul tău.</p>
               </div>
@@ -247,7 +247,7 @@ export default function SettingsPage() {
                   setSettings(updated)
                 }}
                 style={settings?.notifyOnAiTakeover ? { background: 'var(--acid)' } : undefined}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                className={`relative inline-flex h-6 w-11 shrink-0 mt-0.5 items-center rounded-full transition-colors focus:outline-none ${
                   settings?.notifyOnAiTakeover ? '' : 'bg-cardhi border border-line'
                 }`}
               >

@@ -154,7 +154,9 @@ async function processMessage(userId: string, sock: WASocket, msg: any): Promise
   if (!jid || !isIndividualChat(jid)) return
 
   const fromMe: boolean = msg.key?.fromMe ?? false
+  const ownerPhone = sock.user?.id ? extractPhone(sock.user.id) : null
   const contactPhone = extractPhone(jid)
+  if (ownerPhone && contactPhone === ownerPhone) return
   const waTimestamp = (msg.messageTimestamp as number) * 1000
   logger.info(`[AI][${userId.slice(0, 8)}] procesez mesaj`, { fromMe, contactPhone })
 

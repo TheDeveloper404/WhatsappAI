@@ -261,27 +261,30 @@ function OperatorConsole() {
                 <div className="ml-auto font-mono-ui text-[10px] text-dimmer">21:47</div>
               </div>
               {/* Live animated chat */}
-              <div className="space-y-3 overflow-hidden" style={{ height: '260px', overflowY: 'hidden' }}>
-                {LIVE_CHAT.slice(0, shown).map((msg, i) => (
-                  <div key={i} className={`flex ${msg.side === 'right' ? 'justify-end' : 'justify-start'}${i === shown - 1 ? ' fade-in' : ''}`}>
-                    <div
-                      className={msg.side === 'right' ? 'bubble-r px-4 py-2.5 text-[13px] text-ink max-w-[85%]' : 'bubble-l px-4 py-2.5 text-[13px] text-dim inline-block max-w-[85%]'}
-                      style={msg.side === 'right'
-                        ? { background: 'color-mix(in oklab, var(--acid) 18%, var(--card-hi))' }
-                        : { background: 'var(--card-bg)', border: '1px solid var(--line)' }}>
-                      {msg.text}
+              <div className="relative">
+                <div className="space-y-3 overflow-hidden" style={{ height: '260px', overflowY: 'hidden' }}>
+                  {LIVE_CHAT.slice(0, shown).map((msg, i) => (
+                    <div key={i} className={`flex ${msg.side === 'right' ? 'justify-end' : 'justify-start'}${i === shown - 1 ? ' fade-in' : ''}`}>
+                      <div
+                        className={msg.side === 'right' ? 'bubble-r px-4 py-2.5 text-[13px] text-ink max-w-[85%]' : 'bubble-l px-4 py-2.5 text-[13px] text-dim inline-block max-w-[85%]'}
+                        style={msg.side === 'right'
+                          ? { background: 'color-mix(in oklab, var(--acid) 18%, var(--card-hi))' }
+                          : { background: 'var(--card-bg)', border: '1px solid var(--line)' }}>
+                        {msg.text}
+                      </div>
                     </div>
-                  </div>
-                ))}
-                {typing && (
-                  <div className="flex justify-end fade-in">
-                    <div className="bubble-r px-3 py-2.5 flex gap-1" style={{ background: 'color-mix(in oklab, var(--acid) 18%, var(--card-hi))' }}>
-                      <span className="typing-dot text-acid text-lg">·</span>
-                      <span className="typing-dot text-acid text-lg">·</span>
-                      <span className="typing-dot text-acid text-lg">·</span>
+                  ))}
+                  {typing && (
+                    <div className="flex justify-end fade-in">
+                      <div className="bubble-r px-3 py-2.5 flex gap-1" style={{ background: 'color-mix(in oklab, var(--acid) 18%, var(--card-hi))' }}>
+                        <span className="typing-dot text-acid text-lg">·</span>
+                        <span className="typing-dot text-acid text-lg">·</span>
+                        <span className="typing-dot text-acid text-lg">·</span>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
+                <div className="absolute bottom-0 left-0 right-0 h-10 pointer-events-none" style={{ background: 'linear-gradient(to top, var(--card-elevated, var(--card-hi)), transparent)' }} />
               </div>
               <div className="flex items-center justify-between mt-5 pt-4 border-t border-line">
                 <div className="flex items-center gap-2 font-mono-ui text-[10px] text-dimmer">

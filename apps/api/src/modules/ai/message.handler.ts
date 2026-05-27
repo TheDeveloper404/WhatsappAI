@@ -153,7 +153,10 @@ async function processMessage(userId: string, sock: WASocket, msg: any): Promise
     body = extractText(msg)
   }
 
-  if (!body) return
+  if (!body) {
+    logger.info(`[AI][${userId.slice(0, 8)}] body null`, { fromMe, contactPhone, stubType: msg.messageStubType, msgKeys: msg.message ? Object.keys(msg.message) : null })
+    return
+  }
 
   await aiRepository.saveMessage(userId, contactPhone, fromMe, body, waTimestamp)
   appEvents.emit(`conv:${userId}`, { contactPhone, lastMessage: body, lastAt: waTimestamp, fromMe })

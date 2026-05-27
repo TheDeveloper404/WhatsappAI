@@ -77,7 +77,7 @@ export async function buildApp() {
   await app.register(authRoutes, { prefix: '/api/v1/auth' })
   await app.register(userRoutes, { prefix: '/api/v1/users' })
   await app.register(billingRoutes, { prefix: '/api/v1/billing' })
-  await app.register(stripeWebhookRoutes, { prefix: '/api/v1/webhooks' })
+  await app.register(stripeWebhookRoutes, { prefix: '/webhooks' })
   await app.register(whatsappRoutes, { prefix: '/api/v1/whatsapp' })
   await app.register(aiRoutes, { prefix: '/api/v1/ai' })
   await app.register(adminRoutes, { prefix: '/api/v1/admin' })

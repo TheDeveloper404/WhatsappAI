@@ -126,6 +126,7 @@ export async function handleMessages(userId: string, sock: WASocket, messages: a
 
 async function processMessage(userId: string, sock: WASocket, msg: any): Promise<void> {
   const jid: string = msg.key?.remoteJid
+  logger.info(`[AI][${userId.slice(0, 8)}] msg-raw`, { jid, fromMe: msg.key?.fromMe, hasMsg: !!msg.message })
   if (!jid || !isIndividualChat(jid)) return
 
   const fromMe: boolean = msg.key?.fromMe ?? false

@@ -107,7 +107,7 @@ function sendWebhook(event: object) {
   vi.mocked(stripe.webhooks.constructEvent).mockReturnValue(event as any)
   return app.inject({
     method: 'POST',
-    url: '/api/v1/webhooks/stripe',
+    url: '/webhooks/stripe',
     headers: {
       'content-type': 'application/json',
       'stripe-signature': 'test_sig',
@@ -124,7 +124,7 @@ describe('POST /webhooks/stripe — semnătură', () => {
   it('400 — lipsește stripe-signature header', async () => {
     const res = await app.inject({
       method: 'POST',
-      url: '/api/v1/webhooks/stripe',
+      url: '/webhooks/stripe',
       headers: { 'content-type': 'application/json' },
       payload: Buffer.from('{}'),
     })
@@ -137,7 +137,7 @@ describe('POST /webhooks/stripe — semnătură', () => {
     })
     const res = await app.inject({
       method: 'POST',
-      url: '/api/v1/webhooks/stripe',
+      url: '/webhooks/stripe',
       headers: { 'content-type': 'application/json', 'stripe-signature': 'bad_sig' },
       payload: Buffer.from('{}'),
     })

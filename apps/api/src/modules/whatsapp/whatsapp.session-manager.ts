@@ -116,24 +116,8 @@ function attachPersistentHandlers(sock: WASocket, userId: string) {
         reconnectAttempts.delete(userId)
         sock.ev.on('messages.upsert', async ({ messages, type }) => {
           logger.info(`[WA][${userId.slice(0, 8)}] messages.upsert`, { type, count: messages.length })
-          if (type === 'notify') {
-            await handleMessages(userId, sock, messages)
-            return
-          }
-          if (type === 'append') {
-            // Conturile @lid livrează conținutul real ca "append" după un "notify" gol
-            const now = Date.now()
-            const recent = messages.filter(m =>
-              !m.key?.fromMe &&
-              m.message &&
-              typeof m.messageTimestamp === 'number' &&
-              now - m.messageTimestamp * 1000 < 60_000
-            )
-            if (recent.length > 0) {
-              logger.info(`[WA][${userId.slice(0, 8)}] messages.append recente externe`, { count: recent.length })
-              await handleMessages(userId, sock, recent)
-            }
-          }
+          if (type !== 'notify') return
+          await handleMessages(userId, sock, messages)
         })
         const phoneNumber = sock.user?.id?.split(':')[0] ?? null
         logger.info(`[WA][${userId.slice(0, 8)}] CONECTAT`, { phone: phoneNumber })

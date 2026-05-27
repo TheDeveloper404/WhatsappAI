@@ -76,7 +76,7 @@ export default function TermeniPage() {
 
         <section>
           <h2 className="font-display-md text-[22px] text-ink mb-3">11. Contact</h2>
-          <p>Pentru întrebări referitoare la acești termeni, ne poți contacta la <a href="mailto:hi@whatsappai.ro" className="text-acid hover:underline">hi@whatsappai.ro</a>.</p>
+          <p>Pentru întrebări referitoare la acești termeni, ne poți contacta la <a href="mailto:support@waai.ro" className="text-acid hover:underline">support@waai.ro</a>.</p>
         </section>
 
       </div>

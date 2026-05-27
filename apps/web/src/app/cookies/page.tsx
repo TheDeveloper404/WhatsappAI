@@ -63,7 +63,7 @@ export default function CookiesPage() {
 
         <section>
           <h2 className="font-display-md text-[22px] text-ink mb-3">Contact</h2>
-          <p>Întrebări despre cookie-uri: <a href="mailto:hi@whatsappai.ro" className="text-acid hover:underline">hi@whatsappai.ro</a></p>
+          <p>Întrebări despre cookie-uri: <a href="mailto:support@waai.ro" className="text-acid hover:underline">support@waai.ro</a></p>
         </section>
 
       </div>

@@ -887,8 +887,8 @@ function FAQ() {
             </h2>
             <p className="mt-8 text-[14px] text-dim leading-relaxed">
               Nu găsești răspunsul? Scrie-ne la{' '}
-              <a href="mailto:hi@waai.ro" className="text-acid hover:opacity-75 transition-opacity">
-                hi@waai.ro
+              <a href="mailto:support@waai.ro" className="text-acid hover:opacity-75 transition-opacity">
+                support@waai.ro
               </a>
               . Răspundem în câteva ore.<br />
               Noi, nu agentul.
@@ -962,7 +962,7 @@ function Footer() {
           <div className="lg:col-span-4">
             <div className="font-mono-ui text-[10.5px] text-dimmer tracking-widest uppercase mb-4">CONTACT</div>
             <div className="flex flex-col gap-3 font-mono-ui text-[14px]">
-              <span className="text-dimmer">hi@waai.ro</span>
+              <span className="text-dimmer">support@waai.ro</span>
             </div>
           </div>
         </div>

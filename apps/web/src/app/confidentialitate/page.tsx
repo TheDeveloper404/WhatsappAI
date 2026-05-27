@@ -19,7 +19,7 @@ export default function ConfidentialitatePage() {
 
         <section>
           <h2 className="font-display-md text-[22px] text-ink mb-3">1. Cine suntem</h2>
-          <p>WhatsApp AI SRL, cu sediul în București, România, este operatorul datelor cu caracter personal colectate prin intermediul platformei WhatsApp AI. Ne poți contacta la <a href="mailto:hi@whatsappai.ro" className="text-acid hover:underline">hi@whatsappai.ro</a>.</p>
+          <p>WhatsApp AI SRL, cu sediul în București, România, este operatorul datelor cu caracter personal colectate prin intermediul platformei WhatsApp AI. Ne poți contacta la <a href="mailto:support@waai.ro" className="text-acid hover:underline">support@waai.ro</a>.</p>
         </section>
 
         <section>
@@ -64,7 +64,7 @@ export default function ConfidentialitatePage() {
 
         <section>
           <h2 className="font-display-md text-[22px] text-ink mb-3">7. Drepturile tale</h2>
-          <p>Conform GDPR, ai dreptul la: acces, rectificare, ștergere, restricționarea prelucrării, portabilitatea datelor și opoziție. Poți exercita aceste drepturi la <a href="mailto:hi@whatsappai.ro" className="text-acid hover:underline">hi@whatsappai.ro</a>. Ai, de asemenea, dreptul de a depune o plângere la Autoritatea Națională de Supraveghere a Prelucrării Datelor cu Caracter Personal (ANSPDCP).</p>
+          <p>Conform GDPR, ai dreptul la: acces, rectificare, ștergere, restricționarea prelucrării, portabilitatea datelor și opoziție. Poți exercita aceste drepturi la <a href="mailto:support@waai.ro" className="text-acid hover:underline">support@waai.ro</a>. Ai, de asemenea, dreptul de a depune o plângere la Autoritatea Națională de Supraveghere a Prelucrării Datelor cu Caracter Personal (ANSPDCP).</p>
         </section>
 
         <section>

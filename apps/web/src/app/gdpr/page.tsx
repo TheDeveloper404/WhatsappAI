@@ -56,7 +56,7 @@ export default function GdprPage() {
 
         <section>
           <h2 className="font-display-md text-[22px] text-ink mb-3">Cum exerciți aceste drepturi</h2>
-          <p>Trimite un email la <a href="mailto:hi@waai.ro" className="text-acid hover:underline">hi@waai.ro</a> cu subiectul &bdquo;Cerere GDPR&rdquo; și specifică dreptul pe care dorești să-l exerciți. Răspundem în maxim 30 de zile calendaristice. Serviciul este gratuit; în cazuri complexe sau repetitive putem solicita o taxă rezonabilă.</p>
+          <p>Trimite un email la <a href="mailto:support@waai.ro" className="text-acid hover:underline">support@waai.ro</a> cu subiectul &bdquo;Cerere GDPR&rdquo; și specifică dreptul pe care dorești să-l exerciți. Răspundem în maxim 30 de zile calendaristice. Serviciul este gratuit; în cazuri complexe sau repetitive putem solicita o taxă rezonabilă.</p>
         </section>
 
         <section>

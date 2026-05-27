@@ -81,9 +81,11 @@ function DashboardContent() {
           <p className="font-mono-ui text-[12px] text-dim mt-1">Dashboard-ul agentului tău AI</p>
         </div>
         <div className="flex items-center gap-3">
+          {user?.role !== 'admin' && (
           <span className={`font-mono-ui text-[10px] tracking-wide px-3 py-1.5 rounded-full ${statusColor}`}>
             {statusText}
           </span>
+          )}
           {sub && sub.status !== 'incomplete' && (
             <div className="flex flex-col items-end gap-1">
               <button
@@ -130,7 +132,7 @@ function DashboardContent() {
         </div>
       )}
 
-      {!checkoutSuccess && (!sub || sub.status === 'incomplete') && (
+      {!checkoutSuccess && (!sub || sub.status === 'incomplete') && user?.role !== 'admin' && (
         <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 mb-8 flex items-center gap-3">
           <div className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
           <p className="font-mono-ui text-[12px] text-amber-800 dark:text-amber-300">
@@ -227,7 +229,8 @@ function DashboardContent() {
           )}
         </div>
 
-        {/* Trial */}
+        {/* Trial — ascuns pentru admin */}
+        {user?.role !== 'admin' && (
         <div className="card-elevated rounded-xl p-5 flex flex-col gap-3">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400">
@@ -248,6 +251,7 @@ function DashboardContent() {
             <span className="font-mono-ui text-[11px] text-dimmer">Mesaje procesate: —</span>
           </div>
         </div>
+        )}
       </div>
 
       {/* Onboarding Steps */}
@@ -256,12 +260,12 @@ function DashboardContent() {
         <div className="flex flex-col gap-4">
           {[
             { step: 1, title: 'Cont creat', done: true, desc: 'Contul tău este activ.' },
-            {
+            ...(user?.role !== 'admin' ? [{
               step: 2,
               title: 'Subscripție activată',
               done: !!sub && sub.status !== 'incomplete',
               desc: sub?.status === 'trialing' ? `Trial activ — ${trialDaysLeft(sub.trialEndsAt)} rămase.` : 'Alege un plan pentru a activa agentul.',
-            },
+            }] : []),
             {
               step: 3,
               title: 'Conectare WhatsApp',

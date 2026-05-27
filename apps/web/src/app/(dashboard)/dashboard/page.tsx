@@ -2,7 +2,7 @@
 import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useAuthStore } from '@/store/auth'
-import { api, type Subscription, type WhatsappSession, type AiSettings } from '@/lib/api'
+import { api, type Subscription, type WhatsappSession, type AiSettings, type AiStats } from '@/lib/api'
 import { Bot, Wifi, Clock, MessageSquare, CheckCircle2, ExternalLink, Settings, Loader2 } from 'lucide-react'
 
 function trialDaysLeft(trialEndsAt: number | null): string {
@@ -31,6 +31,7 @@ function DashboardContent() {
   const [sub, setSub] = useState<Subscription | null>(null)
   const [waSession, setWaSession] = useState<WhatsappSession | null>(null)
   const [aiSettings, setAiSettings] = useState<AiSettings | null>(null)
+  const [stats, setStats] = useState<AiStats | null>(null)
   const [loadingPortal, setLoadingPortal] = useState(false)
   const [portalError, setPortalError] = useState(false)
   const [togglingAI, setTogglingAI] = useState(false)
@@ -43,6 +44,7 @@ function DashboardContent() {
       api.billing.getSubscription(accessToken).then(({ subscription }) => setSub(subscription)).catch(() => {}),
       api.whatsapp.getSession(accessToken).then(({ session }) => setWaSession(session)).catch(() => {}),
       api.ai.getSettings(accessToken).then(({ settings }) => setAiSettings(settings)).catch(() => {}),
+      api.ai.getStats(accessToken).then(({ stats }) => setStats(stats)).catch(() => {}),
     ]).finally(() => setInitialLoaded(true))
   }, [accessToken])
 
@@ -261,6 +263,31 @@ function DashboardContent() {
           </div>
         </div>
         )}
+      </div>
+
+      {/* Statistici AI */}
+      <div className="card-elevated rounded-xl p-6 mb-4">
+        <h2 className="font-mono-ui text-[10px] text-dimmer tracking-widest uppercase mb-5">Activitate Agent AI</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[
+            { label: 'Azi', value: stats?.today ?? null },
+            { label: 'Ultimele 7 zile', value: stats?.week ?? null },
+            { label: 'Ultimele 30 zile', value: stats?.month ?? null },
+            { label: 'Conversații totale', value: stats?.totalConversations ?? null },
+          ].map(({ label, value }) => (
+            <div key={label} className="flex flex-col gap-1">
+              <p className="font-mono-ui text-[10px] text-dimmer uppercase tracking-widest">{label}</p>
+              <p className="font-display text-[28px] leading-none text-ink">
+                {value === null ? '—' : value}
+              </p>
+              {value !== null && (
+                <p className="font-mono-ui text-[10px] text-dimmer">
+                  {label === 'Conversații totale' ? 'contacte unice' : 'mesaje AI'}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Onboarding Steps */}

@@ -60,9 +60,9 @@ export const aiRepository = {
     return rows.map(r => r.phoneNumber)
   },
 
-  async saveMessage(userId: string, contactPhone: string, fromMe: boolean, body: string, waTimestamp: number): Promise<void> {
+  async saveMessage(userId: string, contactPhone: string, fromMe: boolean, body: string, waTimestamp: number, isAi = false): Promise<void> {
     await db.insert(conversationMessages).values({
-      id: randomUUID(), userId, contactPhone, fromMe, body, waTimestamp, createdAt: Date.now(),
+      id: randomUUID(), userId, contactPhone, fromMe, isAi, body, waTimestamp, createdAt: Date.now(),
     })
     // Șterge mesajele dincolo de ultimele 50 într-o singură interogare
     await pool.query(`
@@ -151,6 +151,31 @@ export const aiRepository = {
       .from(contactMemory)
       .where(and(eq(contactMemory.userId, userId), eq(contactMemory.contactPhone, contactPhone)))
     return rows[0]?.summary ?? null
+  },
+
+  async getStats(userId: string): Promise<{ today: number; week: number; month: number; totalConversations: number }> {
+    const now = Date.now()
+    const startOfDay   = now - (now % 86_400_000)
+    const startOfWeek  = now - 7  * 86_400_000
+    const startOfMonth = now - 30 * 86_400_000
+
+    const result = await pool.query(`
+      SELECT
+        COUNT(*) FILTER (WHERE is_ai = true AND created_at >= $2) AS today,
+        COUNT(*) FILTER (WHERE is_ai = true AND created_at >= $3) AS week,
+        COUNT(*) FILTER (WHERE is_ai = true AND created_at >= $4) AS month,
+        COUNT(DISTINCT contact_phone) AS total_conversations
+      FROM conversation_messages
+      WHERE user_id = $1
+    `, [userId, startOfDay, startOfWeek, startOfMonth])
+
+    const r = result.rows[0]
+    return {
+      today:              Number(r.today),
+      week:               Number(r.week),
+      month:              Number(r.month),
+      totalConversations: Number(r.total_conversations),
+    }
   },
 
   async upsertContactMemory(userId: string, contactPhone: string, summary: string): Promise<void> {

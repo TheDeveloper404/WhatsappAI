@@ -50,6 +50,11 @@ export async function aiRoutes(app: FastifyInstance) {
     return reply.status(204).send()
   })
 
+  app.get('/stats', { preHandler: authenticate }, async (req, reply) => {
+    const stats = await aiService.getStats(req.user!.id)
+    return reply.send({ stats })
+  })
+
   app.get('/conversations', { preHandler: authenticate }, async (req, reply) => {
     const conversations = await aiService.getConversations(req.user!.id)
     return reply.send({ conversations })

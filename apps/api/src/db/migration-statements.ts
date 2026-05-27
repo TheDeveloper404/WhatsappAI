@@ -118,4 +118,6 @@ export const migrationStatements = [
   `ALTER TABLE ai_settings ADD COLUMN IF NOT EXISTS knowledge_base TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE ai_settings ADD COLUMN IF NOT EXISTS writing_style TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS deletion_scheduled_at BIGINT`,
+  `ALTER TABLE conversation_messages ADD COLUMN IF NOT EXISTS is_ai BOOLEAN NOT NULL DEFAULT FALSE`,
+  `CREATE INDEX IF NOT EXISTS idx_conversation_messages_ai ON conversation_messages(user_id, is_ai, created_at)`,
 ]

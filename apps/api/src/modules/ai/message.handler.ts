@@ -104,7 +104,7 @@ async function sendAiResponse(userId: string, contactPhone: string, jid: string,
   logger.info(`[AI][${userId.slice(0, 8)}] generez răspuns`)
   const reply = await askGroq(groqMessages)
   await sock.sendMessage(jid, { text: reply })
-  await aiRepository.saveMessage(userId, contactPhone, true, reply, Date.now())
+  await aiRepository.saveMessage(userId, contactPhone, true, reply, Date.now(), true)
   logger.info(`[AI][${userId.slice(0, 8)}] răspuns trimis`)
 
   // Actualizează memoria în background, fără să blocheze răspunsul

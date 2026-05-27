@@ -84,6 +84,7 @@ export const conversationMessages = pgTable('conversation_messages', {
   userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   contactPhone: text('contact_phone').notNull(),
   fromMe: boolean('from_me').notNull().default(false),
+  isAi: boolean('is_ai').notNull().default(false),
   body: text('body').notNull(),
   waTimestamp: bigint('wa_timestamp', { mode: 'number' }).notNull(),
   createdAt: bigint('created_at', { mode: 'number' }).notNull(),

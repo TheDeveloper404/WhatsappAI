@@ -225,6 +225,12 @@ export const api = {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
         credentials: 'include',
       }),
+
+    getStats: (accessToken: string) =>
+      request<{ stats: AiStats }>('/api/v1/ai/stats', {
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        credentials: 'include',
+      }),
   },
 
   admin: {
@@ -304,6 +310,13 @@ export interface WhatsappSession {
   connectedAt: number | null
   createdAt: number
   updatedAt: number
+}
+
+export interface AiStats {
+  today: number
+  week: number
+  month: number
+  totalConversations: number
 }
 
 export interface AiSettings {

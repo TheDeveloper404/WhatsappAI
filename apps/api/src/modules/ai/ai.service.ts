@@ -43,4 +43,8 @@ export const aiService = {
   async clearConversation(userId: string, contactPhone: string) {
     return aiRepository.clearHistory(userId, contactPhone)
   },
+
+  async getStats(userId: string) {
+    return aiRepository.getStats(userId)
+  },
 }

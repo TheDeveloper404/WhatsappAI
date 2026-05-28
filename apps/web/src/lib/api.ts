@@ -16,11 +16,36 @@ export class ApiRequestError extends Error {
   }
 }
 
+async function sameOriginRequest<T>(path: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(path, {
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    ...options,
+  })
+
+  if (res.status === 204) return undefined as T
+
+  const data = await res.json()
+
+  if (!res.ok) {
+    const body = data as Record<string, unknown>
+    const err = (typeof body?.error === 'object' && body.error !== null) ? body.error as Record<string, unknown> : null
+    throw new ApiRequestError(
+      err ? String(err.code ?? 'ERROR') : String(body?.error ?? 'ERROR'),
+      err ? String(err.message ?? 'A aparut o eroare.') : String(body?.message ?? body?.error ?? 'A aparut o eroare.'),
+      err ? err.details as { field: string; message: string }[] | undefined : undefined,
+      res.status,
+    )
+  }
+
+  return data as T
+}
+
 // Attempt a silent token refresh using the httpOnly refresh cookie.
 // Returns the new accessToken or null if refresh failed.
 async function tryRefreshToken(): Promise<string | null> {
   try {
-    const res = await fetch(`${API_URL}/api/v1/auth/refresh`, {
+    const res = await fetch('/api/v1/auth/refresh', {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -97,15 +122,15 @@ export const api = {
       request('/api/v1/auth/register', { method: 'POST', body: JSON.stringify(body) }),
 
     login: (body: { email: string; password: string }) =>
-      request<{ user: User; accessToken: string }>('/api/v1/auth/login', {
+      sameOriginRequest<{ user: User; accessToken: string }>('/api/v1/auth/login', {
         method: 'POST',
         body: JSON.stringify(body),
       }),
 
-    logout: () => request('/api/v1/auth/logout', { method: 'POST', body: '{}' }),
+    logout: () => sameOriginRequest('/api/v1/auth/logout', { method: 'POST', body: '{}' }),
 
     refresh: () =>
-      request<{ accessToken: string }>('/api/v1/auth/refresh', { method: 'POST', body: '{}' }),
+      sameOriginRequest<{ accessToken: string }>('/api/v1/auth/refresh', { method: 'POST', body: '{}' }),
 
     verifyEmail: (token: string) =>
       request('/api/v1/auth/verify-email', { method: 'POST', body: JSON.stringify({ token }) }),

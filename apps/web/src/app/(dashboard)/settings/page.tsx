@@ -4,7 +4,7 @@ import { useAuthStore } from '@/store/auth'
 import { api, type AiSettings, type WhatsappSession } from '@/lib/api'
 import { Loader2, Save, Plus, X, Bot, Clock, Shield, Terminal } from 'lucide-react'
 
-const inputCls = 'w-full rounded-xl border border-line px-3 py-2 text-sm text-ink bg-cardhi focus:outline-none focus:ring-2 focus:ring-acid/40 focus:border-acid transition-colors resize-y'
+const inputCls = 'w-full rounded-xl border border-line px-3 py-2.5 text-[13px] text-ink bg-cardhi focus:outline-none focus:ring-2 focus:ring-acid/40 focus:border-acid transition-colors resize-y'
 
 const TABS = [
   { id: 'agent', label: 'Agent', icon: Bot },
@@ -77,104 +77,69 @@ export default function SettingsPage() {
 
   async function handleSavePrompt() {
     if (!accessToken) return
-    setSavingPrompt(true)
-    setSavedPrompt(false)
-    setError(null)
+    setSavingPrompt(true); setSavedPrompt(false); setError(null)
     try {
       const { settings: updated } = await api.ai.updateSettings(accessToken, { systemPrompt })
-      setSettings(updated)
-      setSavedPrompt(true)
+      setSettings(updated); setSavedPrompt(true)
       setTimeout(() => setSavedPrompt(false), 3000)
-    } catch {
-      setError('Eroare la salvarea promptului.')
-    } finally {
-      setSavingPrompt(false)
-    }
+    } catch { setError('Eroare la salvarea promptului.') }
+    finally { setSavingPrompt(false) }
   }
 
   async function handleSaveTimer() {
     if (!accessToken) return
-    setSavingTimer(true)
-    setSavedTimer(false)
-    setError(null)
+    setSavingTimer(true); setSavedTimer(false); setError(null)
     try {
       const { settings: updated } = await api.ai.updateSettings(accessToken, { timerMinutes })
-      setSettings(updated)
-      setSavedTimer(true)
+      setSettings(updated); setSavedTimer(true)
       setTimeout(() => setSavedTimer(false), 3000)
-    } catch {
-      setError('Eroare la salvarea timerului.')
-    } finally {
-      setSavingTimer(false)
-    }
+    } catch { setError('Eroare la salvarea timerului.') }
+    finally { setSavingTimer(false) }
   }
 
   async function handleAnalyzeStyle() {
     if (!accessToken) return
-    setAnalyzingStyle(true)
-    setError(null)
+    setAnalyzingStyle(true); setError(null)
     try {
       const { writingStyle: detected } = await api.ai.analyzeStyle(accessToken)
       setWritingStyle(detected)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Eroare la analiză. Asigură-te că ai cel puțin 5 mesaje trimise.')
-    } finally {
-      setAnalyzingStyle(false)
-    }
+    } finally { setAnalyzingStyle(false) }
   }
 
   async function handleSaveStyle() {
     if (!accessToken) return
-    setSavingStyle(true)
-    setSavedStyle(false)
-    setError(null)
+    setSavingStyle(true); setSavedStyle(false); setError(null)
     try {
       const { settings: updated } = await api.ai.updateSettings(accessToken, { writingStyle })
-      setSettings(updated)
-      setSavedStyle(true)
+      setSettings(updated); setSavedStyle(true)
       setTimeout(() => setSavedStyle(false), 3000)
-    } catch {
-      setError('Eroare la salvarea stilului.')
-    } finally {
-      setSavingStyle(false)
-    }
+    } catch { setError('Eroare la salvarea stilului.') }
+    finally { setSavingStyle(false) }
   }
 
   async function handleSaveKB() {
     if (!accessToken) return
-    setSavingKB(true)
-    setSavedKB(false)
-    setError(null)
+    setSavingKB(true); setSavedKB(false); setError(null)
     try {
       const { settings: updated } = await api.ai.updateSettings(accessToken, { knowledgeBase })
-      setSettings(updated)
-      setSavedKB(true)
+      setSettings(updated); setSavedKB(true)
       setTimeout(() => setSavedKB(false), 3000)
-    } catch {
-      setError('Eroare la salvarea informațiilor.')
-    } finally {
-      setSavingKB(false)
-    }
+    } catch { setError('Eroare la salvarea informațiilor.') }
+    finally { setSavingKB(false) }
   }
 
   async function handleAddPhone() {
     if (!accessToken || !newPhone.trim()) return
     const cleaned = newPhone.replace(/[^0-9]/g, '')
-    if (cleaned.length < 7) {
-      setPhoneError('Număr prea scurt — minim 7 cifre.')
-      return
-    }
-    setAddingPhone(true)
-    setPhoneError(null)
+    if (cleaned.length < 7) { setPhoneError('Număr prea scurt — minim 7 cifre.'); return }
+    setAddingPhone(true); setPhoneError(null)
     try {
       await api.ai.addBlacklist(accessToken, cleaned)
-      setBlacklist(prev => [...prev, cleaned])
-      setNewPhone('')
-    } catch {
-      setPhoneError('Eroare la adăugare. Încearcă din nou.')
-    } finally {
-      setAddingPhone(false)
-    }
+      setBlacklist(prev => [...prev, cleaned]); setNewPhone('')
+    } catch { setPhoneError('Eroare la adăugare. Încearcă din nou.') }
+    finally { setAddingPhone(false) }
   }
 
   async function handleRemovePhone(phone: string) {
@@ -182,9 +147,7 @@ export default function SettingsPage() {
     try {
       await api.ai.removeBlacklist(accessToken, phone)
       setBlacklist(prev => prev.filter(p => p !== phone))
-    } catch {
-      setError('Eroare la ștergerea numărului.')
-    }
+    } catch { setError('Eroare la ștergerea numărului.') }
   }
 
   if (loading) {
@@ -196,29 +159,29 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <div className="mb-6">
+    <div className="max-w-2xl">
+      <div className="mb-8">
         <h1 className="font-display text-[32px] text-ink leading-none">Setări Agent AI</h1>
-        <p className="font-mono-ui text-[12px] text-dim mt-1">Configurează comportamentul agentului tău.</p>
+        <p className="font-mono-ui text-[13px] text-dim mt-1">Configurează comportamentul agentului tău.</p>
       </div>
 
       {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-3 font-mono-ui text-[12px] text-red-700 dark:text-red-300 mb-4">{error}</div>
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-3 font-mono-ui text-[13px] text-red-700 dark:text-red-300 mb-6">{error}</div>
       )}
 
-      {/* Tabs */}
-      <div className="flex gap-1 p-1 bg-cardhi rounded-xl border border-line mb-6">
+      {/* Tabs — underline style */}
+      <div className="flex border-b border-line mb-8">
         {TABS.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
             onClick={() => setActiveTab(id)}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-mono-ui text-[12px] font-medium transition-all ${
+            className={`flex items-center gap-2 px-5 py-3 font-mono-ui text-[13px] font-medium transition-all border-b-2 -mb-px ${
               activeTab === id
-                ? 'bg-base text-ink shadow-sm border border-line'
-                : 'text-dimmer hover:text-dim'
+                ? 'text-ink border-acid'
+                : 'text-dimmer hover:text-dim border-transparent'
             }`}
           >
-            <Icon className="h-3.5 w-3.5" />
+            <Icon className="h-4 w-4" />
             {label}
           </button>
         ))}
@@ -226,25 +189,27 @@ export default function SettingsPage() {
 
       {/* Tab: Agent */}
       {activeTab === 'agent' && (
-        <div className="space-y-4">
-          <div className="card-elevated rounded-xl p-6">
-            <div className="flex items-center gap-2 mb-4">
+        <div className="divide-y divide-[var(--line)]">
+
+          {/* Stare agent */}
+          <div className="pb-7">
+            <div className="flex items-center gap-2 mb-5">
               <Bot className="h-4 w-4 text-dimmer" />
-              <h2 className="font-mono-ui text-[12px] text-ink font-medium">Stare agent</h2>
+              <p className="font-mono-ui text-[11px] text-dimmer uppercase tracking-widest">Stare agent</p>
             </div>
 
             {settings?.adminDisabled ? (
-              <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-xl p-3 font-mono-ui text-[12px] text-orange-800 dark:text-orange-300">
+              <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-xl p-4 font-mono-ui text-[13px] text-orange-800 dark:text-orange-300">
                 Agentul a fost dezactivat de administrator. Contactează suportul pentru reactivare.
               </div>
             ) : (
-              <>
-                <div className="flex items-center justify-between">
+              <div className="space-y-0 divide-y divide-[var(--line)]">
+                <div className="flex items-center justify-between pb-5">
                   <div>
-                    <p className="font-mono-ui text-[12px] text-ink font-medium">
+                    <p className="font-mono-ui text-[14px] text-ink font-medium">
                       {settings?.isActive ? 'Agentul este activ' : 'Agentul este inactiv'}
                     </p>
-                    <p className="font-mono-ui text-[11px] text-dimmer mt-0.5">
+                    <p className="font-mono-ui text-[12px] text-dim mt-1">
                       {settings?.isActive
                         ? 'Răspunde automat când ești indisponibil.'
                         : 'Nu răspunde la mesaje automat.'}
@@ -254,7 +219,7 @@ export default function SettingsPage() {
                     onClick={handleToggleAI}
                     disabled={togglingAI}
                     style={settings?.isActive ? { background: 'var(--acid)' } : undefined}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none disabled:opacity-50 ${
+                    className={`relative inline-flex h-6 w-11 shrink-0 ml-6 items-center rounded-full transition-colors focus:outline-none disabled:opacity-50 ${
                       settings?.isActive ? '' : 'bg-cardhi border border-line'
                     }`}
                   >
@@ -265,10 +230,10 @@ export default function SettingsPage() {
                   </button>
                 </div>
 
-                <div className="flex items-start justify-between gap-4 mt-4 pt-4 border-t border-line">
-                  <div className="min-w-0">
-                    <p className="font-mono-ui text-[12px] text-ink font-medium">Notificare când AI preia</p>
-                    <p className="font-mono-ui text-[11px] text-dimmer mt-0.5">Primești un mesaj pe WhatsApp când AI răspunde în locul tău.</p>
+                <div className="flex items-center justify-between py-5">
+                  <div>
+                    <p className="font-mono-ui text-[14px] text-ink font-medium">Notificare când AI preia</p>
+                    <p className="font-mono-ui text-[12px] text-dim mt-1">Primești un mesaj pe WhatsApp când AI răspunde în locul tău.</p>
                   </div>
                   <button
                     onClick={async () => {
@@ -277,47 +242,48 @@ export default function SettingsPage() {
                       setSettings(updated)
                     }}
                     style={settings?.notifyOnAiTakeover ? { background: 'var(--acid)' } : undefined}
-                    className={`relative inline-flex h-6 w-11 shrink-0 mt-0.5 items-center rounded-full transition-colors focus:outline-none ${
+                    className={`relative inline-flex h-6 w-11 shrink-0 ml-6 items-center rounded-full transition-colors focus:outline-none ${
                       settings?.notifyOnAiTakeover ? '' : 'bg-cardhi border border-line'
                     }`}
                   >
                     <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${settings?.notifyOnAiTakeover ? 'translate-x-6' : 'translate-x-1'}`} />
                   </button>
                 </div>
+              </div>
+            )}
 
-                {settings?.isActive && waSession?.status !== 'connected' && (
-                  <div className="mt-3 rounded-lg px-3 py-2 font-mono-ui text-[11px] text-orange-700 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800">
-                    Agentul e activ dar WhatsApp nu este conectat — mesajele nu vor primi răspuns.{' '}
-                    <a href="/connect" className="underline underline-offset-2">Conectează numărul</a>
-                  </div>
-                )}
-              </>
+            {settings?.isActive && waSession?.status !== 'connected' && (
+              <div className="mt-4 rounded-lg px-4 py-3 font-mono-ui text-[12px] text-orange-700 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800">
+                Agentul e activ dar WhatsApp nu este conectat — mesajele nu vor primi răspuns.{' '}
+                <a href="/dashboard" className="underline underline-offset-2">Conectează de pe Dashboard</a>
+              </div>
             )}
           </div>
 
-          <div className="card-elevated rounded-xl p-6">
-            <div className="flex items-center gap-2 mb-4">
+          {/* Timer */}
+          <div className="py-7">
+            <div className="flex items-center gap-2 mb-5">
               <Clock className="h-4 w-4 text-dimmer" />
-              <h2 className="font-mono-ui text-[12px] text-ink font-medium">Timer inactivitate</h2>
+              <p className="font-mono-ui text-[11px] text-dimmer uppercase tracking-widest">Timer inactivitate</p>
             </div>
-            <p className="font-mono-ui text-[12px] text-dim mb-4">
+            <p className="font-mono-ui text-[13px] text-dim mb-5">
               Agentul răspunde automat după câte minute de inactivitate din partea ta.
             </p>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <input
                 type="number"
                 min={1}
                 max={60}
                 value={timerMinutes}
                 onChange={e => setTimerMinutes(Math.max(1, Math.min(60, parseInt(e.target.value) || 1)))}
-                className="w-20 rounded-xl border border-line px-3 py-2 text-sm text-ink bg-cardhi text-center focus:outline-none focus:ring-2 focus:ring-acid/40 focus:border-acid transition-colors"
+                className="w-20 rounded-xl border border-line px-3 py-2.5 text-[13px] text-ink bg-cardhi text-center focus:outline-none focus:ring-2 focus:ring-acid/40 focus:border-acid transition-colors"
               />
-              <span className="font-mono-ui text-[12px] text-dim">minute (1–60)</span>
+              <span className="font-mono-ui text-[13px] text-dim">minute (1–60)</span>
               <button
                 onClick={handleSaveTimer}
                 disabled={savingTimer}
                 style={{ background: 'var(--acid)', color: 'var(--on-acid)' }}
-                className="ml-auto flex items-center gap-2 text-sm font-mono-ui px-4 py-2 rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+                className="ml-auto flex items-center gap-2 font-mono-ui text-[13px] px-4 py-2.5 rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
               >
                 {savingTimer ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                 Salvează
@@ -325,15 +291,18 @@ export default function SettingsPage() {
               {savedTimer && <span className="font-mono-ui text-[12px] text-green-600 dark:text-green-400 font-medium">Salvat!</span>}
             </div>
           </div>
+
         </div>
       )}
 
       {/* Tab: Conținut */}
       {activeTab === 'continut' && (
-        <div className="space-y-4">
-          <div className="card-elevated rounded-xl p-6">
-            <h2 className="font-mono-ui text-[12px] text-ink font-medium mb-1">System prompt</h2>
-            <p className="font-mono-ui text-[12px] text-dim mb-4">
+        <div className="divide-y divide-[var(--line)]">
+
+          {/* System prompt */}
+          <div className="pb-7">
+            <p className="font-mono-ui text-[14px] text-ink font-medium mb-1">System prompt</p>
+            <p className="font-mono-ui text-[13px] text-dim mb-4">
               Descrie cum să se comporte agentul: ton, limbă, instrucțiuni speciale.
             </p>
             <textarea
@@ -343,12 +312,12 @@ export default function SettingsPage() {
               className={`${inputCls} font-mono`}
               placeholder="Ești un asistent WhatsApp helpful..."
             />
-            <div className="flex items-center gap-3 mt-3">
+            <div className="flex items-center gap-3 mt-4">
               <button
                 onClick={handleSavePrompt}
                 disabled={savingPrompt || systemPrompt === settings?.systemPrompt}
                 style={{ background: 'var(--acid)', color: 'var(--on-acid)' }}
-                className="flex items-center gap-2 text-sm font-mono-ui px-4 py-2 rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+                className="flex items-center gap-2 font-mono-ui text-[13px] px-4 py-2.5 rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
               >
                 {savingPrompt ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                 Salvează promptul
@@ -357,19 +326,20 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <div className="card-elevated rounded-xl p-6">
-            <div className="flex items-center justify-between mb-1">
-              <h2 className="font-mono-ui text-[12px] text-ink font-medium">Stilul meu de scriere</h2>
+          {/* Stil scriere */}
+          <div className="py-7">
+            <div className="flex items-start justify-between mb-1">
+              <p className="font-mono-ui text-[14px] text-ink font-medium">Stilul meu de scriere</p>
               <button
                 onClick={handleAnalyzeStyle}
                 disabled={analyzingStyle}
-                className="flex items-center gap-2 font-mono-ui text-[12px] text-acid hover:underline disabled:opacity-50"
+                className="flex items-center gap-2 font-mono-ui text-[13px] text-acid hover:underline disabled:opacity-50 shrink-0 ml-4"
               >
                 {analyzingStyle ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                 {analyzingStyle ? 'Analizez...' : 'Analizează automat'}
               </button>
             </div>
-            <p className="font-mono-ui text-[12px] text-dim mb-4">
+            <p className="font-mono-ui text-[13px] text-dim mb-4">
               Agentul va imita stilul tău de comunicare. Apasă &ldquo;Analizează automat&rdquo; pentru a detecta stilul din istoricul conversațiilor, sau scrie manual.
             </p>
             <textarea
@@ -379,12 +349,12 @@ export default function SettingsPage() {
               className={inputCls}
               placeholder="Ex: Scriu scurt și direct, fără formule de politețe exagerate. Folosesc uneori emoji 😊."
             />
-            <div className="flex items-center gap-3 mt-3">
+            <div className="flex items-center gap-3 mt-4">
               <button
                 onClick={handleSaveStyle}
                 disabled={savingStyle || writingStyle === (settings?.writingStyle ?? '')}
                 style={{ background: 'var(--acid)', color: 'var(--on-acid)' }}
-                className="flex items-center gap-2 text-sm font-mono-ui px-4 py-2 rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+                className="flex items-center gap-2 font-mono-ui text-[13px] px-4 py-2.5 rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
               >
                 {savingStyle ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                 Salvează stilul
@@ -393,9 +363,10 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <div className="card-elevated rounded-xl p-6">
-            <h2 className="font-mono-ui text-[12px] text-ink font-medium mb-1">Informații despre business</h2>
-            <p className="font-mono-ui text-[12px] text-dim mb-4">
+          {/* Knowledge base */}
+          <div className="py-7">
+            <p className="font-mono-ui text-[14px] text-ink font-medium mb-1">Informații despre business</p>
+            <p className="font-mono-ui text-[13px] text-dim mb-4">
               Servicii, produse sau orice informație pe care agentul trebuie să o cunoască.
             </p>
             <textarea
@@ -405,12 +376,12 @@ export default function SettingsPage() {
               className={inputCls}
               placeholder={'Exemplu:\n\nServicii oferite:\n- Creare site WordPress\n- Aplicații web custom\n\nProgram: Luni–Vineri 09:00–17:00'}
             />
-            <div className="flex items-center gap-3 mt-3">
+            <div className="flex items-center gap-3 mt-4">
               <button
                 onClick={handleSaveKB}
                 disabled={savingKB || knowledgeBase === (settings?.knowledgeBase ?? '')}
                 style={{ background: 'var(--acid)', color: 'var(--on-acid)' }}
-                className="flex items-center gap-2 text-sm font-mono-ui px-4 py-2 rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+                className="flex items-center gap-2 font-mono-ui text-[13px] px-4 py-2.5 rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
               >
                 {savingKB ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                 Salvează informațiile
@@ -418,21 +389,24 @@ export default function SettingsPage() {
               {savedKB && <span className="font-mono-ui text-[12px] text-green-600 dark:text-green-400 font-medium">Salvat!</span>}
             </div>
           </div>
+
         </div>
       )}
 
       {/* Tab: Control */}
       {activeTab === 'control' && (
-        <div className="space-y-4">
-          <div className="card-elevated rounded-xl p-6">
-            <div className="flex items-center gap-2 mb-1">
+        <div className="divide-y divide-[var(--line)]">
+
+          {/* Comenzi WhatsApp */}
+          <div className="pb-7">
+            <div className="flex items-center gap-2 mb-5">
               <Terminal className="h-4 w-4 text-dimmer" />
-              <h2 className="font-mono-ui text-[12px] text-ink font-medium">Comenzi WhatsApp</h2>
+              <p className="font-mono-ui text-[11px] text-dimmer uppercase tracking-widest">Comenzi WhatsApp</p>
             </div>
-            <p className="font-mono-ui text-[12px] text-dim mb-4">
+            <p className="font-mono-ui text-[13px] text-dim mb-5">
               Trimite aceste comenzi de pe numărul tău conectat direct în WhatsApp pentru a controla agentul în timp real.
             </p>
-            <div className="divide-y divide-line">
+            <div className="divide-y divide-[var(--line)]">
               {([
                 { cmd: '/activateAI', desc: 'Activează agentul' },
                 { cmd: '/deactivateAI', desc: 'Dezactivează agentul' },
@@ -445,20 +419,21 @@ export default function SettingsPage() {
                 { cmd: '/clearHistory', desc: 'Șterge istoricul conversației curente cu un contact' },
                 { cmd: '/help', desc: 'Afișează lista comenzilor direct în WhatsApp' },
               ] as { cmd: string; desc: string }[]).map(({ cmd, desc }) => (
-                <div key={cmd} className="flex items-start gap-3 py-2.5">
-                  <code className="font-mono text-[11px] text-acid bg-acid/10 px-2 py-0.5 rounded shrink-0 mt-0.5">{cmd}</code>
-                  <span className="font-mono-ui text-[12px] text-dim">{desc}</span>
+                <div key={cmd} className="flex items-start gap-3 py-3">
+                  <code className="font-mono text-[12px] text-acid bg-acid/10 px-2 py-1 rounded shrink-0 mt-0.5">{cmd}</code>
+                  <span className="font-mono-ui text-[13px] text-dim">{desc}</span>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="card-elevated rounded-xl p-6">
-            <div className="flex items-center gap-2 mb-1">
+          {/* Contacte ignorate */}
+          <div className="py-7">
+            <div className="flex items-center gap-2 mb-5">
               <Shield className="h-4 w-4 text-dimmer" />
-              <h2 className="font-mono-ui text-[12px] text-ink font-medium">Contacte ignorate</h2>
+              <p className="font-mono-ui text-[11px] text-dimmer uppercase tracking-widest">Contacte ignorate</p>
             </div>
-            <p className="font-mono-ui text-[12px] text-dim mb-4">
+            <p className="font-mono-ui text-[13px] text-dim mb-5">
               Agentul nu va răspunde automat acestor numere de telefon.
             </p>
             <div className="flex gap-2 mb-4">
@@ -468,28 +443,28 @@ export default function SettingsPage() {
                 onChange={e => { setNewPhone(e.target.value); setPhoneError(null) }}
                 onKeyDown={e => e.key === 'Enter' && handleAddPhone()}
                 placeholder="ex: 40758154490"
-                className="flex-1 rounded-xl border border-line px-3 py-2 text-sm text-ink bg-cardhi focus:outline-none focus:ring-2 focus:ring-acid/40 focus:border-acid transition-colors"
+                className="flex-1 rounded-xl border border-line px-3 py-2.5 text-[13px] text-ink bg-cardhi focus:outline-none focus:ring-2 focus:ring-acid/40 focus:border-acid transition-colors"
               />
               <button
                 onClick={handleAddPhone}
                 disabled={addingPhone || !newPhone.trim()}
-                className="flex items-center gap-1.5 bg-ink text-base text-sm font-mono-ui px-3 py-2 rounded-lg hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+                className="flex items-center gap-1.5 bg-ink text-base font-mono-ui text-[13px] px-4 py-2.5 rounded-lg hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
               >
                 {addingPhone ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                 Adaugă
               </button>
             </div>
-            {phoneError && <p className="font-mono-ui text-[11px] text-red-500 dark:text-red-400 mb-3">{phoneError}</p>}
+            {phoneError && <p className="font-mono-ui text-[12px] text-red-500 dark:text-red-400 mb-3">{phoneError}</p>}
             {blacklist.length === 0 ? (
-              <p className="font-mono-ui text-[12px] text-dimmer text-center py-4">Niciun contact ignorat.</p>
+              <p className="font-mono-ui text-[13px] text-dimmer py-4">Niciun contact ignorat.</p>
             ) : (
-              <ul className="divide-y divide-line">
+              <ul className="divide-y divide-[var(--line)]">
                 {blacklist.map(phone => (
-                  <li key={phone} className="flex items-center justify-between py-2.5">
-                    <span className="font-mono text-sm text-ink">+{phone}</span>
+                  <li key={phone} className="flex items-center justify-between py-3">
+                    <span className="font-mono text-[13px] text-ink">+{phone}</span>
                     <button
                       onClick={() => handleRemovePhone(phone)}
-                      className="text-dimmer hover:text-red-500 transition-colors p-1 rounded"
+                      className="text-dimmer hover:text-red-500 transition-colors p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
                       title="Șterge"
                     >
                       <X className="h-4 w-4" />
@@ -499,6 +474,7 @@ export default function SettingsPage() {
               </ul>
             )}
           </div>
+
         </div>
       )}
     </div>

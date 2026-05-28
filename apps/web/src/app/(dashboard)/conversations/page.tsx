@@ -56,21 +56,21 @@ function ContactRow({
   }
 
   return (
-    <div className="border border-line rounded-xl overflow-hidden">
+    <div className="border-b border-line last:border-0">
       {/* Header row */}
-      <div className="flex items-center gap-3 p-4 bg-card hover:bg-cardhi transition-colors">
-        <div className="w-9 h-9 rounded-full bg-acid/10 flex items-center justify-center shrink-0">
+      <div className="flex items-center gap-4 py-4">
+        <div className="w-10 h-10 rounded-full bg-acid/10 flex items-center justify-center shrink-0">
           <MessageSquare className="h-4 w-4 text-acid" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-mono-ui text-[12px] text-ink font-medium">+{conv.contactPhone}</p>
-          <p className="font-mono-ui text-[11px] text-dimmer truncate">{conv.lastMessage}</p>
+          <p className="font-mono-ui text-[14px] text-ink font-medium">+{conv.contactPhone}</p>
+          <p className="font-mono-ui text-[12px] text-dimmer truncate mt-0.5">{conv.lastMessage}</p>
         </div>
         <div className="text-right shrink-0">
-          <p className="font-mono-ui text-[11px] text-dimmer">{formatTime(conv.lastAt)}</p>
-          <p className="font-mono-ui text-[10px] text-dimmer mt-0.5">{conv.count} mesaje</p>
+          <p className="font-mono-ui text-[12px] text-dimmer">{formatTime(conv.lastAt)}</p>
+          <p className="font-mono-ui text-[11px] text-dimmer mt-0.5">{conv.count} mesaje</p>
         </div>
-        <div className="flex items-center gap-1 ml-2">
+        <div className="flex items-center gap-1 ml-1">
           <button
             onClick={handleDelete}
             disabled={deleting}
@@ -95,23 +95,23 @@ function ContactRow({
 
       {/* Messages thread */}
       {expanded && (
-        <div className="border-t border-line bg-base p-4 space-y-2 max-h-80 overflow-y-auto">
+        <div className="pb-4 space-y-2 max-h-80 overflow-y-auto">
           {loadingMsgs ? (
-            <div className="flex justify-center py-4">
+            <div className="flex justify-center py-6">
               <Loader2 className="h-5 w-5 animate-spin text-dimmer" />
             </div>
           ) : messages && messages.length > 0 ? (
             messages.map(msg => (
               <div key={msg.id} className={`flex ${msg.fromMe ? 'justify-end' : 'justify-start'}`}>
                 <div
-                  className={`max-w-xs lg:max-w-md px-3 py-2 rounded-xl text-sm ${
+                  className={`max-w-xs lg:max-w-md px-3 py-2 rounded-xl ${
                     msg.fromMe
                       ? 'rounded-br-sm'
                       : 'bg-cardhi text-ink border border-line rounded-bl-sm'
                   }`}
                   style={msg.fromMe ? { background: 'var(--acid)', color: 'var(--on-acid)' } : undefined}
                 >
-                  <p className="whitespace-pre-wrap break-words font-mono-ui text-[12px]">{msg.body}</p>
+                  <p className="whitespace-pre-wrap break-words font-mono-ui text-[13px]">{msg.body}</p>
                   <p className={`font-mono-ui text-[10px] mt-1 ${msg.fromMe ? 'opacity-70' : 'text-dimmer'}`}>
                     {formatTime(msg.waTimestamp)}
                   </p>
@@ -119,7 +119,7 @@ function ContactRow({
               </div>
             ))
           ) : (
-            <p className="font-mono-ui text-[12px] text-dimmer text-center py-2">Niciun mesaj salvat.</p>
+            <p className="font-mono-ui text-[13px] text-dimmer text-center py-4">Niciun mesaj salvat.</p>
           )}
         </div>
       )}
@@ -187,11 +187,11 @@ export default function ConversationsPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <div className="mb-6 flex items-center justify-between">
+    <div className="max-w-2xl">
+      <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="font-display text-[32px] text-ink leading-none">Conversații</h1>
-          <p className="font-mono-ui text-[12px] text-dim mt-1">
+          <p className="font-mono-ui text-[13px] text-dim mt-1">
             {conversations.length > 0
               ? `${conversations.length} contact${conversations.length !== 1 ? 'e' : ''} cu mesaje salvate`
               : 'Nicio conversație salvată încă.'}
@@ -208,13 +208,13 @@ export default function ConversationsPage() {
       </div>
 
       {conversations.length === 0 ? (
-        <div className="card-elevated rounded-xl p-12 text-center">
+        <div className="py-20 text-center">
           <MessageSquare className="h-10 w-10 text-dimmer mx-auto mb-3" />
-          <p className="font-mono-ui text-[12px] text-dim">Agentul nu a salvat nicio conversație încă.</p>
-          <p className="font-mono-ui text-[11px] text-dimmer mt-1">Mesajele apar aici după ce agentul începe să răspundă.</p>
+          <p className="font-mono-ui text-[14px] text-dim">Agentul nu a salvat nicio conversație încă.</p>
+          <p className="font-mono-ui text-[12px] text-dimmer mt-1">Mesajele apar aici după ce agentul începe să răspundă.</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div>
           {conversations.map(conv => (
             <ContactRow
               key={conv.contactPhone}

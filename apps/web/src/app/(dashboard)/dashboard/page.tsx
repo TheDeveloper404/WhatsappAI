@@ -41,7 +41,7 @@ function DashboardContent() {
   const [togglingAI, setTogglingAI] = useState(false)
   const [initialLoaded, setInitialLoaded] = useState(false)
 
-  // WhatsApp connect panel state
+  // WhatsApp connect panel
   const [showWaPanel, setShowWaPanel] = useState(false)
   const [qrCode, setQrCode] = useState<string | null>(null)
   const [waConnecting, setWaConnecting] = useState(false)
@@ -61,18 +61,14 @@ function DashboardContent() {
     ]).finally(() => setInitialLoaded(true))
   }, [accessToken])
 
-  // Poll WhatsApp session while connect panel is open
   useEffect(() => {
     if (!accessToken || !showWaPanel) return
     clearInterval(waPollRef.current)
-
     const poll = async () => {
       try {
         const { session } = await api.whatsapp.getSession(accessToken)
         setWaSession(session)
-        if (session?.status === 'pairing' && session.pairingCode) {
-          setQrCode(session.pairingCode)
-        }
+        if (session?.status === 'pairing' && session.pairingCode) setQrCode(session.pairingCode)
         if (session?.status === 'connected') {
           clearInterval(waPollRef.current)
           setShowWaPanel(false)
@@ -80,22 +76,17 @@ function DashboardContent() {
         }
       } catch {}
     }
-
     waPollRef.current = setInterval(poll, 3000)
     return () => clearInterval(waPollRef.current)
   }, [accessToken, showWaPanel])
 
   async function handlePortal() {
     if (!accessToken) return
-    setLoadingPortal(true)
-    setPortalError(false)
+    setLoadingPortal(true); setPortalError(false)
     try {
       const { url } = await api.billing.createPortal(accessToken)
       window.location.href = url
-    } catch {
-      setLoadingPortal(false)
-      setPortalError(true)
-    }
+    } catch { setLoadingPortal(false); setPortalError(true) }
   }
 
   async function handleToggleAI() {
@@ -104,46 +95,29 @@ function DashboardContent() {
     try {
       const { settings } = await api.ai.updateSettings(accessToken, { isActive: !aiSettings.isActive })
       setAiSettings(settings)
-    } finally {
-      setTogglingAI(false)
-    }
+    } finally { setTogglingAI(false) }
   }
 
   async function handleWaConnect() {
     if (!accessToken) return
-    setWaError('')
-    setWaConnecting(true)
-    setQrCode(null)
+    setWaError(''); setWaConnecting(true); setQrCode(null)
     try {
       const { qrCode: code } = await api.whatsapp.connect(accessToken)
       setQrCode(code)
     } catch (err: unknown) {
       setWaError((err as { message?: string })?.message ?? 'Eroare la conectare.')
-    } finally {
-      setWaConnecting(false)
-    }
+    } finally { setWaConnecting(false) }
   }
 
   async function handleWaDisconnect() {
     if (!accessToken) return
-    setWaDisconnecting(true)
-    setWaError('')
+    setWaDisconnecting(true); setWaError('')
     try {
       await api.whatsapp.disconnect(accessToken)
-      setWaSession(null)
-      setQrCode(null)
-      setShowWaPanel(false)
+      setWaSession(null); setQrCode(null); setShowWaPanel(false)
     } catch (err: unknown) {
       setWaError((err as { message?: string })?.message ?? 'Eroare la deconectare.')
-    } finally {
-      setWaDisconnecting(false)
-    }
-  }
-
-  function openWaPanel() {
-    setShowWaPanel(true)
-    setWaError('')
-    setQrCode(null)
+    } finally { setWaDisconnecting(false) }
   }
 
   const isWaConnected = waSession?.status === 'connected'
@@ -158,11 +132,11 @@ function DashboardContent() {
           <h1 className="font-display text-[32px] text-ink leading-none">
             Bună, {user?.name?.split(' ')[0]}
           </h1>
-          <p className="font-mono-ui text-[12px] text-dim mt-1">Dashboard-ul agentului tău AI</p>
+          <p className="font-mono-ui text-[13px] text-dim mt-1">Dashboard-ul agentului tău AI</p>
         </div>
         <div className="flex items-center gap-3">
           {user?.role !== 'admin' && (
-            <span className={`font-mono-ui text-[10px] tracking-wide px-3 py-1.5 rounded-full ${statusColor}`}>
+            <span className={`font-mono-ui text-[11px] tracking-wide px-3 py-1.5 rounded-full ${statusColor}`}>
               {statusText}
             </span>
           )}
@@ -171,13 +145,11 @@ function DashboardContent() {
               <button
                 onClick={handlePortal}
                 disabled={loadingPortal}
-                className="font-mono-ui text-[12px] text-dim hover:text-ink flex items-center gap-1 transition-colors disabled:opacity-50"
+                className="font-mono-ui text-[13px] text-dim hover:text-ink flex items-center gap-1 transition-colors disabled:opacity-50"
               >
                 {loadingPortal ? 'Se încarcă…' : 'Gestionează subscripția'} <ExternalLink className="h-3.5 w-3.5" />
               </button>
-              {portalError && (
-                <p className="font-mono-ui text-[11px] text-red-500 dark:text-red-400">Nu e disponibil momentan.</p>
-              )}
+              {portalError && <p className="font-mono-ui text-[12px] text-red-500 dark:text-red-400">Nu e disponibil momentan.</p>}
             </div>
           )}
         </div>
@@ -187,57 +159,51 @@ function DashboardContent() {
       {checkoutSuccess && (
         <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-4 mb-6 flex items-center gap-3">
           <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400 shrink-0" />
-          <p className="font-mono-ui text-[12px] text-green-800 dark:text-green-300">
+          <p className="font-mono-ui text-[13px] text-green-800 dark:text-green-300">
             <strong>Plată procesată!</strong> Trial-ul de 7 zile a început. Agentul va fi activat în curând de echipa noastră.
           </p>
         </div>
       )}
-
       {aiSettings?.adminDisabled && (
         <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-xl p-4 mb-6 flex items-center gap-3">
-          <p className="font-mono-ui text-[12px] text-orange-800 dark:text-orange-300">
+          <p className="font-mono-ui text-[13px] text-orange-800 dark:text-orange-300">
             <strong>Agentul a fost dezactivat de administrator.</strong> Contactează suportul pentru detalii și reactivare.
           </p>
         </div>
       )}
-
       {sub?.status === 'past_due' && (
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 mb-6 flex items-center gap-3">
-          <p className="font-mono-ui text-[12px] text-red-800 dark:text-red-300">
+          <p className="font-mono-ui text-[13px] text-red-800 dark:text-red-300">
             <strong>Plată eșuată.</strong> Agentul a fost dezactivat. Actualizează metoda de plată pentru a reactiva.
           </p>
-          <button onClick={handlePortal} className="ml-auto font-mono-ui text-[12px] font-medium text-red-700 dark:text-red-400 underline whitespace-nowrap">
+          <button onClick={handlePortal} className="ml-auto font-mono-ui text-[13px] font-medium text-red-700 dark:text-red-400 underline whitespace-nowrap">
             Actualizează plata
           </button>
         </div>
       )}
-
       {!checkoutSuccess && (!sub || sub.status === 'incomplete') && user?.role !== 'admin' && (
         <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 mb-8 flex items-center gap-3">
           <div className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
-          <p className="font-mono-ui text-[12px] text-amber-800 dark:text-amber-300">
+          <p className="font-mono-ui text-[13px] text-amber-800 dark:text-amber-300">
             <strong>Pasul următor:</strong> Agentul tău nu este încă activ. Echipa noastră îl va activa în curând după ce verificăm contul tău.
           </p>
         </div>
       )}
 
-      {/* Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+      {/* Status bar — 3 secțiuni flat */}
+      <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-[var(--line)] border border-line rounded-xl mb-8 overflow-hidden">
+
         {/* Agent AI */}
-        <div className={`rounded-xl border-2 p-5 flex flex-col gap-3 transition-colors bg-card ${
-          !initialLoaded ? 'border-line' :
-          aiSettings?.adminDisabled ? 'border-orange-400 dark:border-orange-600' :
-          aiSettings?.isActive ? 'border-acid' : 'border-line'
+        <div className={`p-5 flex flex-col gap-3 transition-colors ${
+          initialLoaded && aiSettings?.isActive && !aiSettings?.adminDisabled ? 'bg-acid/5' : ''
         }`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                !initialLoaded ? 'bg-cardhi text-dimmer' :
-                aiSettings?.adminDisabled ? 'bg-orange-50 dark:bg-orange-900/30 text-orange-500' :
-                aiSettings?.isActive ? 'bg-acid/10 text-acid' : 'bg-cardhi text-dimmer'
-              }`}>
-                <Bot className="h-4 w-4" />
-              </div>
+              <Bot className={`h-4 w-4 ${
+                !initialLoaded ? 'text-dimmer' :
+                aiSettings?.adminDisabled ? 'text-orange-500' :
+                aiSettings?.isActive ? 'text-acid' : 'text-dimmer'
+              }`} />
               <span className="font-mono-ui text-[12px] text-dim">Agent AI</span>
             </div>
             <button
@@ -255,44 +221,32 @@ function DashboardContent() {
             </button>
           </div>
           <div>
-            <p className={`font-display text-[20px] leading-none ${
+            <p className={`font-display text-[22px] leading-none ${
               !initialLoaded ? 'text-dimmer' :
               aiSettings?.adminDisabled ? 'text-orange-600 dark:text-orange-400' :
               aiSettings?.isActive ? 'text-acid' : 'text-dimmer'
             }`}>
               {!initialLoaded ? '—' : aiSettings?.adminDisabled ? 'Blocat' : aiSettings?.isActive ? 'Activ' : 'Inactiv'}
             </p>
-            <p className="font-mono-ui text-[11px] text-dimmer mt-1">
-              {!initialLoaded
-                ? '—'
-                : aiSettings?.adminDisabled
-                  ? 'Contactează suportul'
-                  : aiSettings?.isActive
-                    ? `Timer: ${aiSettings.timerMinutes} min inactivitate`
-                    : 'Apasă toggle pentru a activa'}
+            <p className="font-mono-ui text-[12px] text-dimmer mt-1">
+              {!initialLoaded ? '—' :
+                aiSettings?.adminDisabled ? 'Contactează suportul' :
+                aiSettings?.isActive ? `Timer: ${aiSettings.timerMinutes} min inactivitate` :
+                'Apasă toggle pentru a activa'}
             </p>
           </div>
           {canToggleAI && (
-            <button
-              onClick={() => router.push('/settings')}
-              className="font-mono-ui text-[11px] text-acid hover:underline flex items-center gap-1 mt-auto"
-            >
-              <Settings className="h-3 w-3" /> Configurează setările
+            <button onClick={() => router.push('/settings')} className="font-mono-ui text-[12px] text-acid hover:underline flex items-center gap-1 mt-auto">
+              <Settings className="h-3 w-3" /> Configurează
             </button>
           )}
         </div>
 
         {/* WhatsApp */}
-        <div className="card-elevated rounded-xl p-5 flex flex-col gap-3">
+        <div className="p-5 flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                isWaConnected
-                  ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
-                  : 'bg-cardhi text-dimmer'
-              }`}>
-                <Wifi className="h-4 w-4" />
-              </div>
+              <Wifi className={`h-4 w-4 ${isWaConnected ? 'text-green-500' : 'text-dimmer'}`} />
               <span className="font-mono-ui text-[12px] text-dim">WhatsApp</span>
             </div>
             {initialLoaded && isWaConnected && (
@@ -307,20 +261,20 @@ function DashboardContent() {
             )}
           </div>
           <div>
-            <p className={`font-display text-[20px] leading-none ${
+            <p className={`font-display text-[22px] leading-none ${
               !initialLoaded ? 'text-dimmer' :
               isWaConnected ? 'text-green-600 dark:text-green-400' : 'text-dimmer'
             }`}>
               {!initialLoaded ? '—' : isWaConnected ? 'Conectat' : waSession?.status === 'pairing' ? 'Asociere…' : 'Neconectat'}
             </p>
-            <p className="font-mono-ui text-[11px] text-dimmer mt-1">
+            <p className="font-mono-ui text-[12px] text-dimmer mt-1">
               {!initialLoaded ? '—' : waSession?.phoneNumber ? `+${waSession.phoneNumber}` : 'Niciun număr asociat'}
             </p>
           </div>
           {initialLoaded && !isWaConnected && (
             <button
               onClick={() => setShowWaPanel(v => !v)}
-              className="font-mono-ui text-[11px] text-acid hover:underline mt-auto text-left"
+              className="font-mono-ui text-[12px] text-acid hover:underline mt-auto text-left"
             >
               {showWaPanel ? 'Ascunde ↑' : 'Conectează acum →'}
             </button>
@@ -328,41 +282,39 @@ function DashboardContent() {
         </div>
 
         {/* Trial — ascuns pentru admin */}
-        {user?.role !== 'admin' && (
-          <div className="card-elevated rounded-xl p-5 flex flex-col gap-3">
+        {user?.role !== 'admin' ? (
+          <div className="p-5 flex flex-col gap-3">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400">
-                <Clock className="h-4 w-4" />
-              </div>
+              <Clock className="h-4 w-4 text-purple-500 dark:text-purple-400" />
               <span className="font-mono-ui text-[12px] text-dim">Trial</span>
             </div>
             <div>
-              <p className="font-display text-[20px] leading-none text-purple-600 dark:text-purple-400">
+              <p className="font-display text-[22px] leading-none text-purple-600 dark:text-purple-400">
                 {sub?.status === 'trialing' ? trialDaysLeft(sub.trialEndsAt) : sub?.status === 'active' ? '—' : '7 zile'}
               </p>
-              <p className="font-mono-ui text-[11px] text-dimmer mt-1">
+              <p className="font-mono-ui text-[12px] text-dimmer mt-1">
                 {sub?.status === 'trialing' ? 'rămase din trial' : sub?.status === 'active' ? 'subscripție activă' : 'trial disponibil'}
               </p>
             </div>
             <div className="flex items-center gap-1.5 mt-auto">
               <MessageSquare className="h-3 w-3 text-dimmer" />
-              <span className="font-mono-ui text-[11px] text-dimmer">Mesaje procesate: —</span>
+              <span className="font-mono-ui text-[12px] text-dimmer">Mesaje procesate: —</span>
             </div>
           </div>
+        ) : (
+          <div className="p-5" />
         )}
       </div>
 
       {/* WhatsApp Connect Panel */}
       {showWaPanel && !isWaConnected && (
-        <div className="card-elevated rounded-xl p-6 mb-4">
+        <div className="border border-line rounded-xl p-6 mb-8 bg-cardhi/40">
           <div className="flex items-center justify-between mb-5 pb-4 border-b border-line">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-cardhi">
-                <Smartphone className="h-4 w-4 text-dim" />
-              </div>
+              <Smartphone className="h-5 w-5 text-dim" />
               <div>
-                <p className="font-mono-ui text-[13px] text-ink font-medium">Conectare WhatsApp</p>
-                <p className="font-mono-ui text-[11px] text-dimmer">Scanează codul QR cu aplicația WhatsApp.</p>
+                <p className="font-mono-ui text-[14px] text-ink font-medium">Conectare WhatsApp</p>
+                <p className="font-mono-ui text-[12px] text-dimmer mt-0.5">Scanează codul QR cu aplicația WhatsApp.</p>
               </div>
             </div>
             <button
@@ -374,47 +326,41 @@ function DashboardContent() {
           </div>
 
           {waError && (
-            <p className="font-mono-ui text-[12px] text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl px-3 py-2 mb-4 text-center">{waError}</p>
+            <p className="font-mono-ui text-[13px] text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl px-4 py-3 mb-4 text-center">{waError}</p>
           )}
 
-          {/* QR code */}
           {!waConnecting && qrCode && (
             <div className="flex flex-col items-center gap-4">
-              <p className="font-mono-ui text-[12px] text-dim text-center">
+              <p className="font-mono-ui text-[13px] text-dim text-center">
                 Deschide WhatsApp → <strong className="text-ink">Dispozitive conectate</strong> → <strong className="text-ink">Conectează un dispozitiv</strong> → scanează codul
               </p>
               <div className="p-4 bg-white border-2 border-line rounded-xl">
                 <QRCodeSVG value={qrCode} size={220} />
               </div>
-              <div className="flex items-center gap-1.5 font-mono-ui text-[11px] text-amber-600 dark:text-amber-400">
+              <div className="flex items-center gap-1.5 font-mono-ui text-[12px] text-amber-600 dark:text-amber-400">
                 <RefreshCw className="h-3 w-3" />
                 Codul se reîmprospătează automat la 20 de secunde
               </div>
-              <p className="font-mono-ui text-[11px] text-dimmer">
-                Pagina se actualizează automat după scanare.
-              </p>
             </div>
           )}
 
-          {/* Loading QR */}
           {waConnecting && (
-            <div className="flex flex-col items-center gap-3 py-6">
+            <div className="flex flex-col items-center gap-3 py-8">
               <Loader2 className="h-8 w-8 animate-spin text-acid" />
-              <p className="font-mono-ui text-[12px] text-dim">Se generează codul QR…</p>
+              <p className="font-mono-ui text-[13px] text-dim">Se generează codul QR…</p>
             </div>
           )}
 
-          {/* Connect button */}
           {!waConnecting && !qrCode && (
-            <div className="flex flex-col items-center gap-4 py-4">
+            <div className="flex flex-col items-center gap-4 py-6">
               <button
                 onClick={handleWaConnect}
                 style={{ background: 'var(--acid)', color: 'var(--on-acid)' }}
-                className="px-8 py-2.5 hover:opacity-90 font-mono-ui text-sm font-medium rounded-xl transition-opacity flex items-center gap-2"
+                className="px-8 py-3 hover:opacity-90 font-mono-ui text-[14px] font-medium rounded-xl transition-opacity flex items-center gap-2"
               >
                 Generează cod QR
               </button>
-              <p className="font-mono-ui text-[11px] text-dimmer text-center max-w-sm">
+              <p className="font-mono-ui text-[12px] text-dimmer text-center max-w-sm">
                 Apasă butonul, scanează QR-ul cu WhatsApp de pe telefon (Dispozitive conectate → Conectează un dispozitiv).
                 Conexiunea persistă chiar și după repornirea serverului.
               </p>
@@ -423,10 +369,10 @@ function DashboardContent() {
         </div>
       )}
 
-      {/* Statistici AI */}
-      <div className="card-elevated rounded-xl p-6 mb-4">
-        <h2 className="font-mono-ui text-[10px] text-dimmer tracking-widest uppercase mb-5">Activitate Agent AI</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* Activitate */}
+      <div className="border-b border-line pb-8 mb-8">
+        <p className="font-mono-ui text-[11px] text-dimmer tracking-widest uppercase mb-6">Activitate Agent AI</p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
           {[
             { label: 'Azi', value: stats?.today ?? null },
             { label: 'Ultimele 7 zile', value: stats?.week ?? null },
@@ -434,12 +380,12 @@ function DashboardContent() {
             { label: 'Conversații totale', value: stats?.totalConversations ?? null },
           ].map(({ label, value }) => (
             <div key={label} className="flex flex-col gap-1">
-              <p className="font-mono-ui text-[10px] text-dimmer uppercase tracking-widest">{label}</p>
-              <p className="font-display text-[28px] leading-none text-ink">
+              <p className="font-mono-ui text-[11px] text-dimmer uppercase tracking-widest">{label}</p>
+              <p className="font-display text-[32px] leading-none text-ink">
                 {value === null ? '—' : value}
               </p>
               {value !== null && (
-                <p className="font-mono-ui text-[10px] text-dimmer">
+                <p className="font-mono-ui text-[11px] text-dimmer">
                   {label === 'Conversații totale' ? 'contacte unice' : 'mesaje AI'}
                 </p>
               )}
@@ -448,10 +394,10 @@ function DashboardContent() {
         </div>
       </div>
 
-      {/* Onboarding Steps */}
-      <div className="card-elevated rounded-xl p-6">
-        <h2 className="font-mono-ui text-[10px] text-dimmer tracking-widest uppercase mb-5">Pașii următori</h2>
-        <div className="flex flex-col gap-4">
+      {/* Pași următori */}
+      <div>
+        <p className="font-mono-ui text-[11px] text-dimmer tracking-widest uppercase mb-6">Pașii următori</p>
+        <div className="flex flex-col divide-y divide-[var(--line)]">
           {[
             { step: 1, title: 'Cont creat', done: true, desc: 'Contul tău este activ.' },
             ...(user?.role !== 'admin' ? [{
@@ -466,10 +412,8 @@ function DashboardContent() {
               done: isWaConnected,
               desc: isWaConnected
                 ? `Conectat: +${waSession?.phoneNumber}`
-                : waSession?.status === 'pairing'
-                  ? 'Asociere în curs…'
-                  : 'Conectează numărul tău de WhatsApp.',
-              action: !isWaConnected ? openWaPanel : undefined,
+                : waSession?.status === 'pairing' ? 'Asociere în curs…' : 'Conectează numărul tău de WhatsApp.',
+              action: !isWaConnected ? () => setShowWaPanel(true) : undefined,
               actionLabel: showWaPanel ? 'Panou deschis ↑' : 'Conectează acum',
             },
             {
@@ -480,23 +424,23 @@ function DashboardContent() {
                 ? 'Agentul a fost dezactivat de administrator. Contactează suportul.'
                 : aiSettings?.isActive
                   ? 'Agentul AI preia conversațiile când ești indisponibil.'
-                  : 'Activează agentul din cardul de mai sus sau din Setări.',
+                  : 'Activează agentul din bara de sus sau din Setări.',
               action: canToggleAI && !aiSettings?.isActive ? handleToggleAI : undefined,
               actionLabel: 'Activează acum',
             },
           ].map(({ step, title, done, desc, action, actionLabel }: { step: number; title: string; done: boolean; desc: string; action?: () => void; actionLabel?: string }) => (
-            <div key={step} className="flex gap-4">
+            <div key={step} className="flex gap-4 py-4">
               <div
-                className={`w-7 h-7 rounded-full flex items-center justify-center font-mono-ui text-[11px] font-medium shrink-0 mt-0.5 ${done ? '' : 'bg-cardhi text-dimmer'}`}
+                className={`w-7 h-7 rounded-full flex items-center justify-center font-mono-ui text-[12px] font-medium shrink-0 mt-0.5 ${done ? '' : 'bg-cardhi text-dimmer'}`}
                 style={done ? { background: 'var(--acid)', color: 'var(--on-acid)' } : undefined}
               >
                 {done ? '✓' : step}
               </div>
               <div className="flex-1">
-                <p className={`font-mono-ui text-[12px] font-medium ${done ? 'text-ink' : 'text-dim'}`}>{title}</p>
-                <p className="font-mono-ui text-[11px] text-dimmer mt-0.5">{desc}</p>
+                <p className={`font-mono-ui text-[14px] font-medium ${done ? 'text-ink' : 'text-dim'}`}>{title}</p>
+                <p className="font-mono-ui text-[12px] text-dimmer mt-0.5">{desc}</p>
                 {action && !done && (
-                  <button onClick={action} className="font-mono-ui text-[11px] text-acid hover:underline mt-1 font-medium">
+                  <button onClick={action} className="font-mono-ui text-[12px] text-acid hover:underline mt-1 font-medium">
                     {actionLabel ?? 'Acțiune'} →
                   </button>
                 )}

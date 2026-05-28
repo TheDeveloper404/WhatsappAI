@@ -187,7 +187,7 @@ export default function ConversationsPage() {
   }
 
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-2xl mx-auto">
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="font-display text-[32px] text-ink leading-none">Conversații</h1>

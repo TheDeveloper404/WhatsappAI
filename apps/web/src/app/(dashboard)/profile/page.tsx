@@ -65,7 +65,7 @@ export default function ProfilePage() {
     : '?'
 
   return (
-    <div>
+    <div className="max-w-2xl mx-auto">
       <div className="mb-8">
         <h1 className="font-display text-[32px] text-ink leading-none">Profil</h1>
         <p className="font-mono-ui text-[12px] text-dim mt-1">Gestionează contul și setările personale.</p>

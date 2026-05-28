@@ -1,9 +1,13 @@
 'use client'
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useAuthStore } from '@/store/auth'
 import { api, type Subscription, type WhatsappSession, type AiSettings, type AiStats } from '@/lib/api'
-import { Bot, Wifi, Clock, MessageSquare, CheckCircle2, ExternalLink, Settings, Loader2 } from 'lucide-react'
+import { QRCodeSVG } from 'qrcode.react'
+import {
+  Bot, Wifi, WifiOff, Clock, MessageSquare, CheckCircle2, ExternalLink,
+  Settings, Loader2, Smartphone, RefreshCw, X,
+} from 'lucide-react'
 
 function trialDaysLeft(trialEndsAt: number | null): string {
   if (!trialEndsAt) return '—'
@@ -36,6 +40,15 @@ function DashboardContent() {
   const [portalError, setPortalError] = useState(false)
   const [togglingAI, setTogglingAI] = useState(false)
   const [initialLoaded, setInitialLoaded] = useState(false)
+
+  // WhatsApp connect panel state
+  const [showWaPanel, setShowWaPanel] = useState(false)
+  const [qrCode, setQrCode] = useState<string | null>(null)
+  const [waConnecting, setWaConnecting] = useState(false)
+  const [waDisconnecting, setWaDisconnecting] = useState(false)
+  const [waError, setWaError] = useState('')
+  const waPollRef = useRef<ReturnType<typeof setInterval>>()
+
   const checkoutSuccess = searchParams.get('checkout') === 'success'
 
   useEffect(() => {
@@ -47,6 +60,30 @@ function DashboardContent() {
       api.ai.getStats(accessToken).then(({ stats }) => setStats(stats)).catch(() => {}),
     ]).finally(() => setInitialLoaded(true))
   }, [accessToken])
+
+  // Poll WhatsApp session while connect panel is open
+  useEffect(() => {
+    if (!accessToken || !showWaPanel) return
+    clearInterval(waPollRef.current)
+
+    const poll = async () => {
+      try {
+        const { session } = await api.whatsapp.getSession(accessToken)
+        setWaSession(session)
+        if (session?.status === 'pairing' && session.pairingCode) {
+          setQrCode(session.pairingCode)
+        }
+        if (session?.status === 'connected') {
+          clearInterval(waPollRef.current)
+          setShowWaPanel(false)
+          setQrCode(null)
+        }
+      } catch {}
+    }
+
+    waPollRef.current = setInterval(poll, 3000)
+    return () => clearInterval(waPollRef.current)
+  }, [accessToken, showWaPanel])
 
   async function handlePortal() {
     if (!accessToken) return
@@ -72,6 +109,44 @@ function DashboardContent() {
     }
   }
 
+  async function handleWaConnect() {
+    if (!accessToken) return
+    setWaError('')
+    setWaConnecting(true)
+    setQrCode(null)
+    try {
+      const { qrCode: code } = await api.whatsapp.connect(accessToken)
+      setQrCode(code)
+    } catch (err: unknown) {
+      setWaError((err as { message?: string })?.message ?? 'Eroare la conectare.')
+    } finally {
+      setWaConnecting(false)
+    }
+  }
+
+  async function handleWaDisconnect() {
+    if (!accessToken) return
+    setWaDisconnecting(true)
+    setWaError('')
+    try {
+      await api.whatsapp.disconnect(accessToken)
+      setWaSession(null)
+      setQrCode(null)
+      setShowWaPanel(false)
+    } catch (err: unknown) {
+      setWaError((err as { message?: string })?.message ?? 'Eroare la deconectare.')
+    } finally {
+      setWaDisconnecting(false)
+    }
+  }
+
+  function openWaPanel() {
+    setShowWaPanel(true)
+    setWaError('')
+    setQrCode(null)
+  }
+
+  const isWaConnected = waSession?.status === 'connected'
   const { text: statusText, color: statusColor } = statusLabel(sub)
   const canToggleAI = aiSettings && !aiSettings.adminDisabled
 
@@ -87,9 +162,9 @@ function DashboardContent() {
         </div>
         <div className="flex items-center gap-3">
           {user?.role !== 'admin' && (
-          <span className={`font-mono-ui text-[10px] tracking-wide px-3 py-1.5 rounded-full ${statusColor}`}>
-            {statusText}
-          </span>
+            <span className={`font-mono-ui text-[10px] tracking-wide px-3 py-1.5 rounded-full ${statusColor}`}>
+              {statusText}
+            </span>
           )}
           {sub && sub.status !== 'incomplete' && (
             <div className="flex flex-col items-end gap-1">
@@ -101,7 +176,7 @@ function DashboardContent() {
                 {loadingPortal ? 'Se încarcă…' : 'Gestionează subscripția'} <ExternalLink className="h-3.5 w-3.5" />
               </button>
               {portalError && (
-                <p className="font-mono-ui text-[11px] text-red-500 dark:text-red-400">Nu e disponibil momentan. Contactează suportul.</p>
+                <p className="font-mono-ui text-[11px] text-red-500 dark:text-red-400">Nu e disponibil momentan.</p>
               )}
             </div>
           )}
@@ -147,8 +222,8 @@ function DashboardContent() {
       )}
 
       {/* Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        {/* AI Toggle */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+        {/* Agent AI */}
         <div className={`rounded-xl border-2 p-5 flex flex-col gap-3 transition-colors bg-card ${
           !initialLoaded ? 'border-line' :
           aiSettings?.adminDisabled ? 'border-orange-400 dark:border-orange-600' :
@@ -209,61 +284,144 @@ function DashboardContent() {
 
         {/* WhatsApp */}
         <div className="card-elevated rounded-xl p-5 flex flex-col gap-3">
-          <div className="flex items-center gap-2">
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-              waSession?.status === 'connected'
-                ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
-                : 'bg-cardhi text-dimmer'
-            }`}>
-              <Wifi className="h-4 w-4" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                isWaConnected
+                  ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+                  : 'bg-cardhi text-dimmer'
+              }`}>
+                <Wifi className="h-4 w-4" />
+              </div>
+              <span className="font-mono-ui text-[12px] text-dim">WhatsApp</span>
             </div>
-            <span className="font-mono-ui text-[12px] text-dim">WhatsApp</span>
+            {initialLoaded && isWaConnected && (
+              <button
+                onClick={handleWaDisconnect}
+                disabled={waDisconnecting}
+                className="flex items-center gap-1 font-mono-ui text-[11px] text-red-500 hover:text-red-600 transition-colors disabled:opacity-50"
+              >
+                {waDisconnecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <WifiOff className="h-3.5 w-3.5" />}
+                Deconectează
+              </button>
+            )}
           </div>
           <div>
             <p className={`font-display text-[20px] leading-none ${
               !initialLoaded ? 'text-dimmer' :
-              waSession?.status === 'connected' ? 'text-green-600 dark:text-green-400' : 'text-dimmer'
+              isWaConnected ? 'text-green-600 dark:text-green-400' : 'text-dimmer'
             }`}>
-              {!initialLoaded ? '—' : waSession?.status === 'connected' ? 'Conectat' : waSession?.status === 'pairing' ? 'Asociere…' : 'Neconectat'}
+              {!initialLoaded ? '—' : isWaConnected ? 'Conectat' : waSession?.status === 'pairing' ? 'Asociere…' : 'Neconectat'}
             </p>
             <p className="font-mono-ui text-[11px] text-dimmer mt-1">
               {!initialLoaded ? '—' : waSession?.phoneNumber ? `+${waSession.phoneNumber}` : 'Niciun număr asociat'}
             </p>
           </div>
-          {initialLoaded && waSession?.status !== 'connected' && (
+          {initialLoaded && !isWaConnected && (
             <button
-              onClick={() => router.push('/connect')}
-              className="font-mono-ui text-[11px] text-acid hover:underline mt-auto"
+              onClick={() => setShowWaPanel(v => !v)}
+              className="font-mono-ui text-[11px] text-acid hover:underline mt-auto text-left"
             >
-              Conectează acum →
+              {showWaPanel ? 'Ascunde ↑' : 'Conectează acum →'}
             </button>
           )}
         </div>
 
         {/* Trial — ascuns pentru admin */}
         {user?.role !== 'admin' && (
-        <div className="card-elevated rounded-xl p-5 flex flex-col gap-3">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400">
-              <Clock className="h-4 w-4" />
+          <div className="card-elevated rounded-xl p-5 flex flex-col gap-3">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400">
+                <Clock className="h-4 w-4" />
+              </div>
+              <span className="font-mono-ui text-[12px] text-dim">Trial</span>
             </div>
-            <span className="font-mono-ui text-[12px] text-dim">Trial</span>
+            <div>
+              <p className="font-display text-[20px] leading-none text-purple-600 dark:text-purple-400">
+                {sub?.status === 'trialing' ? trialDaysLeft(sub.trialEndsAt) : sub?.status === 'active' ? '—' : '7 zile'}
+              </p>
+              <p className="font-mono-ui text-[11px] text-dimmer mt-1">
+                {sub?.status === 'trialing' ? 'rămase din trial' : sub?.status === 'active' ? 'subscripție activă' : 'trial disponibil'}
+              </p>
+            </div>
+            <div className="flex items-center gap-1.5 mt-auto">
+              <MessageSquare className="h-3 w-3 text-dimmer" />
+              <span className="font-mono-ui text-[11px] text-dimmer">Mesaje procesate: —</span>
+            </div>
           </div>
-          <div>
-            <p className="font-display text-[20px] leading-none text-purple-600 dark:text-purple-400">
-              {sub?.status === 'trialing' ? trialDaysLeft(sub.trialEndsAt) : sub?.status === 'active' ? '—' : '7 zile'}
-            </p>
-            <p className="font-mono-ui text-[11px] text-dimmer mt-1">
-              {sub?.status === 'trialing' ? 'rămase din trial' : sub?.status === 'active' ? 'subscripție activă' : 'trial disponibil'}
-            </p>
-          </div>
-          <div className="flex items-center gap-1.5 mt-auto">
-            <MessageSquare className="h-3 w-3 text-dimmer" />
-            <span className="font-mono-ui text-[11px] text-dimmer">Mesaje procesate: —</span>
-          </div>
-        </div>
         )}
       </div>
+
+      {/* WhatsApp Connect Panel */}
+      {showWaPanel && !isWaConnected && (
+        <div className="card-elevated rounded-xl p-6 mb-4">
+          <div className="flex items-center justify-between mb-5 pb-4 border-b border-line">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-cardhi">
+                <Smartphone className="h-4 w-4 text-dim" />
+              </div>
+              <div>
+                <p className="font-mono-ui text-[13px] text-ink font-medium">Conectare WhatsApp</p>
+                <p className="font-mono-ui text-[11px] text-dimmer">Scanează codul QR cu aplicația WhatsApp.</p>
+              </div>
+            </div>
+            <button
+              onClick={() => { setShowWaPanel(false); setQrCode(null); setWaError('') }}
+              className="p-1.5 text-dimmer hover:text-ink hover:bg-cardhi rounded-lg transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          {waError && (
+            <p className="font-mono-ui text-[12px] text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl px-3 py-2 mb-4 text-center">{waError}</p>
+          )}
+
+          {/* QR code */}
+          {!waConnecting && qrCode && (
+            <div className="flex flex-col items-center gap-4">
+              <p className="font-mono-ui text-[12px] text-dim text-center">
+                Deschide WhatsApp → <strong className="text-ink">Dispozitive conectate</strong> → <strong className="text-ink">Conectează un dispozitiv</strong> → scanează codul
+              </p>
+              <div className="p-4 bg-white border-2 border-line rounded-xl">
+                <QRCodeSVG value={qrCode} size={220} />
+              </div>
+              <div className="flex items-center gap-1.5 font-mono-ui text-[11px] text-amber-600 dark:text-amber-400">
+                <RefreshCw className="h-3 w-3" />
+                Codul se reîmprospătează automat la 20 de secunde
+              </div>
+              <p className="font-mono-ui text-[11px] text-dimmer">
+                Pagina se actualizează automat după scanare.
+              </p>
+            </div>
+          )}
+
+          {/* Loading QR */}
+          {waConnecting && (
+            <div className="flex flex-col items-center gap-3 py-6">
+              <Loader2 className="h-8 w-8 animate-spin text-acid" />
+              <p className="font-mono-ui text-[12px] text-dim">Se generează codul QR…</p>
+            </div>
+          )}
+
+          {/* Connect button */}
+          {!waConnecting && !qrCode && (
+            <div className="flex flex-col items-center gap-4 py-4">
+              <button
+                onClick={handleWaConnect}
+                style={{ background: 'var(--acid)', color: 'var(--on-acid)' }}
+                className="px-8 py-2.5 hover:opacity-90 font-mono-ui text-sm font-medium rounded-xl transition-opacity flex items-center gap-2"
+              >
+                Generează cod QR
+              </button>
+              <p className="font-mono-ui text-[11px] text-dimmer text-center max-w-sm">
+                Apasă butonul, scanează QR-ul cu WhatsApp de pe telefon (Dispozitive conectate → Conectează un dispozitiv).
+                Conexiunea persistă chiar și după repornirea serverului.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Statistici AI */}
       <div className="card-elevated rounded-xl p-6 mb-4">
@@ -305,13 +463,14 @@ function DashboardContent() {
             {
               step: 3,
               title: 'Conectare WhatsApp',
-              done: waSession?.status === 'connected',
-              desc: waSession?.status === 'connected'
-                ? `Conectat: +${waSession.phoneNumber}`
+              done: isWaConnected,
+              desc: isWaConnected
+                ? `Conectat: +${waSession?.phoneNumber}`
                 : waSession?.status === 'pairing'
                   ? 'Asociere în curs…'
-                  : 'Introdu numărul tău și obține codul de asociere.',
-              action: waSession?.status !== 'connected' ? () => router.push('/connect') : undefined,
+                  : 'Conectează numărul tău de WhatsApp.',
+              action: !isWaConnected ? openWaPanel : undefined,
+              actionLabel: showWaPanel ? 'Panou deschis ↑' : 'Conectează acum',
             },
             {
               step: 4,
@@ -338,7 +497,7 @@ function DashboardContent() {
                 <p className="font-mono-ui text-[11px] text-dimmer mt-0.5">{desc}</p>
                 {action && !done && (
                   <button onClick={action} className="font-mono-ui text-[11px] text-acid hover:underline mt-1 font-medium">
-                    {actionLabel ?? 'Conectează acum'} →
+                    {actionLabel ?? 'Acțiune'} →
                   </button>
                 )}
               </div>

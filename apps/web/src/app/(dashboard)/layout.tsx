@@ -4,7 +4,7 @@ import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuthStore } from '@/store/auth'
 import { api } from '@/lib/api'
-import { Loader2, LayoutDashboard, Smartphone, MessageSquare, Settings, User, LogOut } from 'lucide-react'
+import { Loader2, LayoutDashboard, MessageSquare, Settings, User, LogOut } from 'lucide-react'
 import { ThemeToggle } from '@/components/ThemeToggle'
 
 function WaIcon({ size = 16 }: { size?: number }) {
@@ -17,7 +17,6 @@ function WaIcon({ size = 16 }: { size?: number }) {
 
 const NAV_LINKS = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/connect', label: 'WhatsApp', icon: Smartphone },
   { href: '/conversations', label: 'Conversații', icon: MessageSquare },
   { href: '/settings', label: 'Setări', icon: Settings },
   { href: '/profile', label: 'Profil', icon: User },
@@ -164,7 +163,9 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     router.push('/login')
   }
 
-  if (!isAuthenticated || checking) {
+  // Full spinner only before localStorage hydration (very brief, ~5-10ms)
+  // or when there's no user at all (redirect to login is pending)
+  if (!_hasHydrated || (!user && !isAuthenticated)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-base">
         <Loader2 className="h-5 w-5 animate-spin text-acid" />
@@ -191,7 +192,11 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         </div>
 
         <main className="flex-1 p-6 pb-24 lg:pb-6">
-          {children}
+          {checking ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 className="h-5 w-5 animate-spin text-acid" />
+            </div>
+          ) : children}
         </main>
       </div>
 

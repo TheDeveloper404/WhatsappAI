@@ -93,6 +93,9 @@ details summary::-webkit-details-marker { display: none; }
 details[open] .chev { transform: rotate(45deg); }
 .chev { transition: transform 0.2s ease; }
 
+/* ─── THEME SWITCH — kill transitions for one frame ─────────────── */
+html.no-transition * { transition: none !important; }
+
 /* ─── MISC ───────────────────────────────────────────────────────── */
 .lift { transition: transform .25s ease, background-color .25s ease, border-color .25s ease; }
 .lift:hover { transform: translateY(-2px); }

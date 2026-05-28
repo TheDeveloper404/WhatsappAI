@@ -7,8 +7,11 @@ export function ThemeToggle() {
   useEffect(() => { setDark(document.documentElement.classList.contains('dark')) }, [])
   function toggle() {
     const next = !dark
+    const root = document.documentElement
+    root.classList.add('no-transition')
+    root.classList.toggle('dark', next)
+    window.requestAnimationFrame(() => root.classList.remove('no-transition'))
     setDark(next)
-    document.documentElement.classList.toggle('dark', next)
     localStorage.setItem('wa-ai-theme', next ? 'dark' : 'light')
   }
   return (

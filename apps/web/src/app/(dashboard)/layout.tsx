@@ -4,7 +4,7 @@ import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuthStore } from '@/store/auth'
 import { api } from '@/lib/api'
-import { Loader2 } from 'lucide-react'
+import { Loader2, LayoutDashboard, Smartphone, MessageSquare, Settings, User, LogOut } from 'lucide-react'
 import { ThemeToggle } from '@/components/ThemeToggle'
 
 function WaIcon({ size = 16 }: { size?: number }) {
@@ -16,11 +16,88 @@ function WaIcon({ size = 16 }: { size?: number }) {
 }
 
 const NAV_LINKS = [
-  { href: '/dashboard', label: 'Dashboard' },
-  { href: '/connect', label: 'WhatsApp' },
-  { href: '/conversations', label: 'Conversații' },
-  { href: '/settings', label: 'Setări' },
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/connect', label: 'WhatsApp', icon: Smartphone },
+  { href: '/conversations', label: 'Conversații', icon: MessageSquare },
+  { href: '/settings', label: 'Setări', icon: Settings },
+  { href: '/profile', label: 'Profil', icon: User },
 ]
+
+function Sidebar({ pathname, onLogout, userEmail }: { pathname: string; onLogout: () => void; userEmail?: string }) {
+  return (
+    <aside className="hidden lg:flex flex-col fixed left-0 top-0 h-full w-[220px] border-r border-line bg-base z-20">
+      {/* Logo */}
+      <div className="px-5 py-4 border-b border-line">
+        <Link href="/dashboard" className="flex items-center gap-2.5">
+          <span className="inline-flex items-center justify-center w-8 h-8 rounded-full flex-shrink-0" style={{ background: '#25D366' }}>
+            <WaIcon size={18} />
+          </span>
+          <span className="font-mono-ui text-[18px] font-semibold text-ink">
+            wa<span className="text-acid">ai.</span>
+          </span>
+        </Link>
+      </div>
+
+      {/* Nav */}
+      <nav className="flex-1 p-3 space-y-0.5">
+        {NAV_LINKS.map(({ href, label, icon: Icon }) => {
+          const active = pathname === href
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-mono-ui text-[13px] transition-colors ${
+                active ? 'bg-cardhi text-ink' : 'text-dim hover:text-ink hover:bg-cardhi'
+              }`}
+            >
+              <Icon className={`h-4 w-4 flex-shrink-0 ${active ? 'text-acid' : ''}`} />
+              {label}
+            </Link>
+          )
+        })}
+      </nav>
+
+      {/* Bottom */}
+      <div className="p-3 border-t border-line space-y-1">
+        {userEmail && (
+          <p className="font-mono-ui text-[10px] text-dimmer px-3 py-1 truncate">{userEmail}</p>
+        )}
+        <div className="flex items-center justify-between px-3 py-1">
+          <button
+            onClick={onLogout}
+            className="flex items-center gap-2 font-mono-ui text-[12px] text-dim hover:text-red-500 transition-colors"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            deconectare
+          </button>
+          <ThemeToggle />
+        </div>
+      </div>
+    </aside>
+  )
+}
+
+function BottomNav({ pathname }: { pathname: string }) {
+  return (
+    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-20 border-t border-line bg-base flex">
+      {NAV_LINKS.map(({ href, label, icon: Icon }) => {
+        const active = pathname === href
+        return (
+          <Link
+            key={href}
+            href={href}
+            className={`flex-1 flex flex-col items-center gap-1 py-2.5 transition-colors ${
+              active ? 'text-ink' : 'text-dimmer hover:text-dim'
+            }`}
+          >
+            <Icon className={`h-5 w-5 ${active ? 'text-acid' : ''}`} />
+            <span className="font-mono-ui text-[9px]">{label}</span>
+          </Link>
+        )
+      })}
+    </nav>
+  )
+}
 
 function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -81,6 +158,12 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     })
   }, [isAuthenticated, accessToken, user, pathname, searchParams, router, _hasHydrated, setAuth, clearAuth])
 
+  async function handleLogout() {
+    try { await api.auth.logout() } catch {}
+    clearAuth()
+    router.push('/login')
+  }
+
   if (!isAuthenticated || checking) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-base">
@@ -90,39 +173,29 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-base">
-      <nav className="border-b border-line px-6 py-3.5 flex items-center justify-between">
-        <div className="flex items-center gap-6">
-          <Link href="/dashboard" className="flex items-center gap-2.5">
-            <span className="inline-flex items-center justify-center w-8 h-8 rounded-full" style={{ background: '#25D366' }}>
-              <WaIcon size={20} />
+    <div className="min-h-screen bg-base flex">
+      <Sidebar pathname={pathname} onLogout={handleLogout} userEmail={user?.email} />
+
+      <div className="flex-1 lg:ml-[220px] flex flex-col min-h-screen">
+        {/* Mobile top bar */}
+        <div className="lg:hidden border-b border-line px-4 py-3 flex items-center justify-between">
+          <Link href="/dashboard" className="flex items-center gap-2">
+            <span className="inline-flex items-center justify-center w-7 h-7 rounded-full" style={{ background: '#25D366' }}>
+              <WaIcon size={16} />
             </span>
-            <span className="font-mono-ui text-[18px] font-semibold text-ink">
+            <span className="font-mono-ui text-[16px] font-semibold text-ink">
               wa<span className="text-acid">ai.</span>
             </span>
           </Link>
-          <div className="hidden sm:flex items-center gap-1">
-            {NAV_LINKS.map(link => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={`font-mono-ui text-[12px] tracking-wide px-3 py-1.5 rounded-lg transition-colors ${
-                  pathname === link.href
-                    ? 'bg-cardhi text-ink'
-                    : 'text-dim hover:text-ink hover:bg-cardhi'
-                }`}
-              >
-                {link.label}
-              </Link>
-            ))}
-          </div>
-        </div>
-        <div className="flex items-center gap-1">
           <ThemeToggle />
-          <LogoutButton />
         </div>
-      </nav>
-      <main className="p-6">{children}</main>
+
+        <main className="flex-1 p-6 pb-24 lg:pb-6">
+          {children}
+        </main>
+      </div>
+
+      <BottomNav pathname={pathname} />
     </div>
   )
 }
@@ -136,28 +209,5 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }>
       <DashboardLayoutInner>{children}</DashboardLayoutInner>
     </Suspense>
-  )
-}
-
-function LogoutButton() {
-  const router = useRouter()
-  const clearAuth = useAuthStore(s => s.clearAuth)
-
-  async function handleLogout() {
-    try {
-      const { api } = await import('@/lib/api')
-      await api.auth.logout()
-    } catch {}
-    clearAuth()
-    router.push('/login')
-  }
-
-  return (
-    <button
-      onClick={handleLogout}
-      className="font-mono-ui text-[12px] text-dim hover:text-ink transition-colors"
-    >
-      deconectare
-    </button>
   )
 }

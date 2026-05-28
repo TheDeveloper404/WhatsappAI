@@ -163,9 +163,10 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     router.push('/login')
   }
 
-  // Full spinner only before localStorage hydration (very brief, ~5-10ms)
-  // or when there's no user at all (redirect to login is pending)
-  if (!_hasHydrated || (!user && !isAuthenticated)) {
+  // Full spinner while not yet hydrated OR while not yet authenticated.
+  // Covers: initial load, token refresh in progress, session expired.
+  // Layout is shown only once isAuthenticated=true (after a valid access token exists).
+  if (!_hasHydrated || !isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-base">
         <Loader2 className="h-5 w-5 animate-spin text-acid" />
@@ -188,7 +189,16 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
               wa<span className="text-acid">ai.</span>
             </span>
           </Link>
-          <ThemeToggle />
+          <div className="flex items-center gap-1">
+            <ThemeToggle />
+            <button
+              onClick={handleLogout}
+              className="p-2 text-dim hover:text-red-500 hover:bg-cardhi rounded-lg transition-colors"
+              title="Deconectare"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
         <main className="flex-1 p-6 pb-24 lg:pb-6">

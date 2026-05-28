@@ -395,6 +395,8 @@ export interface Subscription {
   status: 'trialing' | 'active' | 'past_due' | 'canceled' | 'incomplete'
   trialEndsAt: number | null
   currentPeriodEndsAt: number | null
+  cancelAtPeriodEnd: boolean
+  cancelAt: number | null
   createdAt: number
   updatedAt: number
 }

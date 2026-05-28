@@ -30,6 +30,16 @@ export async function stripeWebhookRoutes(app: FastifyInstance) {
 }
 
 async function handleEvent(event: Stripe.Event, app: FastifyInstance) {
+  const getCurrentPeriodEnd = (stripeSub: Stripe.Subscription) => {
+    const sub = stripeSub as Stripe.Subscription & { current_period_end?: number }
+    return (sub.current_period_end ?? stripeSub.billing_cycle_anchor) * 1000
+  }
+
+  const getCancelAt = (stripeSub: Stripe.Subscription) => {
+    const sub = stripeSub as Stripe.Subscription & { cancel_at?: number | null }
+    return sub.cancel_at ? sub.cancel_at * 1000 : null
+  }
+
   switch (event.type) {
     case 'checkout.session.completed': {
       const session = event.data.object as Stripe.Checkout.Session
@@ -41,7 +51,7 @@ async function handleEvent(event: Stripe.Event, app: FastifyInstance) {
 
       const stripeSub = await stripe.subscriptions.retrieve(stripeSubscriptionId)
       const trialEnd = stripeSub.trial_end ? stripeSub.trial_end * 1000 : null
-      const periodEnd = stripeSub.billing_cycle_anchor * 1000
+      const periodEnd = getCurrentPeriodEnd(stripeSub)
       const status = stripeSub.status === 'trialing' ? 'trialing' : 'active'
 
       const existing = await billingRepository.findByStripeCustomerId(customerId)
@@ -52,6 +62,8 @@ async function handleEvent(event: Stripe.Event, app: FastifyInstance) {
           status,
           trialEndsAt: trialEnd,
           currentPeriodEndsAt: periodEnd,
+          cancelAtPeriodEnd: Boolean(stripeSub.cancel_at_period_end),
+          cancelAt: getCancelAt(stripeSub),
         })
       }
       break
@@ -74,7 +86,9 @@ async function handleEvent(event: Stripe.Event, app: FastifyInstance) {
       await billingRepository.update(existing.id, {
         status,
         trialEndsAt: stripeSub.trial_end ? stripeSub.trial_end * 1000 : null,
-        currentPeriodEndsAt: stripeSub.billing_cycle_anchor * 1000,
+        currentPeriodEndsAt: getCurrentPeriodEnd(stripeSub),
+        cancelAtPeriodEnd: Boolean(stripeSub.cancel_at_period_end),
+        cancelAt: getCancelAt(stripeSub),
       })
 
       if (status === 'past_due' || status === 'canceled') {
@@ -92,7 +106,11 @@ async function handleEvent(event: Stripe.Event, app: FastifyInstance) {
       const stripeSub = event.data.object as Stripe.Subscription
       const existing = await billingRepository.findByStripeSubscriptionId(stripeSub.id)
       if (existing) {
-        await billingRepository.update(existing.id, { status: 'canceled' })
+        await billingRepository.update(existing.id, {
+          status: 'canceled',
+          cancelAtPeriodEnd: false,
+          cancelAt: Date.now(),
+        })
         await adminRepository.setAgentActive(existing.userId, false)
         await notifyAdmin(
           'subscription_canceled',

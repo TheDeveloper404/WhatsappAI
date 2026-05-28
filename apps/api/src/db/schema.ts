@@ -40,6 +40,8 @@ export const subscriptions = pgTable('subscriptions', {
   status: text('status').notNull().default('trialing'),
   trialEndsAt: bigint('trial_ends_at', { mode: 'number' }),
   currentPeriodEndsAt: bigint('current_period_ends_at', { mode: 'number' }),
+  cancelAtPeriodEnd: boolean('cancel_at_period_end').notNull().default(false),
+  cancelAt: bigint('cancel_at', { mode: 'number' }),
   createdAt: bigint('created_at', { mode: 'number' }).notNull(),
   updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
 })

@@ -4,6 +4,10 @@ import { useAuthStore } from '@/store/auth'
 import { api, type Subscription } from '@/lib/api'
 import { Loader2, Mail, Shield, CreditCard, HeadphonesIcon } from 'lucide-react'
 
+function formatDate(ts: number) {
+  return new Date(ts).toLocaleDateString('ro-RO')
+}
+
 export default function ProfilePage() {
   const { user, accessToken } = useAuthStore()
 
@@ -59,6 +63,14 @@ export default function ProfilePage() {
     canceled: 'Anulat',
     incomplete: 'Incomplet',
   }
+  const subscriptionEnd = subscription?.cancelAt ?? (
+    subscription?.status === 'trialing' ? subscription.trialEndsAt : subscription?.currentPeriodEndsAt
+  )
+  const subscriptionDateLabel = subscription?.cancelAtPeriodEnd
+    ? 'Acces până la'
+    : subscription?.status === 'trialing'
+      ? 'Trial expiră'
+      : 'Reînnoire'
 
   const initials = user?.name
     ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
@@ -134,12 +146,11 @@ export default function ProfilePage() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="font-mono-ui text-[13px] text-ink font-medium">
-                  Plan {planLabel} — {statusLabel[subscription.status] ?? subscription.status}
+                  Plan {planLabel} — {subscription.cancelAtPeriodEnd ? 'Anulat la final' : statusLabel[subscription.status] ?? subscription.status}
                 </p>
-                {subscription.currentPeriodEndsAt && (
+                {subscriptionEnd && (
                   <p className="font-mono-ui text-[11px] text-dimmer mt-0.5">
-                    {subscription.status === 'trialing' ? 'Trial expiră' : 'Reînnoire'}{' '}
-                    {new Date(subscription.currentPeriodEndsAt).toLocaleDateString('ro-RO')}
+                    {subscriptionDateLabel} {formatDate(subscriptionEnd)}
                   </p>
                 )}
               </div>

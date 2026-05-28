@@ -10,6 +10,7 @@ export const migrationStatements = [
     reset_password_token TEXT,
     reset_password_token_expiry BIGINT,
     role TEXT NOT NULL DEFAULT 'user' CHECK(role IN ('user','admin')),
+    deletion_scheduled_at BIGINT,
     created_at BIGINT NOT NULL,
     updated_at BIGINT NOT NULL
   )`,
@@ -35,6 +36,8 @@ export const migrationStatements = [
     status TEXT NOT NULL DEFAULT 'trialing' CHECK(status IN ('trialing','active','past_due','canceled','incomplete')),
     trial_ends_at BIGINT,
     current_period_ends_at BIGINT,
+    cancel_at_period_end BOOLEAN NOT NULL DEFAULT FALSE,
+    cancel_at BIGINT,
     created_at BIGINT NOT NULL,
     updated_at BIGINT NOT NULL
   )`,
@@ -58,6 +61,7 @@ export const migrationStatements = [
     system_prompt TEXT NOT NULL DEFAULT '',
     knowledge_base TEXT NOT NULL DEFAULT '',
     writing_style TEXT NOT NULL DEFAULT '',
+    notify_on_ai_takeover BOOLEAN NOT NULL DEFAULT TRUE,
     pause_until BIGINT,
     created_at BIGINT NOT NULL,
     updated_at BIGINT NOT NULL
@@ -74,6 +78,7 @@ export const migrationStatements = [
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     contact_phone TEXT NOT NULL,
     from_me BOOLEAN NOT NULL DEFAULT FALSE,
+    is_ai BOOLEAN NOT NULL DEFAULT FALSE,
     body TEXT NOT NULL,
     wa_timestamp BIGINT NOT NULL,
     created_at BIGINT NOT NULL

@@ -941,8 +941,8 @@ function Pricing() {
 // ─── §05 FAQ ──────────────────────────────────────────────────────────────────
 const FAQ_ITEMS: { q: string; a: React.ReactNode }[] = [
   {
-    q: 'e legal să folosesc asta cu WhatsApp?',
-    a: 'Da. E contul tău personal, tu decizi ce răspunde. Nu trimitem mesaje în masă, nu spamăm, nu colectăm contactele fără consimțământ. Tu dețineți conversațiile, tu dețineți agentul.',
+    q: 'Este legal să folosesc asta cu WhatsApp?',
+    a: 'Da. E contul tău personal, tu decizi ce răspunde. Nu trimitem mesaje în masă, nu spamăm, nu colectăm contactele fără consimțământ. Tu deții conversațiile, tu deții agentul.',
   },
   {
     q: 'clienții vor ști că vorbesc cu un bot?',
@@ -958,7 +958,7 @@ const FAQ_ITEMS: { q: string; a: React.ReactNode }[] = [
   },
   {
     q: 'ce limbi înțelege?',
-    a: 'Română nativ. Engleză, maghiară, germană, italiană, franceză, spaniolă cu fluență. Cu diacritice sau fără, română amestecată cu engleză — reproduce exact felul tău.',
+    a: 'Română. Engleză, Maghiară, Germană, Italiană, Franceză, Spaniolă cu fluență. Cu diacritice sau fără, română amestecată cu engleză — reproduce exact felul tău.',
   },
   {
     q: 'datele mele sunt în siguranță?',

@@ -262,6 +262,41 @@ describe('customer.subscription.updated', () => {
     expect(agentRows[0].isActive).toBe(true)
   })
 
+  it('200 — cancel_at_period_end marchează anularea la final fără dezactivare imediată', async () => {
+    const { user } = await registerAndLogin('webhook-cancel-at-end@test.com')
+    await createSubscription(user.id, {
+      stripeCustomerId: 'cus_cancel_at_end',
+      stripeSubscriptionId: 'sub_cancel_at_end',
+      status: 'trialing',
+    })
+    await activateAgent(user.id)
+
+    const cancelAt = Math.floor(Date.now() / 1000) + 7 * 86400
+    const res = await sendWebhook({
+      type: 'customer.subscription.updated',
+      data: {
+        object: {
+          id: 'sub_cancel_at_end',
+          status: 'trialing',
+          trial_end: cancelAt,
+          current_period_end: cancelAt,
+          billing_cycle_anchor: Math.floor(Date.now() / 1000),
+          cancel_at_period_end: true,
+          cancel_at: cancelAt,
+        },
+      },
+    })
+    expect(res.statusCode).toBe(200)
+
+    const rows = await db.select().from(subscriptions).where(eq(subscriptions.userId, user.id))
+    expect(rows[0].status).toBe('trialing')
+    expect(rows[0].cancelAtPeriodEnd).toBe(true)
+    expect(rows[0].cancelAt).toBe(cancelAt * 1000)
+
+    const agentRows = await db.select().from(aiSettings).where(eq(aiSettings.userId, user.id))
+    expect(agentRows[0].isActive).toBe(true)
+  })
+
   it('200 — subscription inexistentă în DB este ignorată', async () => {
     const res = await sendWebhook({
       type: 'customer.subscription.updated',

@@ -16,8 +16,19 @@ function trialDaysLeft(trialEndsAt: number | null): string {
   return `${Math.ceil(ms / 86_400_000)} zile`
 }
 
+function formatDate(ts: number | null): string {
+  if (!ts) return 'data finală'
+  return new Date(ts).toLocaleDateString('ro-RO')
+}
+
+function subscriptionEndsAt(sub: Subscription | null): number | null {
+  if (!sub) return null
+  return sub.cancelAt ?? (sub.status === 'trialing' ? sub.trialEndsAt : sub.currentPeriodEndsAt)
+}
+
 function statusLabel(sub: Subscription | null): { text: string; color: string } {
   if (!sub || sub.status === 'incomplete') return { text: 'Fără subscripție', color: 'bg-cardhi text-dim' }
+  if (sub.cancelAtPeriodEnd) return { text: 'Anulat la final', color: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300' }
   const map: Record<string, { text: string; color: string }> = {
     trialing: { text: 'Trial activ', color: 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300' },
     active: { text: 'Activ', color: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' },
@@ -50,6 +61,7 @@ function DashboardContent() {
   const waPollRef = useRef<ReturnType<typeof setInterval>>()
 
   const checkoutSuccess = searchParams.get('checkout') === 'success'
+  const [showCheckoutSuccess, setShowCheckoutSuccess] = useState(false)
 
   useEffect(() => {
     if (!accessToken) return
@@ -60,6 +72,12 @@ function DashboardContent() {
       api.ai.getStats(accessToken).then(({ stats }) => setStats(stats)).catch(() => {}),
     ]).finally(() => setInitialLoaded(true))
   }, [accessToken])
+
+  useEffect(() => {
+    if (!checkoutSuccess) return
+    setShowCheckoutSuccess(true)
+    router.replace('/dashboard', { scroll: false })
+  }, [checkoutSuccess, router])
 
   useEffect(() => {
     if (!accessToken || !showWaPanel) return
@@ -123,6 +141,69 @@ function DashboardContent() {
   const isWaConnected = waSession?.status === 'connected'
   const { text: statusText, color: statusColor } = statusLabel(sub)
   const canToggleAI = aiSettings && !aiSettings.adminDisabled
+  const subEndsAt = subscriptionEndsAt(sub)
+  const subEndsDate = formatDate(subEndsAt)
+  const subscriptionStep = (() => {
+    if (!sub || sub.status === 'incomplete') {
+      return {
+        title: 'Subscripție neactivată',
+        done: false,
+        desc: 'Alege un plan pentru a activa agentul.',
+      }
+    }
+
+    if (sub.status === 'past_due') {
+      return {
+        title: 'Plată eșuată',
+        done: false,
+        desc: 'Actualizează metoda de plată pentru a reactiva abonamentul.',
+      }
+    }
+
+    if (sub.status === 'canceled') {
+      return {
+        title: 'Subscripție anulată',
+        done: false,
+        desc: 'Abonamentul este anulat. Alege un plan nou pentru a reactiva agentul.',
+      }
+    }
+
+    if (sub.cancelAtPeriodEnd) {
+      return {
+        title: 'Subscripție anulată',
+        done: false,
+        desc: sub.status === 'trialing'
+          ? `Trialul rămâne activ până la ${subEndsDate} (${trialDaysLeft(sub.trialEndsAt)} rămase).`
+          : `Abonamentul rămâne activ până la ${subEndsDate}.`,
+      }
+    }
+
+    return {
+      title: 'Subscripție activată',
+      done: true,
+      desc: sub.status === 'trialing'
+        ? `Trial activ — ${trialDaysLeft(sub.trialEndsAt)} rămase.`
+        : 'Abonamentul este activ.',
+    }
+  })()
+  const trialPanel = (() => {
+    if (sub?.status === 'trialing') {
+      return {
+        value: trialDaysLeft(sub.trialEndsAt),
+        label: sub.cancelAtPeriodEnd ? `acces până la ${subEndsDate}` : 'rămase din trial',
+      }
+    }
+    if (sub?.status === 'active') {
+      return {
+        value: '—',
+        label: sub.cancelAtPeriodEnd ? `acces până la ${subEndsDate}` : 'subscripție activă',
+      }
+    }
+    if (sub?.status === 'canceled') {
+      return { value: 'Anulat', label: 'subscripție anulată' }
+    }
+    return { value: '7 zile', label: 'trial disponibil' }
+  })()
 
   return (
     <div className="max-w-5xl mx-auto">
@@ -156,11 +237,18 @@ function DashboardContent() {
       </div>
 
       {/* Banners */}
-      {checkoutSuccess && (
+      {showCheckoutSuccess && (
         <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-4 mb-6 flex items-center gap-3">
           <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400 shrink-0" />
           <p className="font-mono-ui text-[13px] text-green-800 dark:text-green-300">
             <strong>Plată procesată!</strong> Trial-ul de 7 zile a început. Agentul va fi activat în curând de echipa noastră.
+          </p>
+        </div>
+      )}
+      {sub?.cancelAtPeriodEnd && sub.status !== 'canceled' && (
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 mb-6 flex items-center gap-3">
+          <p className="font-mono-ui text-[13px] text-amber-800 dark:text-amber-300">
+            <strong>Subscripție anulată.</strong> {sub.status === 'trialing' ? 'Trialul' : 'Abonamentul'} rămâne activ până la {subEndsDate}.
           </p>
         </div>
       )}
@@ -181,7 +269,7 @@ function DashboardContent() {
           </button>
         </div>
       )}
-      {!checkoutSuccess && (!sub || sub.status === 'incomplete') && user?.role !== 'admin' && (
+      {!showCheckoutSuccess && (!sub || sub.status === 'incomplete') && user?.role !== 'admin' && (
         <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 mb-8 flex items-center gap-3">
           <div className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
           <p className="font-mono-ui text-[13px] text-amber-800 dark:text-amber-300">
@@ -290,10 +378,10 @@ function DashboardContent() {
             </div>
             <div>
               <p className="font-display text-[22px] leading-none text-purple-600 dark:text-purple-400">
-                {sub?.status === 'trialing' ? trialDaysLeft(sub.trialEndsAt) : sub?.status === 'active' ? '—' : '7 zile'}
+                {trialPanel.value}
               </p>
               <p className="font-mono-ui text-[12px] text-dimmer mt-1">
-                {sub?.status === 'trialing' ? 'rămase din trial' : sub?.status === 'active' ? 'subscripție activă' : 'trial disponibil'}
+                {trialPanel.label}
               </p>
             </div>
             <div className="flex items-center gap-1.5 mt-auto">
@@ -402,9 +490,9 @@ function DashboardContent() {
             { step: 1, title: 'Cont creat', done: true, desc: 'Contul tău este activ.' },
             ...(user?.role !== 'admin' ? [{
               step: 2,
-              title: 'Subscripție activată',
-              done: !!sub && sub.status !== 'incomplete',
-              desc: sub?.status === 'trialing' ? `Trial activ — ${trialDaysLeft(sub.trialEndsAt)} rămase.` : 'Alege un plan pentru a activa agentul.',
+              title: subscriptionStep.title,
+              done: subscriptionStep.done,
+              desc: subscriptionStep.desc,
             }] : []),
             {
               step: 3,

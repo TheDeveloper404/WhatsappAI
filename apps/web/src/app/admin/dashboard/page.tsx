@@ -4,7 +4,8 @@ import { useRouter } from 'next/navigation'
 import {
   Loader2, Users, Bot, CreditCard, RefreshCw, Bell, LogOut, Phone,
   CheckCircle, XCircle, Clock, AlertCircle, TrendingUp, ChevronDown,
-  Mail, Trash2, WifiOff, CalendarPlus, Settings, Save, X,
+  Mail, Trash2, WifiOff, CalendarPlus, Settings, Save, X, Eye,
+  Activity, MessageSquare, ShieldCheck, Smartphone, AlertTriangle,
 } from 'lucide-react'
 import { ThemeToggle } from '@/components/ThemeToggle'
 
@@ -14,15 +15,23 @@ interface AdminUser {
   id: string; name: string; email: string; createdAt: number
   subscriptionStatus: string | null; subscriptionPlan: string | null
   trialEndsAt: number | null; currentPeriodEndsAt: number | null
-  sessionStatus: string | null; sessionPhone: string | null
+  cancelAtPeriodEnd: boolean | null; cancelAt: number | null
+  sessionStatus: string | null; sessionPhone: string | null; sessionConnectedAt: number | null
   agentActive: boolean | null; agentAdminDisabled: boolean | null
   agentTimerMinutes: number | null; agentSystemPrompt: string | null
+  agentKnowledgeBase: string | null; agentWritingStyle: string | null
+  agentNotifyOnAiTakeover: boolean | null
 }
 
 interface AdminStats {
   totalUsers: number; activeSubscribers: number; inTrial: number
   pastDue: number; activeAgents: number; mrr: number
   conversionRate: number; newThisMonth: number
+  connectedWhatsapp: number; pairingWhatsapp: number; disconnectedWhatsapp: number
+  activeAgentsWithoutWhatsapp: number; trialsExpiringSoon: number
+  cancelingSubscriptions: number; monthlySubscribers: number; annualSubscribers: number
+  messagesToday: number; aiMessagesToday: number; ownerMessagesToday: number
+  totalConversations: number
 }
 
 interface AdminNotification {
@@ -36,6 +45,7 @@ type ModalState =
   | { type: 'email'; user: AdminUser }
   | { type: 'trial'; user: AdminUser }
   | { type: 'delete'; user: AdminUser }
+  | { type: 'details'; user: AdminUser }
   | null
 
 async function adminFetch(path: string, token: string, options?: RequestInit) {
@@ -217,6 +227,75 @@ function DeleteModal({ user, token, onClose, onDone }: { user: AdminUser; token:
   )
 }
 
+// ─── Modal detalii user ───────────────────────────────────────────────────────
+function UserDetailsModal({ user, onClose }: { user: AdminUser; onClose: () => void }) {
+  const prompt = user.agentSystemPrompt?.trim()
+  const knowledgeBase = user.agentKnowledgeBase?.trim()
+  const writingStyle = user.agentWritingStyle?.trim()
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-base border border-line rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-line">
+          <div>
+            <h3 className="font-mono-ui text-sm font-semibold text-ink">{user.name}</h3>
+            <p className="font-mono-ui text-xs text-dimmer mt-0.5">{user.email}</p>
+          </div>
+          <button onClick={onClose} className="text-dimmer hover:text-ink transition-colors"><X className="h-4 w-4" /></button>
+        </div>
+
+        <div className="p-6 overflow-y-auto max-h-[calc(90vh-73px)] space-y-4">
+          <div className="grid md:grid-cols-3 gap-4">
+            <div className="border border-line rounded-xl p-4 bg-cardhi">
+              <p className="font-mono-ui text-[10px] text-dimmer uppercase tracking-widest mb-3">Billing</p>
+              <div className="space-y-2 font-mono-ui text-xs text-dim">
+                <div className="flex justify-between gap-3"><span>Status</span><SubBadge status={user.subscriptionStatus} /></div>
+                <div className="flex justify-between gap-3"><span>Plan</span><span className="text-ink">{user.subscriptionPlan ?? '—'}</span></div>
+                <div className="flex justify-between gap-3"><span>Trial</span><span className="text-ink">{formatDate(user.trialEndsAt)}</span></div>
+                <div className="flex justify-between gap-3"><span>Perioadă</span><span className="text-ink">{formatDate(user.currentPeriodEndsAt)}</span></div>
+                <div className="flex justify-between gap-3"><span>Anulare</span><span className="text-ink">{user.cancelAtPeriodEnd ? formatDate(user.cancelAt) : 'nu'}</span></div>
+              </div>
+            </div>
+
+            <div className="border border-line rounded-xl p-4 bg-cardhi">
+              <p className="font-mono-ui text-[10px] text-dimmer uppercase tracking-widest mb-3">WhatsApp</p>
+              <div className="space-y-2 font-mono-ui text-xs text-dim">
+                <div className="flex justify-between gap-3"><span>Status</span><span className="text-ink">{user.sessionStatus ?? '—'}</span></div>
+                <div className="flex justify-between gap-3"><span>Telefon</span><span className="text-ink">{user.sessionPhone ?? '—'}</span></div>
+                <div className="flex justify-between gap-3"><span>Conectat</span><span className="text-ink">{formatDate(user.sessionConnectedAt)}</span></div>
+              </div>
+            </div>
+
+            <div className="border border-line rounded-xl p-4 bg-cardhi">
+              <p className="font-mono-ui text-[10px] text-dimmer uppercase tracking-widest mb-3">Agent</p>
+              <div className="space-y-2 font-mono-ui text-xs text-dim">
+                <div className="flex justify-between gap-3"><span>Status</span><span className="text-ink">{user.agentAdminDisabled ? 'blocat admin' : user.agentActive ? 'activ' : 'inactiv'}</span></div>
+                <div className="flex justify-between gap-3"><span>Timer</span><span className="text-ink">{user.agentTimerMinutes ?? '—'} min</span></div>
+                <div className="flex justify-between gap-3"><span>Notifică preluare</span><span className="text-ink">{user.agentNotifyOnAiTakeover == null ? '—' : user.agentNotifyOnAiTakeover ? 'da' : 'nu'}</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-4">
+            {[
+              { title: 'Prompt user', value: prompt, empty: 'Niciun prompt setat.' },
+              { title: 'Knowledge base', value: knowledgeBase, empty: 'Nicio bază de cunoștințe.' },
+              { title: 'Stil de scriere', value: writingStyle, empty: 'Niciun stil salvat.' },
+            ].map(item => (
+              <div key={item.title} className="border border-line rounded-xl p-4 bg-base">
+                <p className="font-mono-ui text-[10px] text-dimmer uppercase tracking-widest mb-3">{item.title}</p>
+                <p className="font-mono-ui text-xs text-dim whitespace-pre-wrap max-h-56 overflow-y-auto">
+                  {item.value || item.empty}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Dropdown acțiuni per user ────────────────────────────────────────────────
 function ActionsDropdown({ user, token: _token, onModal, onDisconnect, onToggle, toggling }: {
   user: AdminUser; token: string
@@ -270,6 +349,10 @@ function ActionsDropdown({ user, token: _token, onModal, onDisconnect, onToggle,
         </button>
         {open && (
           <div className="absolute right-0 top-8 w-44 bg-base border border-line rounded-xl shadow-lg z-20 overflow-hidden">
+            <button onClick={() => act(() => onModal({ type: 'details', user }))} className="w-full flex items-center gap-2 px-3 py-2.5 font-mono-ui text-xs text-dim hover:bg-cardhi hover:text-ink transition-colors">
+              <Eye className="h-3.5 w-3.5 text-acid" />Detalii user
+            </button>
+            <div className="border-t border-line" />
             <button onClick={() => act(() => onModal({ type: 'trial', user }))} className="w-full flex items-center gap-2 px-3 py-2.5 font-mono-ui text-xs text-dim hover:bg-cardhi hover:text-ink transition-colors">
               <CalendarPlus className="h-3.5 w-3.5 text-blue-500 dark:text-blue-400" />Extinde trial
             </button>
@@ -308,8 +391,9 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [toggling, setToggling] = useState<string | null>(null)
+  const [deletingNotification, setDeletingNotification] = useState<string | null>(null)
   const [modal, setModal] = useState<ModalState>(null)
-  const [activeTab, setActiveTab] = useState<'users' | 'activity' | 'config'>('users')
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'activity' | 'config'>('overview')
 
   const loadAll = useCallback(async (t: string, silent = false) => {
     if (!silent) setLoading(true)
@@ -382,6 +466,29 @@ export default function AdminDashboard() {
     setConfigSaving(false)
   }
 
+  async function deleteNotification(notificationId: string) {
+    if (!token) return
+    setDeletingNotification(notificationId)
+    try {
+      await adminFetch(`/notifications/${notificationId}`, token, { method: 'DELETE', body: '{}' })
+      const removed = notifications.find(n => n.id === notificationId)
+      setNotifications(prev => prev.filter(n => n.id !== notificationId))
+      if (removed && !removed.readAt) setUnreadCount(prev => Math.max(prev - 1, 0))
+    } catch {}
+    setDeletingNotification(null)
+  }
+
+  async function deleteAllNotifications() {
+    if (!token || notifications.length === 0) return
+    setDeletingNotification('all')
+    try {
+      await adminFetch('/notifications', token, { method: 'DELETE', body: '{}' })
+      setNotifications([])
+      setUnreadCount(0)
+    } catch {}
+    setDeletingNotification(null)
+  }
+
   function logout() { sessionStorage.removeItem('admin_token'); router.replace('/admin') }
 
   const statCards = stats ? [
@@ -390,6 +497,32 @@ export default function AdminDashboard() {
     { icon: Clock,      label: 'În trial',        value: stats.inTrial,                sub: stats.pastDue > 0 ? `${stats.pastDue} cu restanță` : null },
     { icon: Bot,        label: 'Agenți activi',  value: stats.activeAgents,            sub: null },
     { icon: TrendingUp, label: 'MRR estimat',    value: `${stats.mrr.toFixed(0)} RON`, sub: 'echivalent lunar' },
+  ] : []
+
+  const usersNeedingAttention = users.filter(u =>
+    u.subscriptionStatus === 'past_due' ||
+    u.agentAdminDisabled ||
+    (u.agentActive && u.sessionStatus !== 'connected') ||
+    ((u.subscriptionStatus === 'active' || u.subscriptionStatus === 'trialing') && u.sessionStatus !== 'connected') ||
+    (u.subscriptionStatus === 'trialing' && u.trialEndsAt && u.trialEndsAt - Date.now() <= 2 * 86_400_000)
+  )
+
+  const healthCards = stats ? [
+    { icon: Smartphone, label: 'WhatsApp conectat', value: stats.connectedWhatsapp, sub: `${stats.disconnectedWhatsapp} fără sesiune` },
+    { icon: Clock, label: 'În pairing', value: stats.pairingWhatsapp, sub: 'așteaptă conectare' },
+    { icon: Bot, label: 'Agenți activi', value: stats.activeAgents, sub: `${stats.activeAgentsWithoutWhatsapp} fără WA conectat` },
+  ] : []
+
+  const productCards = stats ? [
+    { icon: MessageSquare, label: 'Mesaje azi', value: stats.messagesToday, sub: `${stats.aiMessagesToday} trimise de AI` },
+    { icon: ShieldCheck, label: 'Intervenții manuale azi', value: stats.ownerMessagesToday, sub: 'mesaje trimise de owner' },
+    { icon: Activity, label: 'Conversații totale', value: stats.totalConversations, sub: 'contacte unice cu mesaje' },
+  ] : []
+
+  const billingCards = stats ? [
+    { icon: AlertTriangle, label: 'Trial expiră <48h', value: stats.trialsExpiringSoon, sub: 'merită follow-up' },
+    { icon: XCircle, label: 'Anulare la final', value: stats.cancelingSubscriptions, sub: 'încă au acces până expiră' },
+    { icon: CreditCard, label: 'Planuri active', value: `${stats.monthlySubscribers}/${stats.annualSubscribers}`, sub: 'lunar / anual' },
   ] : []
 
   if (loading) {
@@ -405,6 +538,7 @@ export default function AdminDashboard() {
       {modal?.type === 'email' && <EmailModal user={modal.user} token={token!} onClose={() => setModal(null)} />}
       {modal?.type === 'trial' && <TrialModal user={modal.user} token={token!} onClose={() => setModal(null)} onDone={() => token && loadAll(token, true)} />}
       {modal?.type === 'delete' && <DeleteModal user={modal.user} token={token!} onClose={() => setModal(null)} onDone={() => setUsers(prev => prev.filter(u => u.id !== modal.user.id))} />}
+      {modal?.type === 'details' && <UserDetailsModal user={modal.user} onClose={() => setModal(null)} />}
 
       {/* Navbar */}
       <nav className="border-b border-line px-6 py-3.5 flex items-center justify-between sticky top-0 z-10 bg-base">
@@ -488,7 +622,7 @@ export default function AdminDashboard() {
 
         {/* Tabs */}
         <div className="flex gap-1 border-b border-line">
-          {([['users', 'Useri', Users], ['activity', 'Activitate', Bell], ['config', 'Configurare', Settings]] as const).map(([tab, label, Icon]) => (
+          {([['overview', 'Overview', Activity], ['users', 'Useri', Users], ['activity', 'Activitate', Bell], ['config', 'Configurare', Settings]] as const).map(([tab, label, Icon]) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -502,6 +636,109 @@ export default function AdminDashboard() {
             </button>
           ))}
         </div>
+
+        {/* ─── Tab: Overview ─── */}
+        {activeTab === 'overview' && (
+          <div className="space-y-6">
+            <div className="grid lg:grid-cols-3 gap-4">
+              <div className="card-elevated rounded-xl overflow-hidden lg:col-span-2">
+                <div className="px-5 py-4 border-b border-line flex items-center justify-between gap-3">
+                  <div>
+                    <h2 className="font-mono-ui text-sm font-semibold text-ink">Atenție necesară</h2>
+                    <p className="font-mono-ui text-[10px] text-dimmer mt-0.5">{usersNeedingAttention.length} useri cu risc operațional sau billing</p>
+                  </div>
+                  <AlertTriangle className="h-4 w-4 text-orange-500" />
+                </div>
+                <div className="divide-y divide-line">
+                  {usersNeedingAttention.length === 0 ? (
+                    <p className="font-mono-ui text-xs text-dimmer text-center py-10">Nu există alerte active.</p>
+                  ) : usersNeedingAttention.slice(0, 6).map(u => {
+                    const reasons = [
+                      u.subscriptionStatus === 'past_due' ? 'plată restantă' : null,
+                      u.agentAdminDisabled ? 'agent blocat admin' : null,
+                      u.agentActive && u.sessionStatus !== 'connected' ? 'agent activ fără WhatsApp' : null,
+                      (u.subscriptionStatus === 'active' || u.subscriptionStatus === 'trialing') && u.sessionStatus !== 'connected' ? 'client fără WhatsApp conectat' : null,
+                      u.subscriptionStatus === 'trialing' && u.trialEndsAt && u.trialEndsAt - Date.now() <= 2 * 86_400_000 ? 'trial expiră curând' : null,
+                    ].filter(Boolean).join(' · ')
+                    return (
+                      <button key={u.id} onClick={() => setModal({ type: 'details', user: u })} className="w-full flex items-center justify-between gap-4 px-5 py-3 text-left hover:bg-cardhi transition-colors">
+                        <div className="min-w-0">
+                          <p className="font-mono-ui text-xs font-semibold text-ink truncate">{u.name}</p>
+                          <p className="font-mono-ui text-[10px] text-dimmer truncate">{u.email}</p>
+                        </div>
+                        <p className="font-mono-ui text-[10px] text-orange-600 dark:text-orange-400 shrink-0 max-w-[260px] truncate">{reasons}</p>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <div className="card-elevated rounded-xl p-5">
+                <h2 className="font-mono-ui text-sm font-semibold text-ink mb-4">Control AI</h2>
+                <div className="space-y-3 font-mono-ui text-xs">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-dim">Prompt global</span>
+                    <span className={`px-2 py-0.5 rounded-full ${config.default_system_prompt ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' : 'bg-cardhi text-dimmer'}`}>
+                      {config.default_system_prompt ? 'setat' : 'nesetat'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-dim">Prompturi user</span>
+                    <span className="text-ink">{users.filter(u => u.agentSystemPrompt?.trim()).length}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-dim">Knowledge base</span>
+                    <span className="text-ink">{users.filter(u => u.agentKnowledgeBase?.trim()).length}</span>
+                  </div>
+                  <button onClick={() => setActiveTab('config')} className="w-full mt-2 px-3 py-2 rounded-lg border border-line text-dim hover:text-ink hover:bg-cardhi transition-colors">
+                    Configurează reguli globale
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid lg:grid-cols-3 gap-4">
+              <div className="card-elevated rounded-xl p-5">
+                <h2 className="font-mono-ui text-sm font-semibold text-ink mb-4">Sănătate WhatsApp / Agenți</h2>
+                <div className="space-y-3">
+                  {healthCards.map(({ icon: Icon, label, value, sub }) => (
+                    <div key={label} className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-cardhi flex items-center justify-center"><Icon className="h-4 w-4 text-acid" /></div>
+                      <div className="flex-1 min-w-0"><p className="font-mono-ui text-xs text-ink">{label}</p><p className="font-mono-ui text-[10px] text-dimmer">{sub}</p></div>
+                      <p className="font-display text-[24px] text-ink">{value}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="card-elevated rounded-xl p-5">
+                <h2 className="font-mono-ui text-sm font-semibold text-ink mb-4">Metrici produs</h2>
+                <div className="space-y-3">
+                  {productCards.map(({ icon: Icon, label, value, sub }) => (
+                    <div key={label} className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-cardhi flex items-center justify-center"><Icon className="h-4 w-4 text-acid" /></div>
+                      <div className="flex-1 min-w-0"><p className="font-mono-ui text-xs text-ink">{label}</p><p className="font-mono-ui text-[10px] text-dimmer">{sub}</p></div>
+                      <p className="font-display text-[24px] text-ink">{value}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="card-elevated rounded-xl p-5">
+                <h2 className="font-mono-ui text-sm font-semibold text-ink mb-4">Billing clar</h2>
+                <div className="space-y-3">
+                  {billingCards.map(({ icon: Icon, label, value, sub }) => (
+                    <div key={label} className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-cardhi flex items-center justify-center"><Icon className="h-4 w-4 text-acid" /></div>
+                      <div className="flex-1 min-w-0"><p className="font-mono-ui text-xs text-ink">{label}</p><p className="font-mono-ui text-[10px] text-dimmer">{sub}</p></div>
+                      <p className="font-display text-[24px] text-ink">{value}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ─── Tab: Useri ─── */}
         {activeTab === 'users' && (
@@ -536,6 +773,9 @@ export default function AdminDashboard() {
                           )}
                           {u.subscriptionStatus === 'active' && u.currentPeriodEndsAt && (
                             <p className="font-mono-ui text-[10px] text-dimmer mt-1">Până: {formatDate(u.currentPeriodEndsAt)}</p>
+                          )}
+                          {u.cancelAtPeriodEnd && (
+                            <p className="font-mono-ui text-[10px] text-orange-500 dark:text-orange-400 mt-1">Anulare la final: {formatDate(u.cancelAt)}</p>
                           )}
                         </td>
                         <td className="px-5 py-4">
@@ -581,9 +821,19 @@ export default function AdminDashboard() {
         {/* ─── Tab: Activitate ─── */}
         {activeTab === 'activity' && (
           <div className="card-elevated rounded-xl overflow-hidden">
-            <div className="px-6 py-4 border-b border-line">
-              <h2 className="font-mono-ui text-sm font-semibold text-ink">Feed activitate recentă</h2>
-              <p className="font-mono-ui text-[10px] text-dimmer mt-0.5">Ultimele {notifications.length} evenimente</p>
+            <div className="px-6 py-4 border-b border-line flex items-center justify-between gap-3">
+              <div>
+                <h2 className="font-mono-ui text-sm font-semibold text-ink">Feed activitate recentă</h2>
+                <p className="font-mono-ui text-[10px] text-dimmer mt-0.5">Ultimele {notifications.length} evenimente</p>
+              </div>
+              <button
+                onClick={deleteAllNotifications}
+                disabled={notifications.length === 0 || deletingNotification === 'all'}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-line font-mono-ui text-xs text-dim hover:text-red-600 dark:hover:text-red-400 hover:bg-cardhi disabled:opacity-50 transition-colors"
+              >
+                {deletingNotification === 'all' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                Șterge toate
+              </button>
             </div>
             <div className="divide-y divide-line">
               {notifications.length === 0 ? (
@@ -604,6 +854,14 @@ export default function AdminDashboard() {
                       <p className="font-mono-ui text-[11px] text-dim mt-0.5 whitespace-pre-wrap">{n.body}</p>
                     </div>
                     <p className="font-mono-ui text-[10px] text-dimmer shrink-0">{new Date(n.createdAt).toLocaleString('ro-RO')}</p>
+                    <button
+                      onClick={() => deleteNotification(n.id)}
+                      disabled={deletingNotification === n.id || deletingNotification === 'all'}
+                      className="p-1.5 -mt-1 rounded-lg text-dimmer hover:text-red-600 dark:hover:text-red-400 hover:bg-cardhi disabled:opacity-50 transition-colors shrink-0"
+                      title="Șterge activitatea"
+                    >
+                      {deletingNotification === n.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                    </button>
                   </div>
                 )
               })}
@@ -615,14 +873,14 @@ export default function AdminDashboard() {
         {activeTab === 'config' && (
           <div className="space-y-4">
             <div className="card-elevated rounded-xl p-6">
-              <h2 className="font-mono-ui text-sm font-semibold text-ink mb-1">System prompt implicit</h2>
-              <p className="font-mono-ui text-[10px] text-dimmer mb-4">Folosit pentru useri noi care nu și-au setat propriul prompt.</p>
+              <h2 className="font-mono-ui text-sm font-semibold text-ink mb-1">System prompt global</h2>
+              <p className="font-mono-ui text-[10px] text-dimmer mb-4">Reguli obligatorii aplicate tuturor agenților, înainte de promptul userului.</p>
               <textarea
                 value={configPrompt}
                 onChange={e => setConfigPrompt(e.target.value)}
                 rows={10}
                 className={`${inputCls} font-mono resize-none`}
-                placeholder="System prompt implicit pentru toți userii noi..."
+                placeholder="Reguli globale pentru toți agenții..."
               />
               <div className="flex items-center justify-between mt-4">
                 <p className="font-mono-ui text-[10px] text-dimmer">{configPrompt.length} caractere</p>

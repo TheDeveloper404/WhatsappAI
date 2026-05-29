@@ -57,7 +57,7 @@ function Navbar() {
 
         <div className="flex items-center gap-1.5">
           <button onClick={toggle} aria-label="Toggle dark mode"
-            className="hidden sm:inline-flex items-center justify-center w-9 h-9 rounded-full border border-line text-dim hover:text-ink transition-colors">
+            className="inline-flex items-center justify-center w-9 h-9 rounded-full border border-line text-dim hover:text-ink transition-colors">
             {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
           <Link href="/login" className="hidden sm:inline-flex items-center text-[13px] text-dim hover:text-ink px-3 py-2 font-mono-ui transition-colors">
@@ -170,9 +170,32 @@ const LIVE_CHAT: { side: 'left' | 'right'; text: string }[] = [
   { side: 'right', text: 'super! te-am trecut pt mâine la 17 👊' },
 ]
 
+const OPERATOR_TIME_ZONE = 'Europe/Bucharest'
+
+function formatOperatorTime(date: Date) {
+  const timeParts = new Intl.DateTimeFormat('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: OPERATOR_TIME_ZONE,
+    timeZoneName: 'short',
+  }).formatToParts(date)
+
+  const hour = timeParts.find(part => part.type === 'hour')?.value ?? '00'
+  const minute = timeParts.find(part => part.type === 'minute')?.value ?? '00'
+  const zone = timeParts.find(part => part.type === 'timeZoneName')?.value ?? ''
+  const weekday = new Intl.DateTimeFormat('ro-RO', {
+    weekday: 'long',
+    timeZone: OPERATOR_TIME_ZONE,
+  }).format(date)
+
+  return `${hour}:${minute} ${zone} \u00b7 ${weekday} \u2193`
+}
+
 function OperatorConsole() {
   const [shown, setShown] = useState(2)
   const [typing, setTyping] = useState(true)
+  const [operatorTime, setOperatorTime] = useState('')
 
   useEffect(() => {
     let cur = 2
@@ -197,13 +220,22 @@ function OperatorConsole() {
     return () => { clearInterval(id); if (tid) clearTimeout(tid) }
   }, [])
 
+  useEffect(() => {
+    const updateTime = () => setOperatorTime(formatOperatorTime(new Date()))
+
+    updateTime()
+    const id = setInterval(updateTime, 1000)
+
+    return () => clearInterval(id)
+  }, [])
+
   return (
     <section id="console" className="relative pb-20 lg:pb-28 scroll-mt-24 overflow-x-hidden">
       <div className="max-w-[1440px] mx-auto px-6 lg:px-8">
         {/* Top bar */}
         <div className="flex items-center justify-between mb-3 font-mono-ui text-[11px] text-dimmer">
           <span>↑ OPERATOR · LIVE</span>
-          <span>21:47 EEST · marți ↓</span>
+          <span>{operatorTime || '\u00a0'}</span>
         </div>
 
         {/* Console frame */}
@@ -262,7 +294,7 @@ function OperatorConsole() {
               </div>
               {/* Live animated chat */}
               <div className="relative">
-                <div className="space-y-3 overflow-hidden" style={{ height: '260px', overflowY: 'hidden' }}>
+                <div className="space-y-3 overflow-hidden" style={{ height: '380px', overflowY: 'hidden' }}>
                   {LIVE_CHAT.slice(0, shown).map((msg, i) => (
                     <div key={i} className={`flex ${msg.side === 'right' ? 'justify-end' : 'justify-start'}${i === shown - 1 ? ' fade-in' : ''}`}>
                       <div

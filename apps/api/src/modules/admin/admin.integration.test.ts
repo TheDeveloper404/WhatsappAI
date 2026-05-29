@@ -190,6 +190,18 @@ describe('GET /admin/stats', () => {
     expect(stats).toHaveProperty('mrr')
     expect(stats).toHaveProperty('conversionRate')
     expect(stats).toHaveProperty('newThisMonth')
+    expect(stats).toHaveProperty('connectedWhatsapp')
+    expect(stats).toHaveProperty('pairingWhatsapp')
+    expect(stats).toHaveProperty('disconnectedWhatsapp')
+    expect(stats).toHaveProperty('activeAgentsWithoutWhatsapp')
+    expect(stats).toHaveProperty('trialsExpiringSoon')
+    expect(stats).toHaveProperty('cancelingSubscriptions')
+    expect(stats).toHaveProperty('monthlySubscribers')
+    expect(stats).toHaveProperty('annualSubscribers')
+    expect(stats).toHaveProperty('messagesToday')
+    expect(stats).toHaveProperty('aiMessagesToday')
+    expect(stats).toHaveProperty('ownerMessagesToday')
+    expect(stats).toHaveProperty('totalConversations')
   })
 
   it('200 — totalUsers crește după înregistrare', async () => {
@@ -463,6 +475,83 @@ describe('POST /admin/notifications/read', () => {
     })
     expect(res.statusCode).toBe(200)
     expect(res.json().ok).toBe(true)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// DELETE /admin/notifications
+// ---------------------------------------------------------------------------
+
+describe('DELETE /admin/notifications', () => {
+  it('401 — fără token', async () => {
+    const res = await app.inject({ method: 'DELETE', url: '/api/v1/admin/notifications' })
+    expect(res.statusCode).toBe(401)
+  })
+
+  it('200 — șterge toate notificările adminului', async () => {
+    await registerAndLogin('admin@test.example.com')
+    await registerAndLogin('notify-clear@test.com')
+
+    const before = await app.inject({
+      method: 'GET',
+      url: '/api/v1/admin/notifications',
+      headers: { authorization: ADMIN_TOKEN },
+    })
+    expect(before.json().notifications.length).toBeGreaterThan(0)
+
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/api/v1/admin/notifications',
+      headers: { authorization: ADMIN_TOKEN },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(res.json().ok).toBe(true)
+
+    const after = await app.inject({
+      method: 'GET',
+      url: '/api/v1/admin/notifications',
+      headers: { authorization: ADMIN_TOKEN },
+    })
+    expect(after.json().notifications).toHaveLength(0)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// DELETE /admin/notifications/:notificationId
+// ---------------------------------------------------------------------------
+
+describe('DELETE /admin/notifications/:notificationId', () => {
+  it('401 — fără token', async () => {
+    const res = await app.inject({ method: 'DELETE', url: '/api/v1/admin/notifications/fake-id' })
+    expect(res.statusCode).toBe(401)
+  })
+
+  it('200 — șterge o singură notificare', async () => {
+    await registerAndLogin('admin@test.example.com')
+    await registerAndLogin('notify-one@test.com')
+
+    const before = await app.inject({
+      method: 'GET',
+      url: '/api/v1/admin/notifications',
+      headers: { authorization: ADMIN_TOKEN },
+    })
+    const notification = before.json().notifications[0]
+    expect(notification).toBeTruthy()
+
+    const res = await app.inject({
+      method: 'DELETE',
+      url: `/api/v1/admin/notifications/${notification.id}`,
+      headers: { authorization: ADMIN_TOKEN },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(res.json().ok).toBe(true)
+
+    const after = await app.inject({
+      method: 'GET',
+      url: '/api/v1/admin/notifications',
+      headers: { authorization: ADMIN_TOKEN },
+    })
+    expect(after.json().notifications.some((n: any) => n.id === notification.id)).toBe(false)
   })
 })
 

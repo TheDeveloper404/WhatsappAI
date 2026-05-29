@@ -66,7 +66,11 @@ export default function AdminLoginPage() {
   const pinComplete = pin.every(d => d !== '')
 
   return (
-    <div className="min-h-screen bg-base flex items-center justify-center px-4">
+    <div className="min-h-screen bg-base flex items-center justify-center px-4 relative">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
+
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <span
@@ -115,9 +119,6 @@ export default function AdminLoginPage() {
           WhatsApp AI · panou administrare intern
         </p>
 
-        <div className="flex justify-center mt-4">
-          <ThemeToggle />
-        </div>
       </div>
     </div>
   )

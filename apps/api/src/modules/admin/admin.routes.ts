@@ -104,6 +104,21 @@ export async function adminRoutes(app: FastifyInstance) {
     return reply.send({ ok: true })
   })
 
+  // DELETE /admin/notifications
+  app.delete('/notifications', async (req, reply) => {
+    verifyAdminToken(req)
+    await adminRepository.deleteAllAdminNotifications()
+    return reply.send({ ok: true })
+  })
+
+  // DELETE /admin/notifications/:notificationId
+  app.delete('/notifications/:notificationId', async (req, reply) => {
+    verifyAdminToken(req)
+    const { notificationId } = req.params as { notificationId: string }
+    await adminRepository.deleteAdminNotification(notificationId)
+    return reply.send({ ok: true })
+  })
+
   // GET /admin/config
   app.get('/config', async (req, reply) => {
     verifyAdminToken(req)

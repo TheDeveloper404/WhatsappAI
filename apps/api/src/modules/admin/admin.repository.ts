@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto'
 import { eq, desc, isNull, and, count, sql } from 'drizzle-orm'
-import { db } from '../../config/database.js'
+import { db, pool } from '../../config/database.js'
 import { users, subscriptions, whatsappSessions, aiSettings, notifications, platformConfig } from '../../db/schema.js'
 import type { Notification } from '../../db/schema.js'
 
@@ -17,12 +17,18 @@ export const adminRepository = {
         subscriptionPlan: subscriptions.plan,
         trialEndsAt: subscriptions.trialEndsAt,
         currentPeriodEndsAt: subscriptions.currentPeriodEndsAt,
+        cancelAtPeriodEnd: subscriptions.cancelAtPeriodEnd,
+        cancelAt: subscriptions.cancelAt,
         sessionStatus: whatsappSessions.status,
         sessionPhone: whatsappSessions.phoneNumber,
+        sessionConnectedAt: whatsappSessions.connectedAt,
         agentActive: aiSettings.isActive,
         agentAdminDisabled: aiSettings.adminDisabled,
         agentTimerMinutes: aiSettings.timerMinutes,
         agentSystemPrompt: aiSettings.systemPrompt,
+        agentKnowledgeBase: aiSettings.knowledgeBase,
+        agentWritingStyle: aiSettings.writingStyle,
+        agentNotifyOnAiTakeover: aiSettings.notifyOnAiTakeover,
       })
       .from(users)
       .leftJoin(subscriptions, eq(subscriptions.userId, users.id))
@@ -63,6 +69,10 @@ export const adminRepository = {
       .where(eq(subscriptions.status, 'past_due'))
     const [activeAgents] = await db.select({ total: count() }).from(aiSettings)
       .where(eq(aiSettings.isActive, true))
+    const [connectedWhatsapp] = await db.select({ total: count() }).from(whatsappSessions)
+      .where(eq(whatsappSessions.status, 'connected'))
+    const [pairingWhatsapp] = await db.select({ total: count() }).from(whatsappSessions)
+      .where(eq(whatsappSessions.status, 'pairing'))
 
     // MRR: monthly=49.99, annual=399/12≈33.25
     const activePlans = await db.select({ plan: subscriptions.plan })
@@ -85,8 +95,42 @@ export const adminRepository = {
     const [newThisMonth] = await db.select({ total: count() }).from(users)
       .where(sql`created_at >= ${startOfMonth.getTime()}`)
 
+    const now = Date.now()
+    const next48h = now + 2 * 86_400_000
+    const [trialsExpiringSoon] = await db.select({ total: count() }).from(subscriptions)
+      .where(sql`status = 'trialing' AND trial_ends_at IS NOT NULL AND trial_ends_at BETWEEN ${now} AND ${next48h}`)
+    const [cancelingSubscriptions] = await db.select({ total: count() }).from(subscriptions)
+      .where(eq(subscriptions.cancelAtPeriodEnd, true))
+    const [monthlySubscribers] = await db.select({ total: count() }).from(subscriptions)
+      .where(sql`status = 'active' AND plan = 'monthly'`)
+    const [annualSubscribers] = await db.select({ total: count() }).from(subscriptions)
+      .where(sql`status = 'active' AND plan = 'annual'`)
+
+    const activeAgentsWithoutWhatsapp = await pool.query(`
+      SELECT COUNT(*)::int AS total
+      FROM ai_settings s
+      LEFT JOIN whatsapp_sessions w ON w.user_id = s.user_id
+      WHERE s.is_active = true
+        AND COALESCE(w.status, 'disconnected') <> 'connected'
+    `)
+
+    const startOfDay = new Date()
+    startOfDay.setHours(0, 0, 0, 0)
+    const productMetrics = await pool.query(`
+      SELECT
+        COUNT(*) FILTER (WHERE created_at >= $1)::int AS messages_today,
+        COUNT(*) FILTER (WHERE is_ai = true AND created_at >= $1)::int AS ai_messages_today,
+        COUNT(*) FILTER (WHERE from_me = true AND is_ai = false AND created_at >= $1)::int AS owner_messages_today,
+        COUNT(DISTINCT user_id || ':' || contact_phone)::int AS total_conversations
+      FROM conversation_messages
+    `, [startOfDay.getTime()])
+    const metrics = productMetrics.rows[0] ?? {}
+    const connectedTotal = connectedWhatsapp.total ?? 0
+    const pairingTotal = pairingWhatsapp.total ?? 0
+    const totalUserCount = allUsers.total ?? 0
+
     return {
-      totalUsers: allUsers.total ?? 0,
+      totalUsers: totalUserCount,
       activeSubscribers: activeSubs.total ?? 0,
       inTrial: trialSubs.total ?? 0,
       pastDue: pastDueSubs.total ?? 0,
@@ -94,6 +138,18 @@ export const adminRepository = {
       mrr: Math.round(mrr * 100) / 100,
       conversionRate,
       newThisMonth: newThisMonth.total ?? 0,
+      connectedWhatsapp: connectedTotal,
+      pairingWhatsapp: pairingTotal,
+      disconnectedWhatsapp: Math.max(totalUserCount - connectedTotal - pairingTotal, 0),
+      activeAgentsWithoutWhatsapp: Number(activeAgentsWithoutWhatsapp.rows[0]?.total ?? 0),
+      trialsExpiringSoon: trialsExpiringSoon.total ?? 0,
+      cancelingSubscriptions: cancelingSubscriptions.total ?? 0,
+      monthlySubscribers: monthlySubscribers.total ?? 0,
+      annualSubscribers: annualSubscribers.total ?? 0,
+      messagesToday: Number(metrics.messages_today ?? 0),
+      aiMessagesToday: Number(metrics.ai_messages_today ?? 0),
+      ownerMessagesToday: Number(metrics.owner_messages_today ?? 0),
+      totalConversations: Number(metrics.total_conversations ?? 0),
     }
   },
 
@@ -134,6 +190,20 @@ export const adminRepository = {
     if (!adminId) return
     await db.update(notifications)
       .set({ readAt: Date.now() })
+      .where(eq(notifications.userId, adminId))
+  },
+
+  async deleteAdminNotification(notificationId: string): Promise<void> {
+    const adminId = await this.getAdminUserId()
+    if (!adminId) return
+    await db.delete(notifications)
+      .where(and(eq(notifications.id, notificationId), eq(notifications.userId, adminId)))
+  },
+
+  async deleteAllAdminNotifications(): Promise<void> {
+    const adminId = await this.getAdminUserId()
+    if (!adminId) return
+    await db.delete(notifications)
       .where(eq(notifications.userId, adminId))
   },
 

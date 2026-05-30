@@ -113,6 +113,11 @@ export async function setup() {
       updated_at BIGINT NOT NULL,
       UNIQUE(user_id, contact_phone)
     )`,
+    `CREATE TABLE IF NOT EXISTS stripe_events (
+      id TEXT PRIMARY KEY,
+      type TEXT NOT NULL,
+      created_at BIGINT NOT NULL
+    )`,
   ]
 
   for (const sql of statements) {

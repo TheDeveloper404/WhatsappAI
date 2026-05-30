@@ -6,6 +6,10 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added (2026-05-30)
+
+- **Gatekeeper LLM business-only** — userii reali au reușit să scoată AI-ul din scop (bancuri, rețete) pentru că guard-ul keyword (`classifyBusinessScope`) prinde doar formulări exacte. Adăugat strat secundar `classifyScopeLLM` (`groq.client.ts`): apel Groq scurt (temp 0, max 10 tokens) care clasifică ultimul mesaj `BUSINESS`/`OFF_TOPIC`/`INJECTION` când keyword-urile au lăsat să treacă. Fail-open la eroare Groq (nu blocăm clienți reali). Mesajele blocate se loghează cu `scope` (`message.handler.ts`).
+
 ### Fixed (code review 2026-05-30)
 
 - **CR-S3** — Statistici AI calculate pe ora României (`Europe/Bucharest`, cu DST) în loc de UTC; „luna" e acum luna calendaristică curentă, nu ultimele 30 de zile rolling (`ai.repository.ts` → `getStats` + helperii `startOfDayInTz`/`startOfMonthInTz`)
@@ -15,6 +19,7 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **CR-S8** — Curățenia „ultimele 50 mesaje" rulează probabilistic (~10%), nu la fiecare INSERT — un query DB în minus per mesaj (`ai.repository.ts` → `saveMessage`)
 - **CR-S9** — Guard prompt-injection prinde acum obfuscarea cu separatori (`i-g-n-o-r-a`, `i g n o r a`) prin comparație pe versiune compactă (`message.handler.ts` → `classifyBusinessScope`)
 - **CR-S10** — Deduplicare webhook Stripe: tabel nou `stripe_events`; evenimentele deja procesate se confirmă cu `200` fără re-rulare (protecție la at-least-once delivery) (`stripe.webhook.ts`)
+- **CR-S13** — `global-setup.ts` (setup teste) actualizat cu tabelul `stripe_events` — lipsea, cauza celor 10 teste de webhook picate local (prod nu era afectat, migrarea rulează din `migration-statements.ts`). Notă: schema e dublicată în 3 locuri (`migration-statements.ts` / `app.ts` / `global-setup.ts`) — candidat de refactor pentru a importa dintr-o singură sursă.
 
 ### Removed
 

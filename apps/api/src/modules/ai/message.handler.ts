@@ -1,7 +1,7 @@
 import type { WASocket } from '@whiskeysockets/baileys'
 import { downloadMediaMessage } from '@whiskeysockets/baileys'
 import { aiRepository } from './ai.repository.js'
-import { askGroq, extractContactMemory, transcribeAudio, type GroqMessage } from './groq.client.js'
+import { askGroq, extractContactMemory, transcribeAudio, classifyScopeLLM, type GroqMessage } from './groq.client.js'
 import { parseCommand, HELP_TEXT } from './command.parser.js'
 import { recordOwnerReply, isOwnerActive } from './inactivity.tracker.js'
 import { logger } from '../../utils/logger.js'
@@ -157,8 +157,21 @@ async function sendAiResponse(userId: string, contactPhone: string, jid: string,
   const ordered = [...history].reverse()
 
   const lastIncoming = [...ordered].reverse().find(m => !m.fromMe)?.body ?? ''
-  const scope = classifyBusinessScope(lastIncoming)
+  // Strat 1 (gratis, instant): keyword-uri pentru cazurile evidente.
+  let scope = classifyBusinessScope(lastIncoming)
+  // Strat 2 (gatekeeper LLM): doar dacă keyword-urile au lăsat să treacă.
+  // Fail-open — dacă apelul Groq eșuează, nu blocăm clienți reali.
+  if (scope === 'business' && lastIncoming.trim()) {
+    try {
+      const llm = await classifyScopeLLM(lastIncoming)
+      if (llm === 'OFF_TOPIC') scope = 'off_topic'
+      else if (llm === 'INJECTION') scope = 'roleplay_or_prompt_injection'
+    } catch (err) {
+      logger.error(`[AI][${userId.slice(0, 8)}] eroare gatekeeper scope`, { err: String(err) })
+    }
+  }
   if (scope !== 'business') {
+    logger.info(`[AI][${userId.slice(0, 8)}] mesaj blocat`, { scope })
     const reply = businessScopeReply(scope)
     await sock.sendMessage(jid, { text: reply })
     await aiRepository.saveMessage(userId, contactPhone, true, reply, Date.now(), true)

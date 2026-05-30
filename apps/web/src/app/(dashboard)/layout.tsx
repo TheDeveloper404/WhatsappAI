@@ -26,12 +26,11 @@ const NAV_LINKS = [
 
 // Drawer de navigare — același pe desktop și mobile (deschis prin hamburger din top bar).
 function NavDrawer({
-  open, onClose, pathname, onLogout, userEmail,
+  open, onClose, pathname, userEmail,
 }: {
   open: boolean
   onClose: () => void
   pathname: string
-  onLogout: () => void
   userEmail?: string
 }) {
   // Închidere cu ESC + blocare scroll body cât e deschis
@@ -105,47 +104,51 @@ function NavDrawer({
           })}
         </nav>
 
-        {/* Bottom */}
-        <div className="p-3 border-t border-line space-y-1">
-          {userEmail && (
+        {/* Bottom — doar email (toggle + deconectare au trecut în top bar, ca în admin) */}
+        {userEmail && (
+          <div className="p-3 border-t border-line">
             <p className="font-mono-ui text-[11px] text-dimmer px-3 py-1 truncate">{userEmail}</p>
-          )}
-          <div className="flex items-center justify-between px-3 py-1">
-            <button
-              onClick={onLogout}
-              className="flex items-center gap-2 font-mono-ui text-[13px] text-dim hover:text-red-500 transition-colors"
-            >
-              <LogOut className="h-4 w-4" />
-              deconectare
-            </button>
-            <ThemeToggle />
           </div>
-        </div>
+        )}
       </aside>
     </>
   )
 }
 
 // Top bar consistent — același pe desktop și mobile.
-function TopBar({ onMenu }: { onMenu: () => void }) {
+// ThemeToggle + deconectare sunt aici, în dreapta (la fel ca în pagina de admin).
+function TopBar({ onMenu, onLogout }: { onMenu: () => void; onLogout: () => void }) {
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-base/90 backdrop-blur-sm">
-      <div className="flex items-center gap-3 px-4 py-3">
-        <button
-          onClick={onMenu}
-          className="p-2 -ml-1 text-dim hover:text-ink hover:bg-cardhi rounded-lg transition-colors"
-          aria-label="Deschide meniul"
-        >
-          <Menu className="h-5 w-5" />
-        </button>
-        <Link href="/dashboard" className="flex items-center gap-2">
-          <span className="inline-flex items-center justify-center w-7 h-7 rounded-full" style={{ background: '#25D366' }}>
-            <WaIcon size={16} />
-          </span>
-          <span className="font-mono-ui text-[16px] font-semibold text-ink">
-            wa<span className="text-acid">ai.</span>
-          </span>
-        </Link>
+      <div className="flex items-center justify-between gap-3 px-4 py-3">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onMenu}
+            className="p-2 -ml-1 text-dim hover:text-ink hover:bg-cardhi rounded-lg transition-colors"
+            aria-label="Deschide meniul"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+          <Link href="/dashboard" className="flex items-center gap-2">
+            <span className="inline-flex items-center justify-center w-7 h-7 rounded-full" style={{ background: '#25D366' }}>
+              <WaIcon size={16} />
+            </span>
+            <span className="font-mono-ui text-[16px] font-semibold text-ink">
+              wa<span className="text-acid">ai.</span>
+            </span>
+          </Link>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <ThemeToggle />
+          <button
+            onClick={onLogout}
+            className="flex items-center gap-1.5 font-mono-ui text-xs text-dim hover:text-red-500 transition-colors"
+          >
+            <LogOut className="h-4 w-4" />
+            <span className="hidden sm:inline">deconectare</span>
+          </button>
+        </div>
       </div>
     </header>
   )
@@ -231,12 +234,11 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-base flex flex-col">
-      <TopBar onMenu={() => setMenuOpen(true)} />
+      <TopBar onMenu={() => setMenuOpen(true)} onLogout={handleLogout} />
       <NavDrawer
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
         pathname={pathname}
-        onLogout={handleLogout}
         userEmail={user?.email}
       />
 

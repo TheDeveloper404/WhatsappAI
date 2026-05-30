@@ -27,12 +27,16 @@ export async function stripeWebhookRoutes(app: FastifyInstance) {
 
     // Deduplicare: Stripe poate retrimite același eveniment (at-least-once delivery).
     // Dacă l-am procesat deja, confirmăm fără să re-rulăm handler-ul.
-    const inserted = await pool.query(
-      `INSERT INTO stripe_events (id, type, created_at) VALUES ($1, $2, $3) ON CONFLICT (id) DO NOTHING`,
-      [event.id, event.type, Date.now()],
-    )
-    if (inserted.rowCount === 0) {
-      return reply.status(200).send({ received: true, duplicate: true })
+    // Doar dacă event.id există — fără cheie nu putem dedupe (un event valid Stripe
+    // are mereu id; sărim peste dedup în loc să dăm 500 și să forțăm retry inutil).
+    if (event.id) {
+      const inserted = await pool.query(
+        `INSERT INTO stripe_events (id, type, created_at) VALUES ($1, $2, $3) ON CONFLICT (id) DO NOTHING`,
+        [event.id, event.type, Date.now()],
+      )
+      if (inserted.rowCount === 0) {
+        return reply.status(200).send({ received: true, duplicate: true })
+      }
     }
 
     await handleEvent(event, app)

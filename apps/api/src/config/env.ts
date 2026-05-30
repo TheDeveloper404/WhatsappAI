@@ -23,6 +23,9 @@ const envSchema = z.object({
   STRIPE_WEBHOOK_SECRET: z.string().min(1),
 
   GROQ_API_KEY: z.string().min(1),
+  GEMINI_API_KEY: z.string().optional(),
+  // Furnizor pentru generarea de text. Transcrierea vocală rămâne mereu pe Groq (Whisper).
+  LLM_PROVIDER: z.enum(['groq', 'gemini']).default('groq'),
 
   CORS_ORIGINS: z.string().optional(),
   ADMIN_EMAIL: z.string().email().optional(),

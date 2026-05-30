@@ -131,4 +131,36 @@ export const migrationStatements = [
     type TEXT NOT NULL,
     created_at BIGINT NOT NULL
   )`,
+  `CREATE TABLE IF NOT EXISTS products (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    price_bani INTEGER NOT NULL,
+    category TEXT NOT NULL DEFAULT '',
+    is_available BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at BIGINT NOT NULL,
+    updated_at BIGINT NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS orders (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    contact_phone TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','confirmed','completed','cancelled')),
+    total_bani INTEGER NOT NULL DEFAULT 0,
+    customer_note TEXT NOT NULL DEFAULT '',
+    created_at BIGINT NOT NULL,
+    updated_at BIGINT NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS order_items (
+    id TEXT PRIMARY KEY,
+    order_id TEXT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    product_id TEXT,
+    product_name TEXT NOT NULL,
+    unit_price_bani INTEGER NOT NULL,
+    quantity INTEGER NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_products_user ON products(user_id, is_available)`,
+  `CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id, created_at)`,
+  `CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items(order_id)`,
 ]

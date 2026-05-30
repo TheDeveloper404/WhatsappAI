@@ -39,8 +39,11 @@ STRIPE_PRICE_MONTHLY_ID=price_XXXXXXXXXXXXXXXXXXXX
 STRIPE_PRICE_ANNUAL_ID=price_XXXXXXXXXXXXXXXXXXXX
 STRIPE_WEBHOOK_SECRET=whsec_XXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
-# ─── AI (Groq) ────────────────────────────────────────
+# ─── AI ───────────────────────────────────────────────
 GROQ_API_KEY=gsk_XXXXXXXXXXXXXXXXXXXXXXXXXXXX
+# Furnizor text: groq (default) sau gemini. Vocea rămâne mereu pe Groq.
+# LLM_PROVIDER=gemini
+# GEMINI_API_KEY=AIza_XXXXXXXXXXXXXXXXXXXXXXXX
 
 # ─── ADMIN ────────────────────────────────────────────
 ADMIN_EMAIL=admin@domeniultau.com
@@ -76,7 +79,9 @@ ADMIN_SECRET=SCHIMBA_CU_UN_STRING_RANDOM_MIN_32_CARACTERE
 | `STRIPE_PRICE_MONTHLY_ID` | **Da** | ID-ul price-ului lunar din Stripe |
 | `STRIPE_PRICE_ANNUAL_ID` | **Da** | ID-ul price-ului anual din Stripe |
 | `STRIPE_WEBHOOK_SECRET` | **Da** | Secret pentru validarea webhook-urilor Stripe. Serverul nu pornește fără el. |
-| `GROQ_API_KEY` | **Da** | API key de la [console.groq.com](https://console.groq.com) |
+| `GROQ_API_KEY` | **Da** | API key de la [console.groq.com](https://console.groq.com). Necesar mereu (LLM + transcriere vocală Whisper), chiar dacă `LLM_PROVIDER=gemini` |
+| `GEMINI_API_KEY` | Nu | Cheie Google Gemini. Necesară doar dacă `LLM_PROVIDER=gemini` |
+| `LLM_PROVIDER` | Nu | `groq` (default) sau `gemini` — furnizor pentru generarea de text. Vocea rămâne mereu pe Groq |
 | `ADMIN_EMAIL` | Nu | Email-ul contului de admin |
 | `ADMIN_SECRET` | Nu | Secret pentru autentificarea în panoul admin. Min 32 chars |
 | `CORS_ORIGINS` | Nu | Origini CORS extra, separate prin virgulă. Util pentru Vercel preview URLs |

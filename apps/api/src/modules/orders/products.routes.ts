@@ -1,0 +1,64 @@
+import type { FastifyInstance } from 'fastify'
+import { z } from 'zod'
+import { authenticate } from '../../middleware/authenticate.js'
+import { productsRepository } from './products.repository.js'
+import { Errors } from '../../utils/errors.js'
+
+// Prețul vine de la owner în lei (ex: 49.99) și se stochează în bani (4999).
+// Niciodată float în DB — convertim la integer aici.
+const leiToBani = (lei: number) => Math.round(lei * 100)
+
+const createSchema = z.object({
+  name: z.string().min(1).max(120),
+  description: z.string().max(500).optional().default(''),
+  priceLei: z.number().nonnegative().max(1_000_000),
+  category: z.string().max(60).optional().default(''),
+  isAvailable: z.boolean().optional().default(true),
+})
+
+const updateSchema = z.object({
+  name: z.string().min(1).max(120).optional(),
+  description: z.string().max(500).optional(),
+  priceLei: z.number().nonnegative().max(1_000_000).optional(),
+  category: z.string().max(60).optional(),
+  isAvailable: z.boolean().optional(),
+})
+
+export async function productsRoutes(app: FastifyInstance) {
+  app.get('/', { preHandler: authenticate }, async (req, reply) => {
+    const items = await productsRepository.list(req.user!.id)
+    return reply.send({ products: items })
+  })
+
+  app.post('/', { preHandler: authenticate }, async (req, reply) => {
+    const result = createSchema.safeParse(req.body)
+    if (!result.success) throw Errors.validation(result.error.errors.map(e => ({ field: String(e.path[0]), message: e.message })))
+    const { name, description, priceLei, category, isAvailable } = result.data
+    const product = await productsRepository.create(req.user!.id, {
+      name, description, priceBani: leiToBani(priceLei), category, isAvailable,
+    })
+    return reply.status(201).send({ product })
+  })
+
+  app.patch('/:id', { preHandler: authenticate }, async (req, reply) => {
+    const id = (req.params as { id: string }).id
+    const result = updateSchema.safeParse(req.body)
+    if (!result.success) throw Errors.validation(result.error.errors.map(e => ({ field: String(e.path[0]), message: e.message })))
+
+    const existing = await productsRepository.findById(req.user!.id, id)
+    if (!existing) throw Errors.notFound('Product')
+
+    const { priceLei, ...rest } = result.data
+    await productsRepository.update(req.user!.id, id, {
+      ...rest,
+      ...(priceLei !== undefined ? { priceBani: leiToBani(priceLei) } : {}),
+    })
+    return reply.send({ ok: true })
+  })
+
+  app.delete('/:id', { preHandler: authenticate }, async (req, reply) => {
+    const id = (req.params as { id: string }).id
+    await productsRepository.remove(req.user!.id, id)
+    return reply.status(204).send()
+  })
+}

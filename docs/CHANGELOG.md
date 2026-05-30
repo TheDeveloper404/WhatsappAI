@@ -8,6 +8,8 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added (2026-05-30)
 
+- **Comenzi prin WhatsApp** — catalog de produse per user (`products`) + comenzi (`orders`, `order_items`). Owner gestionează catalogul din `/products` și comenzile din `/orders` (listă, filtre pe status, schimbare status pending→confirmed→completed→cancelled). AI-ul extrage comenzi din conversație (`extractOrder`, Groq/Gemini, temp 0, JSON validat strict), creează comanda în DB (`pending`), confirmă clientului cu total și notifică owner-ul pe WhatsApp. **Prețurile/totalul se calculează în cod din DB, niciodată de LLM** (protecție prompt injection). Catalogul disponibil se injectează și în prompt-ul normal pentru oferte corecte.
+- **Switch furnizor LLM** — `LLM_PROVIDER` env (`groq` default / `gemini`). Dispatcher în `groq.client.ts` (`callGroq`) rutează generarea de text; Gemini 2.0 Flash via `callGeminiApi`. Transcrierea vocală rămâne mereu pe Groq Whisper. Fail-safe: dacă `gemini` selectat fără cheie, cade pe Groq.
 - **Gatekeeper LLM business-only** — userii reali au reușit să scoată AI-ul din scop (bancuri, rețete) pentru că guard-ul keyword (`classifyBusinessScope`) prinde doar formulări exacte. Adăugat strat secundar `classifyScopeLLM` (`groq.client.ts`): apel Groq scurt (temp 0, max 10 tokens) care clasifică ultimul mesaj `BUSINESS`/`OFF_TOPIC`/`INJECTION` când keyword-urile au lăsat să treacă. Fail-open la eroare Groq (nu blocăm clienți reali). Mesajele blocate se loghează cu `scope` (`message.handler.ts`).
 
 ### Fixed (code review 2026-05-30)
@@ -18,7 +20,7 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **CR-S7** — Rate limit `30/min` adăugat pe `GET /ai/stream` (SSE)
 - **CR-S8** — Curățenia „ultimele 50 mesaje" rulează probabilistic (~10%), nu la fiecare INSERT — un query DB în minus per mesaj (`ai.repository.ts` → `saveMessage`)
 - **CR-S9** — Guard prompt-injection prinde acum obfuscarea cu separatori (`i-g-n-o-r-a`, `i g n o r a`) prin comparație pe versiune compactă (`message.handler.ts` → `classifyBusinessScope`)
-- **CR-S10** — Deduplicare webhook Stripe: tabel nou `stripe_events`; evenimentele deja procesate se confirmă cu `200` fără re-rulare (protecție la at-least-once delivery) (`stripe.webhook.ts`)
+- **CR-S10** — Deduplicare webhook Stripe: tabel nou `stripe_events`; evenimentele deja procesate se confirmă cu `200` fără re-rulare (protecție la at-least-once delivery) (`stripe.webhook.ts`). Dedup-ul rulează doar dacă `event.id` există — fără cheie sărim peste (un event Stripe real are mereu id; evităm 500 + retry inutil).
 - **CR-S13** — `global-setup.ts` (setup teste) actualizat cu tabelul `stripe_events` — lipsea, cauza celor 10 teste de webhook picate local (prod nu era afectat, migrarea rulează din `migration-statements.ts`). Notă: schema e dublicată în 3 locuri (`migration-statements.ts` / `app.ts` / `global-setup.ts`) — candidat de refactor pentru a importa dintr-o singură sursă.
 
 ### Removed

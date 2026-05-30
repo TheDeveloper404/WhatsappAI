@@ -259,6 +259,53 @@ export const api = {
       }),
   },
 
+  products: {
+    list: (accessToken: string) =>
+      request<{ products: Product[] }>('/api/v1/products', {
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        credentials: 'include',
+      }),
+
+    create: (accessToken: string, data: { name: string; description?: string; priceLei: number; category?: string; isAvailable?: boolean }) =>
+      request<{ product: Product }>('/api/v1/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        credentials: 'include',
+        body: JSON.stringify(data),
+      }),
+
+    update: (accessToken: string, id: string, data: { name?: string; description?: string; priceLei?: number; category?: string; isAvailable?: boolean }) =>
+      request<{ ok: boolean }>(`/api/v1/products/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        credentials: 'include',
+        body: JSON.stringify(data),
+      }),
+
+    remove: (accessToken: string, id: string) =>
+      request<void>(`/api/v1/products/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        credentials: 'include',
+      }),
+  },
+
+  orders: {
+    list: (accessToken: string) =>
+      request<{ orders: Order[] }>('/api/v1/orders', {
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        credentials: 'include',
+      }),
+
+    updateStatus: (accessToken: string, id: string, status: OrderStatus) =>
+      request<{ ok: boolean }>(`/api/v1/orders/${id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        credentials: 'include',
+        body: JSON.stringify({ status }),
+      }),
+  },
+
   admin: {
     getUsers: (accessToken: string) =>
       request<{ users: AdminUser[] }>('/api/v1/admin/users', {
@@ -399,6 +446,41 @@ export interface Subscription {
   cancelAt: number | null
   createdAt: number
   updatedAt: number
+}
+
+export interface Product {
+  id: string
+  userId: string
+  name: string
+  description: string
+  priceBani: number
+  category: string
+  isAvailable: boolean
+  createdAt: number
+  updatedAt: number
+}
+
+export type OrderStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled'
+
+export interface OrderItem {
+  id: string
+  orderId: string
+  productId: string | null
+  productName: string
+  unitPriceBani: number
+  quantity: number
+}
+
+export interface Order {
+  id: string
+  userId: string
+  contactPhone: string
+  status: OrderStatus
+  totalBani: number
+  customerNote: string
+  createdAt: number
+  updatedAt: number
+  items: OrderItem[]
 }
 
 export interface Conversation {

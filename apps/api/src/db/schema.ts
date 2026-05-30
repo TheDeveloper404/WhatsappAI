@@ -121,6 +121,47 @@ export const contactMemory = pgTable('contact_memory', {
 }))
 
 
+export const products = pgTable('products', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  description: text('description').notNull().default(''),
+  // Preț în bani (subunitate), NU lei. 49.99 lei => 4999. Niciodată float pentru bani.
+  priceBani: integer('price_bani').notNull(),
+  category: text('category').notNull().default(''),
+  isAvailable: boolean('is_available').notNull().default(true),
+  createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+  updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
+})
+
+export const orders = pgTable('orders', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  contactPhone: text('contact_phone').notNull(),
+  status: text('status').notNull().default('pending'),
+  totalBani: integer('total_bani').notNull().default(0),
+  customerNote: text('customer_note').notNull().default(''),
+  createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+  updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
+})
+
+export const orderItems = pgTable('order_items', {
+  id: text('id').primaryKey(),
+  orderId: text('order_id').notNull().references(() => orders.id, { onDelete: 'cascade' }),
+  productId: text('product_id'),
+  // Denormalizat: numele și prețul la momentul comenzii (produsul se poate schimba/șterge ulterior)
+  productName: text('product_name').notNull(),
+  unitPriceBani: integer('unit_price_bani').notNull(),
+  quantity: integer('quantity').notNull(),
+})
+
+export type Product = typeof products.$inferSelect
+export type NewProduct = typeof products.$inferInsert
+export type Order = typeof orders.$inferSelect
+export type NewOrder = typeof orders.$inferInsert
+export type OrderItem = typeof orderItems.$inferSelect
+export type NewOrderItem = typeof orderItems.$inferInsert
+
 export type ContactMemory = typeof contactMemory.$inferSelect
 
 export type User = typeof users.$inferSelect

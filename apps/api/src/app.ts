@@ -12,6 +12,8 @@ import { stripeWebhookRoutes } from './modules/webhooks/stripe.webhook.js'
 import { whatsappRoutes } from './modules/whatsapp/whatsapp.routes.js'
 import { aiRoutes } from './modules/ai/ai.routes.js'
 import { adminRoutes } from './modules/admin/admin.routes.js'
+import { productsRoutes } from './modules/orders/products.routes.js'
+import { ordersRoutes } from './modules/orders/orders.routes.js'
 import { testRoutes } from './modules/test/test.routes.js'
 import { AppError } from './utils/errors.js'
 
@@ -46,6 +48,35 @@ async function runStartupMigrations() {
       id TEXT PRIMARY KEY,
       type TEXT NOT NULL,
       created_at BIGINT NOT NULL
+    )`,
+    `CREATE TABLE IF NOT EXISTS products (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      price_bani INTEGER NOT NULL,
+      category TEXT NOT NULL DEFAULT '',
+      is_available BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at BIGINT NOT NULL,
+      updated_at BIGINT NOT NULL
+    )`,
+    `CREATE TABLE IF NOT EXISTS orders (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      contact_phone TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','confirmed','completed','cancelled')),
+      total_bani INTEGER NOT NULL DEFAULT 0,
+      customer_note TEXT NOT NULL DEFAULT '',
+      created_at BIGINT NOT NULL,
+      updated_at BIGINT NOT NULL
+    )`,
+    `CREATE TABLE IF NOT EXISTS order_items (
+      id TEXT PRIMARY KEY,
+      order_id TEXT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+      product_id TEXT,
+      product_name TEXT NOT NULL,
+      unit_price_bani INTEGER NOT NULL,
+      quantity INTEGER NOT NULL
     )`,
   ]
   for (const stmt of stmts) {
@@ -91,6 +122,8 @@ export async function buildApp() {
   await app.register(whatsappRoutes, { prefix: '/api/v1/whatsapp' })
   await app.register(aiRoutes, { prefix: '/api/v1/ai' })
   await app.register(adminRoutes, { prefix: '/api/v1/admin' })
+  await app.register(productsRoutes, { prefix: '/api/v1/products' })
+  await app.register(ordersRoutes, { prefix: '/api/v1/orders' })
 
   if (env.E2E_MODE === 'true' && env.NODE_ENV !== 'production') {
     await app.register(testRoutes, { prefix: '/api/v1/test' })

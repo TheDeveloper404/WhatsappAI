@@ -126,4 +126,9 @@ export const migrationStatements = [
   `ALTER TABLE conversation_messages ADD COLUMN IF NOT EXISTS is_ai BOOLEAN NOT NULL DEFAULT FALSE`,
   `ALTER TABLE ai_settings ADD COLUMN IF NOT EXISTS notify_on_ai_takeover BOOLEAN NOT NULL DEFAULT TRUE`,
   `CREATE INDEX IF NOT EXISTS idx_conversation_messages_ai ON conversation_messages(user_id, is_ai, created_at)`,
+  `CREATE TABLE IF NOT EXISTS stripe_events (
+    id TEXT PRIMARY KEY,
+    type TEXT NOT NULL,
+    created_at BIGINT NOT NULL
+  )`,
 ]

@@ -6,6 +6,21 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed (code review 2026-05-30)
+
+- **CR-S3** — Statistici AI calculate pe ora României (`Europe/Bucharest`, cu DST) în loc de UTC; „luna" e acum luna calendaristică curentă, nu ultimele 30 de zile rolling (`ai.repository.ts` → `getStats` + helperii `startOfDayInTz`/`startOfMonthInTz`)
+- **CR-S4** — Dashboard: cardul Trial afișează `Mesaje AI (30z)` din `stats.month`, înlocuit placeholder-ul hardcodat `—` (`dashboard/page.tsx`)
+- **CR-S5** — `extractContactMemory` throttled la max o dată / 10 min per contact — elimină apelul Groq suplimentar la fiecare răspuns AI (`message.handler.ts`)
+- **CR-S7** — Rate limit `30/min` adăugat pe `GET /ai/stream` (SSE)
+- **CR-S8** — Curățenia „ultimele 50 mesaje" rulează probabilistic (~10%), nu la fiecare INSERT — un query DB în minus per mesaj (`ai.repository.ts` → `saveMessage`)
+- **CR-S9** — Guard prompt-injection prinde acum obfuscarea cu separatori (`i-g-n-o-r-a`, `i g n o r a`) prin comparație pe versiune compactă (`message.handler.ts` → `classifyBusinessScope`)
+- **CR-S10** — Deduplicare webhook Stripe: tabel nou `stripe_events`; evenimentele deja procesate se confirmă cu `200` fără re-rulare (protecție la at-least-once delivery) (`stripe.webhook.ts`)
+
+### Removed
+
+- **CR-S11** — Eliminat debug `process.stdout.write('[ENV]...')` din `env.ts` (2 linii)
+- **CR-S12** — Șters `gemini.client.ts` (cod mort, neimportat) + scos `GEMINI_API_KEY` din schema env
+
 ---
 
 ## [0.9.0] — 2026-05-27

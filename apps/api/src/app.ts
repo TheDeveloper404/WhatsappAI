@@ -42,6 +42,11 @@ async function runStartupMigrations() {
       updated_at BIGINT NOT NULL,
       PRIMARY KEY (user_id, key_type, key_id)
     )`,
+    `CREATE TABLE IF NOT EXISTS stripe_events (
+      id TEXT PRIMARY KEY,
+      type TEXT NOT NULL,
+      created_at BIGINT NOT NULL
+    )`,
   ]
   for (const stmt of stmts) {
     try { await pool.query(stmt) } catch { /* tabela poate lipsi la prima rulare */ }

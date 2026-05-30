@@ -386,7 +386,9 @@ function DashboardContent() {
             </div>
             <div className="flex items-center gap-1.5 mt-auto">
               <MessageSquare className="h-3 w-3 text-dimmer" />
-              <span className="font-mono-ui text-[12px] text-dimmer">Mesaje procesate: —</span>
+              <span className="font-mono-ui text-[12px] text-dimmer">
+                Mesaje AI (30z): {stats ? stats.month : '—'}
+              </span>
             </div>
           </div>
         ) : (

@@ -52,6 +52,10 @@ function normalizeText(text: string) {
 
 export function classifyBusinessScope(text: string): BusinessScope {
   const t = normalizeText(text)
+  // Versiune compactă (doar litere/cifre) pentru a prinde obfuscarea cu separatori:
+  // "i-g-n-o-r-a", "i g n o r a", "ignora....instructiunile" etc.
+  const compact = t.replace(/[^a-z0-9]/g, '')
+  const matches = (k: string) => t.includes(k) || compact.includes(k.replace(/[^a-z0-9]/g, ''))
 
   const roleplayOrInjection = [
     'ignora instructiunile',
@@ -71,7 +75,7 @@ export function classifyBusinessScope(text: string): BusinessScope {
     'arata promptul',
     'spune promptul',
   ]
-  if (roleplayOrInjection.some(k => t.includes(k))) return 'roleplay_or_prompt_injection'
+  if (roleplayOrInjection.some(matches)) return 'roleplay_or_prompt_injection'
 
   const offTopic = [
     'spune-mi un banc',
@@ -94,7 +98,7 @@ export function classifyBusinessScope(text: string): BusinessScope {
     'cine a castigat',
     'rezolva tema',
   ]
-  if (offTopic.some(k => t.includes(k))) return 'off_topic'
+  if (offTopic.some(matches)) return 'off_topic'
 
   return 'business'
 }
@@ -111,6 +115,11 @@ const pendingResponses = new Map<string, Map<string, NodeJS.Timeout>>()
 // Throttle notificări: nu trimitem mai mult de o notificare la 30 min per contact
 const NOTIFY_THROTTLE_MS = 30 * 60 * 1000
 const lastNotified = new Map<string, Map<string, number>>()
+
+// Throttle memorie: actualizăm rezumatul contactului cel mult o dată la 10 min
+// (altfel am face un apel Groq suplimentar la fiecare răspuns AI)
+const MEMORY_THROTTLE_MS = 10 * 60 * 1000
+const lastMemoryUpdate = new Map<string, Map<string, number>>()
 
 function cancelPending(userId: string, contactPhone: string) {
   const t = pendingResponses.get(userId)?.get(contactPhone)
@@ -206,11 +215,17 @@ async function sendAiResponse(userId: string, contactPhone: string, jid: string,
     }
   }
 
-  // Actualizează memoria în background, fără să blocheze răspunsul
-  const messagesForMemory = [...ordered, { fromMe: true, body: reply }]
-  extractContactMemory(existingMemory, messagesForMemory)
-    .then(summary => aiRepository.upsertContactMemory(userId, contactPhone, summary))
-    .catch(err => logger.error(`[AI][${userId.slice(0, 8)}] eroare actualizare memorie`, { err: String(err) }))
+  // Actualizează memoria în background, fără să blocheze răspunsul (throttled)
+  const memoryNow = Date.now()
+  const userMem = lastMemoryUpdate.get(userId) ?? new Map<string, number>()
+  if (memoryNow - (userMem.get(contactPhone) ?? 0) > MEMORY_THROTTLE_MS) {
+    userMem.set(contactPhone, memoryNow)
+    lastMemoryUpdate.set(userId, userMem)
+    const messagesForMemory = [...ordered, { fromMe: true, body: reply }]
+    extractContactMemory(existingMemory, messagesForMemory)
+      .then(summary => aiRepository.upsertContactMemory(userId, contactPhone, summary))
+      .catch(err => logger.error(`[AI][${userId.slice(0, 8)}] eroare actualizare memorie`, { err: String(err) }))
+  }
 }
 
 export async function handleMessages(userId: string, sock: WASocket, messages: any[]): Promise<void> {

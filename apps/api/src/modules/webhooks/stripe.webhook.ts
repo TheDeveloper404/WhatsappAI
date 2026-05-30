@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify'
 import type Stripe from 'stripe'
 import { stripe } from '../../config/stripe.js'
 import { env } from '../../config/env.js'
+import { pool } from '../../config/database.js'
 import { billingRepository } from '../billing/billing.repository.js'
 import { adminRepository } from '../admin/admin.repository.js'
 import { notifyAdmin } from '../admin/notifications.service.js'
@@ -22,6 +23,16 @@ export async function stripeWebhookRoutes(app: FastifyInstance) {
       event = stripe.webhooks.constructEvent(req.body as Buffer, sig, env.STRIPE_WEBHOOK_SECRET)
     } catch {
       return reply.status(400).send({ error: 'Invalid webhook signature' })
+    }
+
+    // Deduplicare: Stripe poate retrimite același eveniment (at-least-once delivery).
+    // Dacă l-am procesat deja, confirmăm fără să re-rulăm handler-ul.
+    const inserted = await pool.query(
+      `INSERT INTO stripe_events (id, type, created_at) VALUES ($1, $2, $3) ON CONFLICT (id) DO NOTHING`,
+      [event.id, event.type, Date.now()],
+    )
+    if (inserted.rowCount === 0) {
+      return reply.status(200).send({ received: true, duplicate: true })
     }
 
     await handleEvent(event, app)

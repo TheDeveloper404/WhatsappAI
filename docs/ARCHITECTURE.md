@@ -106,3 +106,35 @@ Toate culorile și fonturile sunt definite ca variabile CSS și mapate în Tailw
 | `--card-hi` | `bg-cardhi` | Hover state carduri |
 
 Dark mode: clasa `html.dark` + `localStorage['wa-ai-theme']`.
+
+---
+
+### 8. Statistici AI — fus orar și fereastră de timp
+
+`getStats` (`ai.repository.ts`) calculează „azi / 7 zile / lună" pe **ora României** (`Europe/Bucharest`), nu UTC.
+
+- `startOfDayInTz` / `startOfMonthInTz` folosesc `Intl.DateTimeFormat` pentru a deriva miezul nopții local și convertesc înapoi în epoch ms, ținând cont de **DST** (offset-ul se recalculează la momentul interogării).
+- „Azi" = de la miezul nopții local; „7 zile" = azi + ultimele 6 zile; „luna" = **luna calendaristică curentă** (de la zi 1), nu ultimele 30 de zile rolling.
+
+**De ce contează:** userii sunt în RO — un contor „azi" pe UTC ar fi decalat 2–3h. Iar pentru viitoarele limite lunare per plan ai nevoie de lună calendaristică reală.
+
+---
+
+### 9. Webhook Stripe — deduplicare evenimente
+
+Stripe livrează evenimente **at-least-once** (poate retrimite același event la retry/timeout).
+
+**Soluție:** tabel `stripe_events(id, type, created_at)`. La intrarea în handler facem `INSERT ... ON CONFLICT (id) DO NOTHING`; dacă `rowCount === 0`, evenimentul a fost deja procesat → răspundem `200 { duplicate: true }` fără a re-rula logica.
+
+Necesar mai ales înainte de a adăuga logică **ne-idempotentă** (contoare, emailuri, credite) în handlerele de webhook.
+
+---
+
+### 10. State în memorie — limită cunoscută (NU rezolvat)
+
+`pendingResponses` (timere răspuns AI) și `lastNotified` / `lastMemoryUpdate` (throttle) din `message.handler.ts` trăiesc în RAM-ul procesului.
+
+- **Se pierd la restart** (Railway repornește containerul → timerele programate dispar).
+- **Nu se sincronizează** între instanțe multiple.
+
+Acceptabil pe Railway single-instance. **Blocaj la scalare orizontală** — soluția ar fi mutarea pe Redis/DB. De abordat doar când se trece la 2+ instanțe.

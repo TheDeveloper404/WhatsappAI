@@ -73,7 +73,7 @@ export async function aiRoutes(app: FastifyInstance) {
     return reply.status(204).send()
   })
 
-  app.get('/stream', async (req, reply) => {
+  app.get('/stream', { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, async (req, reply) => {
     const token = (req.query as any).token as string | undefined
     if (!token) return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Token lipsă.' } })
 

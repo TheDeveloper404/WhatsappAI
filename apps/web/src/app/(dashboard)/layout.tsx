@@ -4,7 +4,7 @@ import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuthStore } from '@/store/auth'
 import { api } from '@/lib/api'
-import { Loader2, LayoutDashboard, MessageSquare, Settings, User, LogOut, Package, ShoppingCart } from 'lucide-react'
+import { Loader2, LayoutDashboard, MessageSquare, Settings, User, LogOut, Package, ShoppingCart, Menu, X } from 'lucide-react'
 import { ThemeToggle } from '@/components/ThemeToggle'
 
 function WaIcon({ size = 16 }: { size?: number }) {
@@ -24,79 +24,130 @@ const NAV_LINKS = [
   { href: '/profile', label: 'Profil', icon: User },
 ]
 
-function Sidebar({ pathname, onLogout, userEmail }: { pathname: string; onLogout: () => void; userEmail?: string }) {
+// Drawer de navigare — același pe desktop și mobile (deschis prin hamburger din top bar).
+function NavDrawer({
+  open, onClose, pathname, onLogout, userEmail,
+}: {
+  open: boolean
+  onClose: () => void
+  pathname: string
+  onLogout: () => void
+  userEmail?: string
+}) {
+  // Închidere cu ESC + blocare scroll body cât e deschis
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKey)
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.body.style.overflow = ''
+    }
+  }, [open, onClose])
+
   return (
-    <aside className="hidden lg:flex flex-col fixed left-0 top-0 h-full w-[220px] border-r border-line bg-base z-20">
-      {/* Logo */}
-      <div className="px-5 py-4 border-b border-line">
-        <Link href="/dashboard" className="flex items-center gap-2.5">
-          <span className="inline-flex items-center justify-center w-8 h-8 rounded-full flex-shrink-0" style={{ background: '#25D366' }}>
-            <WaIcon size={18} />
+    <>
+      {/* Overlay */}
+      <div
+        className={`fixed inset-0 z-40 bg-black/40 backdrop-blur-sm transition-opacity duration-200 ${
+          open ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        }`}
+        onClick={onClose}
+        aria-hidden
+      />
+
+      {/* Drawer */}
+      <aside
+        className={`fixed left-0 top-0 z-50 h-full w-[280px] max-w-[85vw] bg-base border-r border-line flex flex-col transition-transform duration-200 ease-out ${
+          open ? 'translate-x-0' : '-translate-x-full'
+        }`}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Meniu navigare"
+      >
+        {/* Header drawer */}
+        <div className="px-5 py-4 border-b border-line flex items-center justify-between">
+          <Link href="/dashboard" onClick={onClose} className="flex items-center gap-2.5">
+            <span className="inline-flex items-center justify-center w-8 h-8 rounded-full flex-shrink-0" style={{ background: '#25D366' }}>
+              <WaIcon size={18} />
+            </span>
+            <span className="font-mono-ui text-[18px] font-semibold text-ink">
+              wa<span className="text-acid">ai.</span>
+            </span>
+          </Link>
+          <button
+            onClick={onClose}
+            className="p-2 text-dimmer hover:text-ink hover:bg-cardhi rounded-lg transition-colors"
+            aria-label="Închide meniul"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Nav */}
+        <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
+          {NAV_LINKS.map(({ href, label, icon: Icon }) => {
+            const active = pathname === href
+            return (
+              <Link
+                key={href}
+                href={href}
+                onClick={onClose}
+                className={`flex items-center gap-3 px-3 py-3 rounded-xl font-mono-ui text-[14px] transition-colors ${
+                  active ? 'bg-cardhi text-ink' : 'text-dim hover:text-ink hover:bg-cardhi'
+                }`}
+              >
+                <Icon className={`h-5 w-5 flex-shrink-0 ${active ? 'text-acid' : ''}`} />
+                {label}
+              </Link>
+            )
+          })}
+        </nav>
+
+        {/* Bottom */}
+        <div className="p-3 border-t border-line space-y-1">
+          {userEmail && (
+            <p className="font-mono-ui text-[11px] text-dimmer px-3 py-1 truncate">{userEmail}</p>
+          )}
+          <div className="flex items-center justify-between px-3 py-1">
+            <button
+              onClick={onLogout}
+              className="flex items-center gap-2 font-mono-ui text-[13px] text-dim hover:text-red-500 transition-colors"
+            >
+              <LogOut className="h-4 w-4" />
+              deconectare
+            </button>
+            <ThemeToggle />
+          </div>
+        </div>
+      </aside>
+    </>
+  )
+}
+
+// Top bar consistent — același pe desktop și mobile.
+function TopBar({ onMenu }: { onMenu: () => void }) {
+  return (
+    <header className="sticky top-0 z-30 border-b border-line bg-base/90 backdrop-blur-sm">
+      <div className="flex items-center gap-3 px-4 py-3">
+        <button
+          onClick={onMenu}
+          className="p-2 -ml-1 text-dim hover:text-ink hover:bg-cardhi rounded-lg transition-colors"
+          aria-label="Deschide meniul"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+        <Link href="/dashboard" className="flex items-center gap-2">
+          <span className="inline-flex items-center justify-center w-7 h-7 rounded-full" style={{ background: '#25D366' }}>
+            <WaIcon size={16} />
           </span>
-          <span className="font-mono-ui text-[18px] font-semibold text-ink">
+          <span className="font-mono-ui text-[16px] font-semibold text-ink">
             wa<span className="text-acid">ai.</span>
           </span>
         </Link>
       </div>
-
-      {/* Nav */}
-      <nav className="flex-1 p-3 space-y-0.5">
-        {NAV_LINKS.map(({ href, label, icon: Icon }) => {
-          const active = pathname === href
-          return (
-            <Link
-              key={href}
-              href={href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-mono-ui text-[13px] transition-colors ${
-                active ? 'bg-cardhi text-ink' : 'text-dim hover:text-ink hover:bg-cardhi'
-              }`}
-            >
-              <Icon className={`h-4 w-4 flex-shrink-0 ${active ? 'text-acid' : ''}`} />
-              {label}
-            </Link>
-          )
-        })}
-      </nav>
-
-      {/* Bottom */}
-      <div className="p-3 border-t border-line space-y-1">
-        {userEmail && (
-          <p className="font-mono-ui text-[10px] text-dimmer px-3 py-1 truncate">{userEmail}</p>
-        )}
-        <div className="flex items-center justify-between px-3 py-1">
-          <button
-            onClick={onLogout}
-            className="flex items-center gap-2 font-mono-ui text-[12px] text-dim hover:text-red-500 transition-colors"
-          >
-            <LogOut className="h-3.5 w-3.5" />
-            deconectare
-          </button>
-          <ThemeToggle />
-        </div>
-      </div>
-    </aside>
-  )
-}
-
-function BottomNav({ pathname }: { pathname: string }) {
-  return (
-    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-20 border-t border-line bg-base flex">
-      {NAV_LINKS.map(({ href, label, icon: Icon }) => {
-        const active = pathname === href
-        return (
-          <Link
-            key={href}
-            href={href}
-            className={`flex-1 flex flex-col items-center gap-1 py-2.5 transition-colors ${
-              active ? 'text-ink' : 'text-dimmer hover:text-dim'
-            }`}
-          >
-            <Icon className={`h-5 w-5 ${active ? 'text-acid' : ''}`} />
-            <span className="font-mono-ui text-[9px]">{label}</span>
-          </Link>
-        )
-      })}
-    </nav>
+    </header>
   )
 }
 
@@ -106,7 +157,11 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const searchParams = useSearchParams()
   const { user, isAuthenticated, accessToken, _hasHydrated, setAuth, clearAuth } = useAuthStore()
   const [checking, setChecking] = useState(true)
+  const [menuOpen, setMenuOpen] = useState(false)
   const subVerified = useRef(false)
+
+  // Închide meniul la schimbarea paginii
+  useEffect(() => { setMenuOpen(false) }, [pathname])
 
   useEffect(() => {
     if (!_hasHydrated) return
@@ -166,8 +221,6 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   }
 
   // Full spinner while not yet hydrated OR while not yet authenticated.
-  // Covers: initial load, token refresh in progress, session expired.
-  // Layout is shown only once isAuthenticated=true (after a valid access token exists).
   if (!_hasHydrated || !isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-base">
@@ -177,42 +230,23 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-base flex">
-      <Sidebar pathname={pathname} onLogout={handleLogout} userEmail={user?.email} />
+    <div className="min-h-screen bg-base flex flex-col">
+      <TopBar onMenu={() => setMenuOpen(true)} />
+      <NavDrawer
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        pathname={pathname}
+        onLogout={handleLogout}
+        userEmail={user?.email}
+      />
 
-      <div className="flex-1 lg:ml-[220px] flex flex-col min-h-screen">
-        {/* Mobile top bar */}
-        <div className="lg:hidden border-b border-line px-4 py-3 flex items-center justify-between">
-          <Link href="/dashboard" className="flex items-center gap-2">
-            <span className="inline-flex items-center justify-center w-7 h-7 rounded-full" style={{ background: '#25D366' }}>
-              <WaIcon size={16} />
-            </span>
-            <span className="font-mono-ui text-[16px] font-semibold text-ink">
-              wa<span className="text-acid">ai.</span>
-            </span>
-          </Link>
-          <div className="flex items-center gap-1">
-            <ThemeToggle />
-            <button
-              onClick={handleLogout}
-              className="p-2 text-dim hover:text-red-500 hover:bg-cardhi rounded-lg transition-colors"
-              title="Deconectare"
-            >
-              <LogOut className="h-4 w-4" />
-            </button>
+      <main className="flex-1 p-4 sm:p-6">
+        {checking ? (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="h-5 w-5 animate-spin text-acid" />
           </div>
-        </div>
-
-        <main className="flex-1 p-6 pb-24 lg:pb-6">
-          {checking ? (
-            <div className="flex items-center justify-center py-20">
-              <Loader2 className="h-5 w-5 animate-spin text-acid" />
-            </div>
-          ) : children}
-        </main>
-      </div>
-
-      <BottomNav pathname={pathname} />
+        ) : children}
+      </main>
     </div>
   )
 }

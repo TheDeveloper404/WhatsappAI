@@ -44,6 +44,13 @@ body {
   font-feature-settings: 'ss01','ss02';
 }
 
+/* iOS Safari face auto-zoom la focus pe orice câmp cu font < 16px.
+   Forțăm minim 16px pe mobil (≤640px) pe input/textarea/select — oprește zoom-ul
+   fără să afectăm designul compact de pe desktop. */
+@media (max-width: 640px) {
+  input, textarea, select { font-size: 16px !important; }
+}
+
 /* ─── TYPOGRAPHY ─────────────────────────────────────────────────── */
 .font-display { font-family: 'Geist Mono', ui-monospace, monospace; letter-spacing: -0.04em; line-height: 0.92; font-weight: 700; }
 .font-display-md { font-family: 'Geist Mono', ui-monospace, monospace; letter-spacing: -0.03em; line-height: 0.96; font-weight: 600; }

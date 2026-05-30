@@ -46,6 +46,27 @@ export const productsRepository = {
     return row
   },
 
+  // Import în masă (CSV). Inserează toate produsele primite într-un singur batch.
+  async createMany(userId: string, items: Array<{
+    name: string; description: string; priceBani: number; category: string; isAvailable: boolean
+  }>): Promise<number> {
+    if (items.length === 0) return 0
+    const now = Date.now()
+    const rows = items.map(it => ({
+      id: randomUUID(),
+      userId,
+      name: it.name,
+      description: it.description,
+      priceBani: it.priceBani,
+      category: it.category,
+      isAvailable: it.isAvailable,
+      createdAt: now,
+      updatedAt: now,
+    }))
+    await db.insert(products).values(rows)
+    return rows.length
+  },
+
   async update(userId: string, id: string, data: Partial<{
     name: string; description: string; priceBani: number; category: string; isAvailable: boolean
   }>): Promise<void> {

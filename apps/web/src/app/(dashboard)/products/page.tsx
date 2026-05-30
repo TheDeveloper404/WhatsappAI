@@ -1,8 +1,9 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAuthStore } from '@/store/auth'
 import { api, type Product } from '@/lib/api'
-import { Loader2, Plus, Pencil, Trash2, X, Package, Save } from 'lucide-react'
+import { parseCsv, rowsToProducts, type ParsedProduct } from '@/lib/csv'
+import { Loader2, Plus, Pencil, Trash2, X, Package, Save, Upload, FileSpreadsheet } from 'lucide-react'
 
 const inputCls = 'w-full rounded-xl border border-line px-3 py-2.5 text-[13px] text-ink bg-cardhi focus:outline-none focus:ring-2 focus:ring-acid/40 focus:border-acid transition-colors'
 
@@ -32,6 +33,12 @@ export default function ProductsPage() {
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  // Import CSV
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [importPreview, setImportPreview] = useState<ParsedProduct[] | null>(null)
+  const [importErrors, setImportErrors] = useState<string[]>([])
+  const [importing, setImporting] = useState(false)
 
   useEffect(() => {
     if (!accessToken) return
@@ -96,6 +103,48 @@ export default function ProductsPage() {
     }
   }
 
+  function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setError(null)
+    const reader = new FileReader()
+    reader.onload = () => {
+      const text = String(reader.result ?? '')
+      const rows = parseCsv(text)
+      const { products: parsed, errors } = rowsToProducts(rows)
+      if (parsed.length === 0 && errors.length === 0) {
+        setError('Fișierul pare gol sau nu are coloanele așteptate (nume, preț).')
+        return
+      }
+      setImportPreview(parsed)
+      setImportErrors(errors)
+    }
+    reader.onerror = () => setError('Nu s-a putut citi fișierul.')
+    reader.readAsText(file)
+    // reset input ca să poți reîncărca același fișier
+    e.target.value = ''
+  }
+
+  function cancelImport() {
+    setImportPreview(null)
+    setImportErrors([])
+  }
+
+  async function confirmImport() {
+    if (!accessToken || !importPreview || importPreview.length === 0) return
+    setImporting(true); setError(null)
+    try {
+      await api.products.import(accessToken, importPreview)
+      const { products: p } = await api.products.list(accessToken)
+      setProducts(p)
+      cancelImport()
+    } catch {
+      setError('Eroare la import. Încearcă din nou.')
+    } finally {
+      setImporting(false)
+    }
+  }
+
   async function handleDelete(id: string) {
     if (!accessToken) return
     setDeletingId(id)
@@ -126,20 +175,114 @@ export default function ProductsPage() {
             Produsele pe care agentul le poate oferi clienților la comandă.
           </p>
         </div>
-        {editingId === null && (
-          <button
-            onClick={openCreate}
-            style={{ background: 'var(--acid)', color: 'var(--on-acid)' }}
-            className="flex items-center gap-2 font-mono-ui text-[13px] px-4 py-2.5 rounded-lg hover:opacity-90 transition-opacity shrink-0"
-          >
-            <Plus className="h-4 w-4" />
-            Adaugă produs
-          </button>
+        {editingId === null && importPreview === null && (
+          <div className="flex items-center gap-2 shrink-0">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv,text/csv"
+              onChange={handleFileSelected}
+              className="hidden"
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-2 font-mono-ui text-[13px] px-4 py-2.5 rounded-lg border border-line text-dim hover:text-ink hover:bg-cardhi transition-colors"
+            >
+              <Upload className="h-4 w-4" />
+              Import CSV
+            </button>
+            <button
+              onClick={openCreate}
+              style={{ background: 'var(--acid)', color: 'var(--on-acid)' }}
+              className="flex items-center gap-2 font-mono-ui text-[13px] px-4 py-2.5 rounded-lg hover:opacity-90 transition-opacity"
+            >
+              <Plus className="h-4 w-4" />
+              Adaugă produs
+            </button>
+          </div>
         )}
       </div>
 
       {error && (
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-3 font-mono-ui text-[13px] text-red-700 dark:text-red-300 mb-6">{error}</div>
+      )}
+
+      {/* Panou import CSV — preview înainte de confirmare */}
+      {importPreview !== null && (
+        <div className="border border-line rounded-xl p-5 mb-8 bg-cardhi/40">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <FileSpreadsheet className="h-4 w-4 text-acid" />
+              <p className="font-mono-ui text-[14px] text-ink font-medium">
+                Previzualizare import — {importPreview.length} produse valide
+              </p>
+            </div>
+            <button onClick={cancelImport} className="p-1.5 text-dimmer hover:text-ink hover:bg-cardhi rounded-lg transition-colors">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <p className="font-mono-ui text-[12px] text-dim mb-4">
+            Coloane așteptate: <code className="text-acid">nume</code>, <code className="text-acid">pret</code> (obligatorii) +
+            opțional <code className="text-acid">categorie</code>, <code className="text-acid">descriere</code>, <code className="text-acid">disponibil</code>.
+            Produsele se adaugă la cele existente (nu le înlocuiesc).
+          </p>
+
+          {importErrors.length > 0 && (
+            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 mb-4">
+              <p className="font-mono-ui text-[12px] text-amber-800 dark:text-amber-300 font-medium mb-1">
+                {importErrors.length} rânduri ignorate:
+              </p>
+              <ul className="font-mono-ui text-[11px] text-amber-700 dark:text-amber-400 space-y-0.5 max-h-24 overflow-y-auto">
+                {importErrors.slice(0, 10).map((e, i) => <li key={i}>• {e}</li>)}
+                {importErrors.length > 10 && <li>… și încă {importErrors.length - 10}</li>}
+              </ul>
+            </div>
+          )}
+
+          {importPreview.length > 0 && (
+            <div className="border border-line rounded-lg overflow-hidden mb-4 max-h-64 overflow-y-auto">
+              <table className="w-full text-left">
+                <thead className="bg-cardhi sticky top-0">
+                  <tr className="font-mono-ui text-[11px] text-dimmer uppercase tracking-wider">
+                    <th className="px-3 py-2">Nume</th>
+                    <th className="px-3 py-2">Categorie</th>
+                    <th className="px-3 py-2 text-right">Preț</th>
+                    <th className="px-3 py-2 text-center">Disp.</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--line)]">
+                  {importPreview.slice(0, 50).map((p, i) => (
+                    <tr key={i} className="font-mono-ui text-[12px] text-ink">
+                      <td className="px-3 py-2">{p.name}</td>
+                      <td className="px-3 py-2 text-dim">{p.category || '—'}</td>
+                      <td className="px-3 py-2 text-right">{p.priceLei.toFixed(2)} lei</td>
+                      <td className="px-3 py-2 text-center">{p.isAvailable ? '✓' : '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {importPreview.length > 50 && (
+                <p className="font-mono-ui text-[11px] text-dimmer px-3 py-2 bg-cardhi/40">… și încă {importPreview.length - 50} produse</p>
+              )}
+            </div>
+          )}
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={confirmImport}
+              disabled={importing || importPreview.length === 0}
+              style={{ background: 'var(--acid)', color: 'var(--on-acid)' }}
+              className="flex items-center gap-2 font-mono-ui text-[13px] px-4 py-2.5 rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+            >
+              {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+              Importă {importPreview.length} produse
+            </button>
+            <button onClick={cancelImport} className="font-mono-ui text-[13px] text-dim hover:text-ink transition-colors">
+              Anulează
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Formular adăugare/editare */}

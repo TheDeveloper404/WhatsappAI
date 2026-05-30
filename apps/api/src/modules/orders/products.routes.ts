@@ -24,6 +24,18 @@ const updateSchema = z.object({
   isAvailable: z.boolean().optional(),
 })
 
+// Import în masă din CSV (parsat în browser, trimis ca JSON).
+// Limităm la 1000 de rânduri per import ca să nu abuzeze nimeni payload-ul.
+const importSchema = z.object({
+  items: z.array(z.object({
+    name: z.string().min(1).max(120),
+    description: z.string().max(500).optional().default(''),
+    priceLei: z.number().nonnegative().max(1_000_000),
+    category: z.string().max(60).optional().default(''),
+    isAvailable: z.boolean().optional().default(true),
+  })).min(1).max(1000),
+})
+
 export async function productsRoutes(app: FastifyInstance) {
   app.get('/', { preHandler: authenticate }, async (req, reply) => {
     const items = await productsRepository.list(req.user!.id)
@@ -54,6 +66,20 @@ export async function productsRoutes(app: FastifyInstance) {
       ...(priceLei !== undefined ? { priceBani: leiToBani(priceLei) } : {}),
     })
     return reply.send({ ok: true })
+  })
+
+  app.post('/import', { preHandler: authenticate }, async (req, reply) => {
+    const result = importSchema.safeParse(req.body)
+    if (!result.success) throw Errors.validation(result.error.errors.map(e => ({ field: e.path.join('.'), message: e.message })))
+
+    const count = await productsRepository.createMany(req.user!.id, result.data.items.map(it => ({
+      name: it.name,
+      description: it.description,
+      priceBani: leiToBani(it.priceLei),
+      category: it.category,
+      isAvailable: it.isAvailable,
+    })))
+    return reply.status(201).send({ imported: count })
   })
 
   app.delete('/:id', { preHandler: authenticate }, async (req, reply) => {

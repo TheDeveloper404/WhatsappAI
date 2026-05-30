@@ -62,6 +62,7 @@ function DashboardContent() {
 
   const checkoutSuccess = searchParams.get('checkout') === 'success'
   const [showCheckoutSuccess, setShowCheckoutSuccess] = useState(false)
+  const [showTrialPopup, setShowTrialPopup] = useState(false)
 
   useEffect(() => {
     if (!accessToken) return
@@ -78,6 +79,23 @@ function DashboardContent() {
     setShowCheckoutSuccess(true)
     router.replace('/dashboard', { scroll: false })
   }, [checkoutSuccess, router])
+
+  // Popup expirare trial: apare la ≤3 zile rămase, o singură dată pe zi (per browser).
+  useEffect(() => {
+    if (!sub || sub.status !== 'trialing' || !sub.trialEndsAt || sub.cancelAtPeriodEnd) return
+    const msLeft = sub.trialEndsAt - Date.now()
+    const daysLeft = Math.ceil(msLeft / 86_400_000)
+    if (msLeft <= 0 || daysLeft > 3) return
+    const todayKey = `wa-ai-trial-popup-${new Date().toISOString().slice(0, 10)}`
+    if (localStorage.getItem(todayKey)) return
+    setShowTrialPopup(true)
+  }, [sub])
+
+  function dismissTrialPopup() {
+    const todayKey = `wa-ai-trial-popup-${new Date().toISOString().slice(0, 10)}`
+    localStorage.setItem(todayKey, '1')
+    setShowTrialPopup(false)
+  }
 
   useEffect(() => {
     if (!accessToken || !showWaPanel) return
@@ -205,8 +223,49 @@ function DashboardContent() {
     return { value: '7 zile', label: 'trial disponibil' }
   })()
 
+  const trialPopupDays = sub?.trialEndsAt ? Math.ceil((sub.trialEndsAt - Date.now()) / 86_400_000) : 0
+
   return (
     <div className="max-w-5xl mx-auto">
+      {/* Popup expirare trial */}
+      {showTrialPopup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={dismissTrialPopup}>
+          <div
+            className="bg-base border border-line rounded-2xl p-6 max-w-md w-full shadow-xl"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
+                <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div>
+                <h2 className="font-display text-[20px] text-ink leading-tight">
+                  {trialPopupDays <= 1 ? 'Trial-ul expiră curând!' : `Trial-ul expiră în ${trialPopupDays} zile`}
+                </h2>
+                <p className="font-mono-ui text-[13px] text-dim mt-1">
+                  După expirare, agentul AI nu va mai răspunde automat. Activează un abonament ca să nu pierzi conversațiile.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 mt-5">
+              <button
+                onClick={() => { dismissTrialPopup(); router.push('/subscribe') }}
+                style={{ background: 'var(--acid)', color: 'var(--on-acid)' }}
+                className="flex-1 font-mono-ui text-[13px] font-medium px-4 py-2.5 rounded-lg hover:opacity-90 transition-opacity"
+              >
+                Vezi planurile
+              </button>
+              <button
+                onClick={dismissTrialPopup}
+                className="font-mono-ui text-[13px] text-dim hover:text-ink px-4 py-2.5 transition-colors"
+              >
+                Mai târziu
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="mb-8 flex items-start justify-between">
         <div>

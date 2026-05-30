@@ -288,6 +288,14 @@ export const api = {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
         credentials: 'include',
       }),
+
+    import: (accessToken: string, items: Array<{ name: string; description?: string; priceLei: number; category?: string; isAvailable?: boolean }>) =>
+      request<{ imported: number }>('/api/v1/products/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        credentials: 'include',
+        body: JSON.stringify({ items }),
+      }),
   },
 
   orders: {

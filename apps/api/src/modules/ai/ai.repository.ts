@@ -229,6 +229,63 @@ export const aiRepository = {
     }
   },
 
+  // Metrici avansate, derivate din conversation_messages (fără tabele noi).
+  async getAdvancedStats(userId: string): Promise<{
+    daily: Array<{ date: string; count: number }>
+    aiHandledConversations: number
+    escalatedConversations: number
+    takeoverRate: number
+  }> {
+    const now = Date.now()
+    const startOfDay = startOfDayInTz(now, STATS_TZ)
+    const start7d = startOfDay - 6 * 86_400_000
+
+    // Mesaje AI pe zi, ultimele 7 zile (ora RO) — pentru graficul cu bare
+    const dailyRes = await pool.query(`
+      SELECT to_char(to_timestamp(created_at / 1000) AT TIME ZONE 'Europe/Bucharest', 'YYYY-MM-DD') AS day,
+             COUNT(*) AS cnt
+      FROM conversation_messages
+      WHERE user_id = $1 AND is_ai = true AND created_at >= $2
+      GROUP BY day
+      ORDER BY day
+    `, [userId, start7d])
+
+    // Completăm zilele lipsă cu 0 ca să avem mereu 7 bare
+    const byDay = new Map<string, number>()
+    for (const r of dailyRes.rows) byDay.set(r.day, Number(r.cnt))
+    const daily: Array<{ date: string; count: number }> = []
+    for (let i = 6; i >= 0; i--) {
+      const d = new Intl.DateTimeFormat('en-CA', { timeZone: STATS_TZ, year: 'numeric', month: '2-digit', day: '2-digit' })
+        .format(new Date(now - i * 86_400_000))
+      daily.push({ date: d, count: byDay.get(d) ?? 0 })
+    }
+
+    // Conversații gestionate de AI = au cel puțin un mesaj is_ai=true
+    // Escaladate = AI a răspuns, dar apoi owner-ul a scris manual (from_me=true, is_ai=false)
+    const convRes = await pool.query(`
+      WITH per_contact AS (
+        SELECT contact_phone,
+          BOOL_OR(is_ai = true) AS had_ai,
+          MAX(wa_timestamp) FILTER (WHERE is_ai = true) AS last_ai_ts,
+          MAX(wa_timestamp) FILTER (WHERE from_me = true AND is_ai = false) AS last_owner_ts
+        FROM conversation_messages
+        WHERE user_id = $1
+        GROUP BY contact_phone
+      )
+      SELECT
+        COUNT(*) FILTER (WHERE had_ai) AS ai_handled,
+        COUNT(*) FILTER (WHERE had_ai AND last_owner_ts IS NOT NULL AND last_owner_ts > last_ai_ts) AS escalated
+      FROM per_contact
+    `, [userId])
+
+    const aiHandled = Number(convRes.rows[0]?.ai_handled ?? 0)
+    const escalated = Number(convRes.rows[0]?.escalated ?? 0)
+    // Rata de preluare „curată" = AI a închis conversația fără intervenția ulterioară a owner-ului
+    const takeoverRate = aiHandled > 0 ? Math.round(((aiHandled - escalated) / aiHandled) * 100) : 0
+
+    return { daily, aiHandledConversations: aiHandled, escalatedConversations: escalated, takeoverRate }
+  },
+
   async upsertContactMemory(userId: string, contactPhone: string, summary: string): Promise<void> {
     const now = Date.now()
     await db.insert(contactMemory)

@@ -6,8 +6,14 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed (2026-05-31)
+
+- **Lățime unificată dashboard** — toate paginile din dashboard au acum aceeași lățime (`max-w-6xl`), centralizată în `layout.tsx` (sursă unică). Înainte fiecare pagină avea alt `max-w` (2xl–5xl) → arătau inconsistent și prea înguste pe centru. Eliminat `max-w` per-pagină din dashboard/orders/products/settings/profile/connect/conversations.
+- **Catalog mobile** — header (titlu + butoane) trece pe rânduri separate pe mobil; rândul de produs afișează prețul sub nume pe ecrane mici (nu mai e înghesuit lângă butoane).
+
 ### Added (2026-05-30)
 
+- **Metrici avansate (Performanță agent)** — secțiune nouă în dashboard: conversații preluate de AI, rată de rezolvare fără intervenție (`takeoverRate`), conversații escaladate către owner, grafic cu bare pe ultimele 7 zile. Toate derivate din `conversation_messages` (fără tabele noi) — `getAdvancedStats` în `ai.repository.ts`, rută `GET /ai/stats/advanced`. Escaladare = owner a scris manual după ce AI răspunsese; rezolvare = AI a închis fără intervenție ulterioară.
 - **Navigare hamburger consistentă** — înlocuit sidebar-ul fix (desktop) + bottom nav (mobile, devenise înghesuit cu 6 itemi) cu un singur pattern: top bar cu buton hamburger → drawer lateral, identic pe desktop și mobile. Închidere la click link / overlay / ESC, blocare scroll body cât e deschis.
 - **Fix zoom iOS** — `globals.css`: font minim 16px pe `input/textarea/select` sub 640px, oprește auto-zoom-ul Safari la focus pe câmpuri (afecta settings/products/orders cu `text-[13px]`).
 - **Popup expirare trial** — pe dashboard apare un popup la ≤3 zile rămase din trial (status `trialing`, necancelat), dismissibil o dată pe zi per browser (localStorage). Înlocuiește ideea de email reminder.

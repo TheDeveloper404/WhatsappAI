@@ -241,11 +241,14 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
       />
 
       <main className="flex-1 p-4 sm:p-6">
-        {checking ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="h-5 w-5 animate-spin text-acid" />
-          </div>
-        ) : children}
+        {/* Lățime unică pentru toate paginile din dashboard — sursă unică de adevăr */}
+        <div className="max-w-6xl mx-auto w-full">
+          {checking ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 className="h-5 w-5 animate-spin text-acid" />
+            </div>
+          ) : children}
+        </div>
       </main>
     </div>
   )

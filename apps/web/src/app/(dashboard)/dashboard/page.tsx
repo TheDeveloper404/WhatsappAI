@@ -2,7 +2,7 @@
 import { Suspense, useEffect, useRef, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useAuthStore } from '@/store/auth'
-import { api, type Subscription, type WhatsappSession, type AiSettings, type AiStats } from '@/lib/api'
+import { api, type Subscription, type WhatsappSession, type AiSettings, type AiStats, type AiAdvancedStats } from '@/lib/api'
 import { QRCodeSVG } from 'qrcode.react'
 import {
   Bot, Wifi, WifiOff, Clock, MessageSquare, CheckCircle2, ExternalLink,
@@ -47,6 +47,7 @@ function DashboardContent() {
   const [waSession, setWaSession] = useState<WhatsappSession | null>(null)
   const [aiSettings, setAiSettings] = useState<AiSettings | null>(null)
   const [stats, setStats] = useState<AiStats | null>(null)
+  const [advStats, setAdvStats] = useState<AiAdvancedStats | null>(null)
   const [loadingPortal, setLoadingPortal] = useState(false)
   const [portalError, setPortalError] = useState(false)
   const [togglingAI, setTogglingAI] = useState(false)
@@ -71,6 +72,7 @@ function DashboardContent() {
       api.whatsapp.getSession(accessToken).then(({ session }) => setWaSession(session)).catch(() => {}),
       api.ai.getSettings(accessToken).then(({ settings }) => setAiSettings(settings)).catch(() => {}),
       api.ai.getStats(accessToken).then(({ stats }) => setStats(stats)).catch(() => {}),
+      api.ai.getAdvancedStats(accessToken).then(({ stats }) => setAdvStats(stats)).catch(() => {}),
     ]).finally(() => setInitialLoaded(true))
   }, [accessToken])
 
@@ -226,7 +228,7 @@ function DashboardContent() {
   const trialPopupDays = sub?.trialEndsAt ? Math.ceil((sub.trialEndsAt - Date.now()) / 86_400_000) : 0
 
   return (
-    <div className="max-w-5xl mx-auto">
+    <div>
       {/* Popup expirare trial */}
       {showTrialPopup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={dismissTrialPopup}>
@@ -542,6 +544,57 @@ function DashboardContent() {
           ))}
         </div>
       </div>
+
+      {/* Performanță agent — metrici avansate */}
+      {advStats && advStats.aiHandledConversations > 0 && (
+        <div className="border-b border-line pb-8 mb-8">
+          <p className="font-mono-ui text-[11px] text-dimmer tracking-widest uppercase mb-6">Performanță agent</p>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="flex flex-col gap-1">
+              <p className="font-mono-ui text-[11px] text-dimmer uppercase tracking-widest">Preluate de AI</p>
+              <p className="font-display text-[32px] leading-none text-ink">{advStats.aiHandledConversations}</p>
+              <p className="font-mono-ui text-[11px] text-dimmer">conversații</p>
+            </div>
+            <div className="flex flex-col gap-1">
+              <p className="font-mono-ui text-[11px] text-dimmer uppercase tracking-widest">Rezolvate de AI</p>
+              <p className="font-display text-[32px] leading-none text-acid">{advStats.takeoverRate}%</p>
+              <p className="font-mono-ui text-[11px] text-dimmer">fără intervenția ta</p>
+            </div>
+            <div className="flex flex-col gap-1">
+              <p className="font-mono-ui text-[11px] text-dimmer uppercase tracking-widest">Preluate de tine</p>
+              <p className="font-display text-[32px] leading-none text-ink">{advStats.escalatedConversations}</p>
+              <p className="font-mono-ui text-[11px] text-dimmer">ai răspuns după AI</p>
+            </div>
+          </div>
+
+          {/* Grafic bare — mesaje AI pe zi, ultimele 7 zile */}
+          <div>
+            <p className="font-mono-ui text-[11px] text-dimmer mb-3">Mesaje AI — ultimele 7 zile</p>
+            <div className="flex items-end gap-2 h-32">
+              {(() => {
+                const max = Math.max(1, ...advStats.daily.map(d => d.count))
+                return advStats.daily.map(({ date, count }) => {
+                  const dayLabel = new Date(date + 'T12:00:00').toLocaleDateString('ro-RO', { weekday: 'short' })
+                  return (
+                    <div key={date} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end">
+                      <span className="font-mono-ui text-[10px] text-dim">{count > 0 ? count : ''}</span>
+                      <div
+                        className="w-full rounded-t-md transition-all"
+                        style={{
+                          height: `${Math.max(2, (count / max) * 100)}%`,
+                          background: count > 0 ? 'var(--acid)' : 'var(--card-hi)',
+                        }}
+                      />
+                      <span className="font-mono-ui text-[10px] text-dimmer">{dayLabel}</span>
+                    </div>
+                  )
+                })
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Pași următori */}
       <div>

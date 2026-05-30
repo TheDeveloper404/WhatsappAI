@@ -167,8 +167,8 @@ export default function ProductsPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto">
-      <div className="mb-8 flex items-start justify-between gap-4">
+    <div>
+      <div className="mb-8 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
           <h1 className="font-display text-[32px] text-ink leading-none">Catalog produse</h1>
           <p className="font-mono-ui text-[13px] text-dim mt-1">
@@ -176,7 +176,7 @@ export default function ProductsPage() {
           </p>
         </div>
         {editingId === null && importPreview === null && (
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 sm:shrink-0">
             <input
               ref={fileInputRef}
               type="file"
@@ -186,7 +186,7 @@ export default function ProductsPage() {
             />
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-2 font-mono-ui text-[13px] px-4 py-2.5 rounded-lg border border-line text-dim hover:text-ink hover:bg-cardhi transition-colors"
+              className="flex-1 sm:flex-none justify-center flex items-center gap-2 font-mono-ui text-[13px] px-4 py-2.5 rounded-lg border border-line text-dim hover:text-ink hover:bg-cardhi transition-colors"
             >
               <Upload className="h-4 w-4" />
               Import CSV
@@ -194,7 +194,7 @@ export default function ProductsPage() {
             <button
               onClick={openCreate}
               style={{ background: 'var(--acid)', color: 'var(--on-acid)' }}
-              className="flex items-center gap-2 font-mono-ui text-[13px] px-4 py-2.5 rounded-lg hover:opacity-90 transition-opacity"
+              className="flex-1 sm:flex-none justify-center flex items-center gap-2 font-mono-ui text-[13px] px-4 py-2.5 rounded-lg hover:opacity-90 transition-opacity"
             >
               <Plus className="h-4 w-4" />
               Adaugă produs
@@ -394,10 +394,10 @@ export default function ProductsPage() {
       ) : (
         <ul className="divide-y divide-[var(--line)] border border-line rounded-xl overflow-hidden">
           {products.map(p => (
-            <li key={p.id} className="flex items-center gap-4 px-5 py-4 hover:bg-cardhi/40 transition-colors">
+            <li key={p.id} className="flex items-center gap-3 px-4 sm:px-5 py-4 hover:bg-cardhi/40 transition-colors">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-mono-ui text-[14px] text-ink font-medium">{p.name}</span>
+                  <span className="font-mono-ui text-[14px] text-ink font-medium break-words">{p.name}</span>
                   {p.category && (
                     <span className="font-mono-ui text-[10px] text-dim bg-cardhi px-2 py-0.5 rounded-full">{p.category}</span>
                   )}
@@ -408,8 +408,9 @@ export default function ProductsPage() {
                 {p.description && (
                   <p className="font-mono-ui text-[12px] text-dimmer mt-0.5 truncate">{p.description}</p>
                 )}
+                <span className="font-display text-[16px] text-ink mt-1 block sm:hidden">{formatLei(p.priceBani)} <span className="text-[11px] text-dim">lei</span></span>
               </div>
-              <span className="font-display text-[18px] text-ink shrink-0">{formatLei(p.priceBani)} <span className="text-[12px] text-dim">lei</span></span>
+              <span className="font-display text-[18px] text-ink shrink-0 hidden sm:block">{formatLei(p.priceBani)} <span className="text-[12px] text-dim">lei</span></span>
               <div className="flex items-center gap-1 shrink-0">
                 <button
                   onClick={() => openEdit(p)}

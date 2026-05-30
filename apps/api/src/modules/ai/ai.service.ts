@@ -47,4 +47,8 @@ export const aiService = {
   async getStats(userId: string) {
     return aiRepository.getStats(userId)
   },
+
+  async getAdvancedStats(userId: string) {
+    return aiRepository.getAdvancedStats(userId)
+  },
 }

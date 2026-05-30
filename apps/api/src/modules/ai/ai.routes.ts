@@ -56,6 +56,11 @@ export async function aiRoutes(app: FastifyInstance) {
     return reply.send({ stats })
   })
 
+  app.get('/stats/advanced', { preHandler: authenticate }, async (req, reply) => {
+    const stats = await aiService.getAdvancedStats(req.user!.id)
+    return reply.send({ stats })
+  })
+
   app.get('/conversations', { preHandler: authenticate }, async (req, reply) => {
     const conversations = await aiService.getConversations(req.user!.id)
     return reply.send({ conversations })

@@ -257,6 +257,12 @@ export const api = {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
         credentials: 'include',
       }),
+
+    getAdvancedStats: (accessToken: string) =>
+      request<{ stats: AiAdvancedStats }>('/api/v1/ai/stats/advanced', {
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        credentials: 'include',
+      }),
   },
 
   products: {
@@ -398,6 +404,13 @@ export interface AiStats {
   week: number
   month: number
   totalConversations: number
+}
+
+export interface AiAdvancedStats {
+  daily: Array<{ date: string; count: number }>
+  aiHandledConversations: number
+  escalatedConversations: number
+  takeoverRate: number
 }
 
 export interface AiSettings {

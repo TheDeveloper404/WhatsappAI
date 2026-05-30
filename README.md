@@ -10,6 +10,9 @@ SaaS platform care conectează WhatsApp-ul unui business cu un agent AI. Agentul
 - **Personality cloning** — agentul analizează mesajele trimise anterior și mimează stilul de scriere al proprietarului
 - **Memorie per contact** — agentul reține informații despre fiecare client (nume, nevoi, context)
 - **Knowledge base** — informații despre business injectate în prompt (servicii, prețuri, program)
+- **Comenzi prin WhatsApp** — catalog de produse (cu import CSV), AI extrage comanda din conversație, owner o gestionează în dashboard. Prețurile/totalul se calculează în cod din DB, niciodată de LLM
+- **Gatekeeper business-only** — refuză cereri off-topic (bancuri, rețete) și prompt injection (keyword + LLM)
+- **Statistici & metrici** — activitate AI (azi/7z/lună) + performanță agent (rată rezolvare, escaladări, grafic 7 zile)
 - **Transcriere vocale** — mesajele audio sunt transcrise automat (Groq Whisper)
 - **Detecție sentiment** — mesajele urgente sau frustrante primesc răspunsuri adaptate
 - **Timer de inactivitate** — configurabil, implicit 5 minute
@@ -53,7 +56,7 @@ Controlezi agentul direct din WhatsApp, trimițindu-ți ție însuți comenzi:
 | Backend | Fastify 4, Node.js 24, TypeScript |
 | Frontend | Next.js 14 App Router, Tailwind CSS, Zustand |
 | Bază de date | PostgreSQL, Drizzle ORM |
-| AI | Groq API (Llama 3.3 70B + Whisper large v3) |
+| AI | Groq (Llama 3.3 70B) sau Gemini 2.0 Flash — comutabil via `LLM_PROVIDER`; voce mereu pe Groq Whisper |
 | WhatsApp | Baileys (`@whiskeysockets/baileys`) |
 | Email | Resend |
 | Plăți | Stripe |
@@ -70,8 +73,8 @@ apps/
 docs/
   ARCHITECTURE.md   — decizii de design non-evidente
   CHANGELOG.md      — istoricul versiunilor
+  ROADMAP.md        — funcționalități viitoare și respinse
   DEV_SETUP.md      — comenzi dev și setup local
-  DOMAIN_SETUP.md   — configurare domeniu custom
   RUNBOOK.md        — proceduri de incident
   env_vars.md       — documentație variabile de mediu
 ```
@@ -125,7 +128,9 @@ Variabilele obligatorii:
 | `DATABASE_URL` | Connection string PostgreSQL |
 | `JWT_ACCESS_SECRET` | Secret JWT acces (min 32 chars) |
 | `JWT_REFRESH_SECRET` | Secret JWT refresh (min 32 chars) |
-| `GROQ_API_KEY` | Cheie API Groq (AI + transcriere) |
+| `GROQ_API_KEY` | Cheie API Groq (AI + transcriere; necesar mereu, chiar pe Gemini) |
+| `LLM_PROVIDER` | `groq` (default) sau `gemini` — furnizor text (opțional) |
+| `GEMINI_API_KEY` | Cheie Google Gemini (doar dacă `LLM_PROVIDER=gemini`) |
 | `STRIPE_SECRET_KEY` | Cheie secretă Stripe |
 | `STRIPE_PRICE_MONTHLY_ID` | ID prețul lunar din Stripe |
 | `STRIPE_PRICE_ANNUAL_ID` | ID prețul anual din Stripe |
@@ -140,7 +145,7 @@ Variabilele obligatorii:
 ## Teste
 
 ```bash
-# Unit + integration (156 teste)
+# Unit + integration
 pnpm --filter api test
 
 # E2E Playwright (54 teste)

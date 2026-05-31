@@ -6,6 +6,11 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed (2026-05-31)
+
+- **Comenzi duplicate + răspuns robotic repetat** — `extractOrder` primea tot istoricul conversației, deci la FIECARE mesaj ulterior re-extrăgea aceeași comandă → crea o comandă nouă în DB și retrimitea identic „Am notat comanda ta… Îți confirmăm în scurt timp" (vizibil în prod: zeci de comenzi „2× Pizza Diavola" identice + conversație unde AI-ul nu răspundea la „în cât timp se livrează?"). Fix în `message.handler.ts` → `sendAiResponse`: înainte de a crea comanda, se calculează o semnătură `productId×qty` și se compară cu comenzile recente ale contactului (`ordersRepository.listRecentForContact`, fereastră 12h, exclude `cancelled`). Dacă există deja o comandă identică, NU se mai creează una nouă și NU se retrimite confirmarea — se injectează contextul comenzii active în system prompt (`[Comandă activă a clientului]`) și AI-ul răspunde firesc la mesajul curent (livrare, modificări, confirmare).
+- **Ștergere comenzi** — owner-ul poate șterge o comandă din `/orders` (buton coș per rând, cu confirmare). Backend: `DELETE /api/v1/orders/:id` (`orders.routes.ts`) + `ordersRepository.delete` (liniile cad prin `ON DELETE CASCADE`); client: `api.orders.remove` + `handleDelete` în `orders/page.tsx`.
+
 ### Changed (2026-05-31)
 
 - **Lățime unificată dashboard** — toate paginile din dashboard au acum aceeași lățime (`max-w-6xl`), centralizată în `layout.tsx` (sursă unică). Înainte fiecare pagină avea alt `max-w` (2xl–5xl) → arătau inconsistent și prea înguste pe centru. Eliminat `max-w` per-pagină din dashboard/orders/products/settings/profile/connect/conversations.

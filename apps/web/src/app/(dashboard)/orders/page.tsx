@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useAuthStore } from '@/store/auth'
 import { api, type Order, type OrderStatus } from '@/lib/api'
-import { Loader2, ShoppingCart, ChevronDown } from 'lucide-react'
+import { Loader2, ShoppingCart, ChevronDown, Trash2 } from 'lucide-react'
 
 function formatLei(bani: number): string {
   return (bani / 100).toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -36,6 +36,7 @@ export default function OrdersPage() {
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<'all' | OrderStatus>('all')
   const [updatingId, setUpdatingId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!accessToken) return
@@ -56,6 +57,21 @@ export default function OrdersPage() {
       setError('Eroare la actualizarea statusului.')
     } finally {
       setUpdatingId(null)
+    }
+  }
+
+  async function handleDelete(id: string) {
+    if (!accessToken) return
+    if (!confirm('Ștergi această comandă definitiv?')) return
+    setDeletingId(id)
+    setError(null)
+    try {
+      await api.orders.remove(accessToken, id)
+      setOrders(prev => prev.filter(o => o.id !== id))
+    } catch {
+      setError('Eroare la ștergerea comenzii.')
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -140,21 +156,35 @@ export default function OrdersPage() {
                   <span className="font-display text-[20px] text-ink">
                     {formatLei(order.totalBani)} <span className="text-[12px] text-dim">lei</span>
                   </span>
-                  <div className="relative">
-                    <select
-                      value={order.status}
-                      onChange={e => handleStatusChange(order.id, e.target.value as OrderStatus)}
-                      disabled={updatingId === order.id}
-                      className="appearance-none font-mono-ui text-[12px] text-ink bg-cardhi border border-line rounded-lg pl-3 pr-8 py-2 focus:outline-none focus:ring-2 focus:ring-acid/40 cursor-pointer disabled:opacity-50"
+                  <div className="flex items-center gap-2">
+                    <div className="relative">
+                      <select
+                        value={order.status}
+                        onChange={e => handleStatusChange(order.id, e.target.value as OrderStatus)}
+                        disabled={updatingId === order.id}
+                        className="appearance-none font-mono-ui text-[12px] text-ink bg-cardhi border border-line rounded-lg pl-3 pr-8 py-2 focus:outline-none focus:ring-2 focus:ring-acid/40 cursor-pointer disabled:opacity-50"
+                      >
+                        {STATUS_OPTIONS.map(s => (
+                          <option key={s} value={s}>{STATUS_META[s].label}</option>
+                        ))}
+                      </select>
+                      {updatingId === order.id
+                        ? <Loader2 className="h-3.5 w-3.5 animate-spin text-dim absolute right-2.5 top-1/2 -translate-y-1/2" />
+                        : <ChevronDown className="h-3.5 w-3.5 text-dim absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      }
+                    </div>
+                    <button
+                      onClick={() => handleDelete(order.id)}
+                      disabled={deletingId === order.id}
+                      aria-label="Șterge comanda"
+                      title="Șterge comanda"
+                      className="p-2 rounded-lg text-dim hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50"
                     >
-                      {STATUS_OPTIONS.map(s => (
-                        <option key={s} value={s}>{STATUS_META[s].label}</option>
-                      ))}
-                    </select>
-                    {updatingId === order.id
-                      ? <Loader2 className="h-3.5 w-3.5 animate-spin text-dim absolute right-2.5 top-1/2 -translate-y-1/2" />
-                      : <ChevronDown className="h-3.5 w-3.5 text-dim absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                    }
+                      {deletingId === order.id
+                        ? <Loader2 className="h-4 w-4 animate-spin" />
+                        : <Trash2 className="h-4 w-4" />
+                      }
+                    </button>
                   </div>
                 </div>
               </li>

@@ -318,6 +318,13 @@ export const api = {
         credentials: 'include',
         body: JSON.stringify({ status }),
       }),
+
+    remove: (accessToken: string, id: string) =>
+      request<void>(`/api/v1/orders/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        credentials: 'include',
+      }),
   },
 
   admin: {

@@ -185,6 +185,7 @@ async function sendAiResponse(userId: string, contactPhone: string, jid: string,
 
   // Detectare comandă: dacă clientul a comandat concret, o înregistrăm și răspundem noi.
   // Prețurile/totalul vin din DB, nu de la AI. Fail-open la eroare (cădem pe flux normal).
+  let activeOrderNote = ''
   if (catalog.length > 0) {
     try {
       const extracted = await extractOrder(
@@ -197,24 +198,50 @@ async function sendAiResponse(userId: string, contactPhone: string, jid: string,
           const p = byId.get(it.productId)!
           return { productId: p.id, productName: p.name, unitPriceBani: p.priceBani, quantity: it.quantity }
         })
-        const order = await ordersRepository.create(userId, contactPhone, items, extracted.customerNote)
-        logger.info(`[AI][${userId.slice(0, 8)}] comandă înregistrată`, { orderId: order.id, items: items.length, totalBani: order.totalBani })
-
+        const signature = items.map(it => `${it.productId}x${it.quantity}`).sort().join('|')
         const lines = items.map(it => `• ${it.quantity}× ${it.productName} — ${((it.unitPriceBani * it.quantity) / 100).toFixed(2)} lei`).join('\n')
-        const totalLei = (order.totalBani / 100).toFixed(2)
-        const reply = `Am notat comanda ta:\n${lines}\n\n*Total: ${totalLei} lei*\n\nÎți confirmăm în scurt timp. Mulțumim!`
-        await sock.sendMessage(jid, { text: reply })
-        await aiRepository.saveMessage(userId, contactPhone, true, reply, Date.now(), true)
 
-        // Notifică owner-ul cu rezumatul comenzii (independent de throttle-ul de takeover)
-        const ownerJid = sock.user?.id
-        if (ownerJid) {
-          const note = extracted.customerNote ? `\nNotă: ${extracted.customerNote}` : ''
-          sock.sendMessage(ownerJid, {
-            text: `🛒 Comandă nouă de la +${contactPhone}\n${lines}\n\nTotal: ${totalLei} lei${note}\n\nVezi în dashboard.`,
-          }).catch(() => {})
+        // Anti-dublură: extractOrder primește tot istoricul, deci ar re-extrage aceeași
+        // comandă la fiecare mesaj ulterior. Dacă există deja o comandă recentă identică,
+        // NU mai creăm una nouă — lăsăm AI-ul să răspundă natural la mesajul curent
+        // (ex: „în cât timp se livrează?"), cu contextul comenzii existente.
+        const RECENT_MS = 12 * 60 * 60 * 1000
+        const since = Date.now() - RECENT_MS
+        const recent = await ordersRepository.listRecentForContact(userId, contactPhone)
+        let existing: typeof recent[number] | undefined
+        for (const o of recent) {
+          if (o.status === 'cancelled' || o.createdAt < since) continue
+          const sig = (await ordersRepository.getItems(o.id))
+            .map(it => `${it.productId}x${it.quantity}`).sort().join('|')
+          if (sig === signature) { existing = o; break }
         }
-        return
+
+        if (!existing) {
+          const order = await ordersRepository.create(userId, contactPhone, items, extracted.customerNote)
+          logger.info(`[AI][${userId.slice(0, 8)}] comandă înregistrată`, { orderId: order.id, items: items.length, totalBani: order.totalBani })
+
+          const totalLei = (order.totalBani / 100).toFixed(2)
+          const reply = `Am notat comanda ta:\n${lines}\n\n*Total: ${totalLei} lei*\n\nÎți confirmăm în scurt timp. Mulțumim!`
+          await sock.sendMessage(jid, { text: reply })
+          await aiRepository.saveMessage(userId, contactPhone, true, reply, Date.now(), true)
+
+          // Notifică owner-ul cu rezumatul comenzii (independent de throttle-ul de takeover)
+          const ownerJid = sock.user?.id
+          if (ownerJid) {
+            const note = extracted.customerNote ? `\nNotă: ${extracted.customerNote}` : ''
+            sock.sendMessage(ownerJid, {
+              text: `🛒 Comandă nouă de la +${contactPhone}\n${lines}\n\nTotal: ${totalLei} lei${note}\n\nVezi în dashboard.`,
+            }).catch(() => {})
+          }
+          return
+        }
+
+        // Comandă deja existentă: nu o dublăm. Îi dăm AI-ului contextul ca să răspundă la mesaj.
+        const statusLabel = existing.status === 'pending' ? 'în așteptare de confirmare'
+          : existing.status === 'confirmed' ? 'confirmată'
+          : existing.status === 'completed' ? 'finalizată' : 'anulată'
+        activeOrderNote = `Clientul are deja o comandă înregistrată (${statusLabel}):\n${lines}\nTotal: ${(existing.totalBani / 100).toFixed(2)} lei.\nNU crea o comandă nouă și NU repeta confirmarea de înregistrare. Răspunde firesc la mesajul curent al clientului (ex: timp de livrare, modificări, când vine confirmarea). Dacă nu cunoști un detaliu exact, spune-i că proprietarul confirmă în scurt timp.`
+        logger.info(`[AI][${userId.slice(0, 8)}] comandă duplicată ignorată`, { orderId: existing.id })
       }
     } catch (err) {
       logger.error(`[AI][${userId.slice(0, 8)}] eroare extragere comandă`, { err: String(err) })
@@ -241,6 +268,9 @@ async function sendAiResponse(userId: string, contactPhone: string, jid: string,
     systemPrompt += `\n\n---\n[Atenție: clientul are o cerere urgentă. Răspunde direct, oferă soluție sau următor pas concret.]`
   } else if (sentiment === 'frustrated') {
     systemPrompt += `\n\n---\n[Atenție: clientul pare nemulțumit sau frustrat. Fii empatic, recunoaște problema și calmează situația.]`
+  }
+  if (activeOrderNote) {
+    systemPrompt += `\n\n---\n[Comandă activă a clientului]\n${activeOrderNote}`
   }
 
   const groqMessages: GroqMessage[] = [

@@ -30,4 +30,13 @@ export async function ordersRoutes(app: FastifyInstance) {
     await ordersRepository.updateStatus(req.user!.id, id, result.data.status)
     return reply.send({ ok: true })
   })
+
+  app.delete('/:id', { preHandler: authenticate }, async (req, reply) => {
+    const id = (req.params as { id: string }).id
+    const existing = await ordersRepository.findById(req.user!.id, id)
+    if (!existing) throw Errors.notFound('Order')
+
+    await ordersRepository.delete(req.user!.id, id)
+    return reply.code(204).send()
+  })
 }

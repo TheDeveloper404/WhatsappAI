@@ -63,4 +63,19 @@ export const ordersRepository = {
       .where(and(eq(orders.userId, userId), eq(orders.id, orderId)))
     return rows[0] ?? null
   },
+
+  // Șterge comanda (liniile ei cad prin ON DELETE CASCADE).
+  async delete(userId: string, orderId: string): Promise<void> {
+    await db.delete(orders)
+      .where(and(eq(orders.userId, userId), eq(orders.id, orderId)))
+  },
+
+  // Ultimele comenzi ale unui contact (pentru detectarea dublurilor înainte de a crea una nouă).
+  async listRecentForContact(userId: string, contactPhone: string, limit = 10): Promise<Order[]> {
+    return db.select()
+      .from(orders)
+      .where(and(eq(orders.userId, userId), eq(orders.contactPhone, contactPhone)))
+      .orderBy(desc(orders.createdAt))
+      .limit(limit)
+  },
 }

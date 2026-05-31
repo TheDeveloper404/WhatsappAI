@@ -69,27 +69,30 @@ test.describe('Dashboard', () => {
     await expect(page.getByText(/Conectare WhatsApp/i)).toBeVisible()
   })
 
-  test('butonul "Conectează acum" duce la /connect', async ({ page }) => {
+  test('butonul "Conectează acum" deschide panoul de conectare WhatsApp', async ({ page }) => {
     await createUser({ email: 'connect@example.com', withSubscription: true })
     await loginAs(page, 'connect@example.com')
-    // "Conectează acum" este un button (router.push), nu un Link
+    // "Conectează acum" deschide un panou inline (setShowWaPanel), nu mai navighează la /connect
     await page.getByRole('button', { name: /Conectează acum/i }).first().click()
-    await expect(page).toHaveURL(/\/connect/)
+    await expect(page.getByText(/Conectare WhatsApp/i)).toBeVisible()
   })
 
-  test('navigarea funcționează: Dashboard → WhatsApp → Setări → Conversații', async ({ page }) => {
+  test('navigarea funcționează prin meniul hamburger: Conversații → Setări → Dashboard', async ({ page }) => {
     await createUser({ email: 'nav@example.com', withSubscription: true })
     await loginAs(page, 'nav@example.com')
 
-    await page.getByRole('link', { name: /WhatsApp/i }).click()
-    await expect(page).toHaveURL(/\/connect/)
+    // Nav-ul e într-un drawer deschis prin butonul „Deschide meniul". Se închide la navigare.
+    const openMenu = () => page.getByRole('button', { name: /Deschide meniul/i }).click()
 
-    await page.getByRole('link', { name: /Setări/i }).click()
-    await expect(page).toHaveURL(/\/settings/)
-
+    await openMenu()
     await page.getByRole('link', { name: /Conversații/i }).click()
     await expect(page).toHaveURL(/\/conversations/)
 
+    await openMenu()
+    await page.getByRole('link', { name: /Setări/i }).click()
+    await expect(page).toHaveURL(/\/settings/)
+
+    await openMenu()
     await page.getByRole('link', { name: /Dashboard/i }).click()
     await expect(page).toHaveURL(/\/dashboard/)
   })

@@ -9,10 +9,18 @@ test.beforeEach(async ({ page }) => {
   await page.evaluate(() => localStorage.clear()).catch(() => {})
 })
 
+// Login-ul admin folosește 4 input-uri de o cifră (PIN), nu un singur câmp parolă.
+async function fillPin(page: any, pin: string) {
+  const inputs = page.locator('form input[inputmode="numeric"]')
+  for (let i = 0; i < pin.length; i++) {
+    await inputs.nth(i).fill(pin[i])
+  }
+}
+
 async function loginAdmin(page: any) {
   await page.goto('/admin')
-  await page.locator('input[type="password"]').fill(ADMIN_SECRET)
-  await page.getByRole('button', { name: /intră|login|autentifică/i }).click()
+  await fillPin(page, ADMIN_SECRET)
+  await page.getByRole('button', { name: /intră în admin|intră|login/i }).click()
   await expect(page).toHaveURL(/\/admin\/dashboard/)
 }
 
@@ -20,20 +28,21 @@ test.describe('Admin — Login', () => {
   test('pagina de login admin se încarcă', async ({ page }) => {
     await page.goto('/admin')
     await expect(page.getByText(/admin|panou/i).first()).toBeVisible()
-    await expect(page.getByRole('button', { name: /intră|login|autentifică/i })).toBeVisible()
+    await expect(page.getByRole('button', { name: /intră în admin|intră|login/i })).toBeVisible()
   })
 
   test('secret greșit → eroare vizibilă', async ({ page }) => {
     await page.goto('/admin')
-    await page.locator('input[type="password"]').fill('wrong-secret-that-is-wrong')
-    await page.getByRole('button', { name: /intră|login|autentifică/i }).click()
+    // PIN greșit de 4 cifre (cel corect e ADMIN_SECRET)
+    await fillPin(page, '0000')
+    await page.getByRole('button', { name: /intră în admin|intră|login/i }).click()
     await expect(page.getByText(/incorect|greșit|invalid/i)).toBeVisible()
   })
 
   test('secret corect → redirect la /admin/dashboard', async ({ page }) => {
     await page.goto('/admin')
-    await page.locator('input[type="password"]').fill(ADMIN_SECRET)
-    await page.getByRole('button', { name: /intră|login|autentifică/i }).click()
+    await fillPin(page, ADMIN_SECRET)
+    await page.getByRole('button', { name: /intră în admin|intră|login/i }).click()
     await expect(page).toHaveURL(/\/admin\/dashboard/)
   })
 })

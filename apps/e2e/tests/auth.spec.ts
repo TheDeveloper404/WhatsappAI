@@ -39,7 +39,9 @@ test.describe('Register', () => {
     await page.getByLabel(/^parolă$/i).fill(DEFAULT_PASSWORD)
     await page.getByLabel(/confirmă parola/i).fill(DEFAULT_PASSWORD)
     await page.getByRole('button', { name: /creează cont/i }).click()
-    await expect(page.getByRole('alert')).toBeVisible()
+    // .first() — Next.js injectează un <div role="alert"> gol (route announcer) care altfel
+    // declanșează „strict mode violation". Alerta reală (componenta Alert) e prima în DOM.
+    await expect(page.getByRole('alert').first()).toBeVisible()
   })
 
   test('parolă slabă → eroare vizibilă', async ({ page }) => {
@@ -49,7 +51,9 @@ test.describe('Register', () => {
     await page.getByLabel(/^parolă$/i).fill('123')
     await page.getByLabel(/confirmă parola/i).fill('123')
     await page.getByRole('button', { name: /creează cont/i }).click()
-    await expect(page.getByRole('alert')).toBeVisible()
+    // Parolă slabă → eroare (fie field error sub input, fie alertă generală — ambele role=alert).
+    // .first() evită „strict mode violation" cu route-announcer-ul gol al Next.js.
+    await expect(page.getByRole('alert').first()).toBeVisible()
   })
 
   test('link "ai deja cont" duce la /login', async ({ page }) => {

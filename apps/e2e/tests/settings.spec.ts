@@ -21,9 +21,16 @@ test.describe('Pagina Setări', () => {
     await createUser({ email: 'settings@example.com', withSubscription: true })
     await loginAndGoTo(page, 'settings@example.com', '/settings')
 
+    // Tab Agent (implicit)
     await expect(page.getByText(/Stare agent/i)).toBeVisible()
     await expect(page.getByText(/Timer inactivitate/i)).toBeVisible()
+
+    // Tab Conținut → System prompt
+    await page.getByRole('button', { name: /^Conținut$/i }).click()
     await expect(page.getByText(/System prompt/i)).toBeVisible()
+
+    // Tab Control → Contacte ignorate
+    await page.getByRole('button', { name: /^Control$/i }).click()
     await expect(page.getByText(/Contacte ignorate/i)).toBeVisible()
   })
 
@@ -51,6 +58,7 @@ test.describe('Pagina Setări', () => {
     await createUser({ email: 'prompt@example.com', withSubscription: true })
     await loginAndGoTo(page, 'prompt@example.com', '/settings')
 
+    await page.getByRole('button', { name: /^Conținut$/i }).click()
     const textarea = page.locator('textarea').first()
     await textarea.fill('Ești un asistent prietenos care răspunde în română și ajută clienții.')
     await page.getByRole('button', { name: /Salvează promptul/i }).click()
@@ -61,6 +69,7 @@ test.describe('Pagina Setări', () => {
     await createUser({ email: 'bl@example.com', withSubscription: true })
     await loginAndGoTo(page, 'bl@example.com', '/settings')
 
+    await page.getByRole('button', { name: /^Control$/i }).click()
     const phoneInput = page.locator('input[placeholder*="ex"]')
     await phoneInput.fill('40758154490')
     await page.getByRole('button', { name: /Adaugă/i }).click()
@@ -72,6 +81,7 @@ test.describe('Pagina Setări', () => {
     await createUser({ email: 'blshort@example.com', withSubscription: true })
     await loginAndGoTo(page, 'blshort@example.com', '/settings')
 
+    await page.getByRole('button', { name: /^Control$/i }).click()
     const phoneInput = page.locator('input[placeholder*="ex"]')
     await phoneInput.fill('123')
     await page.getByRole('button', { name: /Adaugă/i }).click()
@@ -83,6 +93,7 @@ test.describe('Pagina Setări', () => {
     await createUser({ email: 'bldelete@example.com', withSubscription: true })
     await loginAndGoTo(page, 'bldelete@example.com', '/settings')
 
+    await page.getByRole('button', { name: /^Control$/i }).click()
     // Adaugă
     const phoneInput = page.locator('input[placeholder*="ex"]')
     await phoneInput.fill('40712345678')
@@ -98,6 +109,7 @@ test.describe('Pagina Setări', () => {
     await createUser({ email: 'blenter@example.com', withSubscription: true })
     await loginAndGoTo(page, 'blenter@example.com', '/settings')
 
+    await page.getByRole('button', { name: /^Control$/i }).click()
     const phoneInput = page.locator('input[placeholder*="ex"]')
     await phoneInput.fill('40798765432')
     await phoneInput.press('Enter')

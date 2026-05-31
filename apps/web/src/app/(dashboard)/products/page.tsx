@@ -3,13 +3,10 @@ import { useEffect, useRef, useState } from 'react'
 import { useAuthStore } from '@/store/auth'
 import { api, type Product } from '@/lib/api'
 import { parseCsv, rowsToProducts, type ParsedProduct } from '@/lib/csv'
+import { formatAmount, currencyLabel } from '@/lib/format'
 import { Loader2, Plus, Pencil, Trash2, X, Package, Save, Upload, FileSpreadsheet } from 'lucide-react'
 
 const inputCls = 'w-full rounded-xl border border-line px-3 py-2.5 text-[13px] text-ink bg-cardhi focus:outline-none focus:ring-2 focus:ring-acid/40 focus:border-acid transition-colors'
-
-function formatLei(bani: number): string {
-  return (bani / 100).toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
 
 type FormState = {
   name: string
@@ -24,6 +21,7 @@ const EMPTY_FORM: FormState = { name: '', description: '', priceLei: '', categor
 export default function ProductsPage() {
   const { accessToken } = useAuthStore()
   const [products, setProducts] = useState<Product[]>([])
+  const [currency, setCurrency] = useState('RON')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -42,8 +40,14 @@ export default function ProductsPage() {
 
   useEffect(() => {
     if (!accessToken) return
-    api.products.list(accessToken)
-      .then(({ products: p }) => setProducts(p))
+    Promise.all([
+      api.products.list(accessToken),
+      api.ai.getSettings(accessToken).catch(() => null),
+    ])
+      .then(([{ products: p }, settingsRes]) => {
+        setProducts(p)
+        if (settingsRes?.settings.currency) setCurrency(settingsRes.settings.currency)
+      })
       .catch(() => setError('Nu s-a putut încărca catalogul.'))
       .finally(() => setLoading(false))
   }, [accessToken])
@@ -311,7 +315,7 @@ export default function ProductsPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="font-mono-ui text-[12px] text-dim block mb-1.5">Preț (lei) *</label>
+                <label className="font-mono-ui text-[12px] text-dim block mb-1.5">Preț ({currencyLabel(currency)}) *</label>
                 <input
                   type="text"
                   inputMode="decimal"
@@ -408,9 +412,9 @@ export default function ProductsPage() {
                 {p.description && (
                   <p className="font-mono-ui text-[12px] text-dimmer mt-0.5 truncate">{p.description}</p>
                 )}
-                <span className="font-display text-[16px] text-ink mt-1 block sm:hidden">{formatLei(p.priceBani)} <span className="text-[11px] text-dim">lei</span></span>
+                <span className="font-display text-[16px] text-ink mt-1 block sm:hidden">{formatAmount(p.priceBani)} <span className="text-[11px] text-dim">{currencyLabel(currency)}</span></span>
               </div>
-              <span className="font-display text-[18px] text-ink shrink-0 hidden sm:block">{formatLei(p.priceBani)} <span className="text-[12px] text-dim">lei</span></span>
+              <span className="font-display text-[18px] text-ink shrink-0 hidden sm:block">{formatAmount(p.priceBani)} <span className="text-[12px] text-dim">{currencyLabel(currency)}</span></span>
               <div className="flex items-center gap-1 shrink-0">
                 <button
                   onClick={() => openEdit(p)}

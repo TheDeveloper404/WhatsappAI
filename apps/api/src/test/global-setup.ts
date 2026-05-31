@@ -69,6 +69,8 @@ export async function setup() {
       knowledge_base TEXT NOT NULL DEFAULT '',
       writing_style TEXT NOT NULL DEFAULT '',
       notify_on_ai_takeover BOOLEAN NOT NULL DEFAULT TRUE,
+      lead_criteria TEXT NOT NULL DEFAULT '',
+      currency TEXT NOT NULL DEFAULT 'RON',
       pause_until BIGINT,
       created_at BIGINT NOT NULL,
       updated_at BIGINT NOT NULL
@@ -147,6 +149,22 @@ export async function setup() {
       unit_price_bani INTEGER NOT NULL,
       quantity INTEGER NOT NULL
     )`,
+    `CREATE TABLE IF NOT EXISTS lead_insights (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      contact_phone TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'cold' CHECK(status IN ('hot','warm','cold')),
+      score INTEGER NOT NULL DEFAULT 0,
+      reason TEXT NOT NULL DEFAULT '',
+      created_at BIGINT NOT NULL,
+      updated_at BIGINT NOT NULL,
+      UNIQUE(user_id, contact_phone)
+    )`,
+    // ALTER idempotent pentru DB de test create înainte de aceste coloane — altfel
+    // CREATE TABLE IF NOT EXISTS NU adaugă coloane la un tabel deja existent și ai
+    // pica teste local pe coloane lipsă (deși în prod runStartupMigrations le adaugă).
+    `ALTER TABLE ai_settings ADD COLUMN IF NOT EXISTS lead_criteria TEXT NOT NULL DEFAULT ''`,
+    `ALTER TABLE ai_settings ADD COLUMN IF NOT EXISTS currency TEXT NOT NULL DEFAULT 'RON'`,
   ]
 
   for (const sql of statements) {

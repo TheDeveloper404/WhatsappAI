@@ -20,6 +20,8 @@ export async function aiRoutes(app: FastifyInstance) {
       knowledgeBase: z.string().max(5000).optional(),
       writingStyle: z.string().max(2000).optional(),
       notifyOnAiTakeover: z.boolean().optional(),
+      leadCriteria: z.string().max(2000).optional(),
+      currency: z.enum(['RON', 'EUR', 'USD', 'GBP']).optional(),
     })
     const result = schema.safeParse(req.body)
     if (!result.success) throw Errors.validation(result.error.errors.map(e => ({ field: String(e.path[0]), message: e.message })))
@@ -59,6 +61,27 @@ export async function aiRoutes(app: FastifyInstance) {
   app.get('/stats/advanced', { preHandler: authenticate }, async (req, reply) => {
     const stats = await aiService.getAdvancedStats(req.user!.id)
     return reply.send({ stats })
+  })
+
+  app.get('/leads', { preHandler: authenticate }, async (req, reply) => {
+    const leads = await aiService.getLeads(req.user!.id)
+    return reply.send({ leads })
+  })
+
+  // Recalculare scor: tot lotul (fără body) sau un singur contact ({ phone }).
+  // Rate limit strict — fiecare contact e un apel LLM (cost real).
+  app.post('/leads/analyze', { config: { rateLimit: { max: 5, timeWindow: '1 minute' } }, preHandler: authenticate }, async (req, reply) => {
+    const schema = z.object({ phone: z.string().min(7).max(20).optional() })
+    const result = schema.safeParse(req.body ?? {})
+    if (!result.success) throw Errors.validation(result.error.errors.map(e => ({ field: String(e.path[0]), message: e.message })))
+
+    if (result.data.phone) {
+      const phone = result.data.phone.replace(/[^0-9]/g, '')
+      const insight = await aiService.analyzeLead(req.user!.id, phone)
+      return reply.send({ insight })
+    }
+    const summary = await aiService.analyzeAllLeads(req.user!.id)
+    return reply.send(summary)
   })
 
   app.get('/conversations', { preHandler: authenticate }, async (req, reply) => {

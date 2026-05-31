@@ -163,4 +163,20 @@ export const migrationStatements = [
   `CREATE INDEX IF NOT EXISTS idx_products_user ON products(user_id, is_available)`,
   `CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id, created_at)`,
   `CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items(order_id)`,
+  // Calificare lead-uri: criterii per-business + scor/status cache per contact
+  `ALTER TABLE ai_settings ADD COLUMN IF NOT EXISTS lead_criteria TEXT NOT NULL DEFAULT ''`,
+  // Moneda businessului (catalog + comenzi)
+  `ALTER TABLE ai_settings ADD COLUMN IF NOT EXISTS currency TEXT NOT NULL DEFAULT 'RON'`,
+  `CREATE TABLE IF NOT EXISTS lead_insights (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    contact_phone TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'cold' CHECK(status IN ('hot','warm','cold')),
+    score INTEGER NOT NULL DEFAULT 0,
+    reason TEXT NOT NULL DEFAULT '',
+    created_at BIGINT NOT NULL,
+    updated_at BIGINT NOT NULL,
+    UNIQUE(user_id, contact_phone)
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_lead_insights_user ON lead_insights(user_id, score)`,
 ]

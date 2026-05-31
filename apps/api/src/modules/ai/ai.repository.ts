@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto'
 import { eq, and, desc } from 'drizzle-orm'
 import { db, pool } from '../../config/database.js'
-import { aiSettings, contactsBlacklist, conversationMessages, contactMemory, platformConfig } from '../../db/schema.js'
+import { aiSettings, contactsBlacklist, conversationMessages, contactMemory, platformConfig, leadInsights } from '../../db/schema.js'
 import type { AiSettings } from '../../db/schema.js'
 
 const DEFAULT_PROMPT = 'Ești un asistent WhatsApp care răspunde în numele proprietarului acestui număr.\n\nComportament:\n- Răspunsuri scurte și naturale: 1-2 propoziții\n- Ton prietenos, politicos și respectuos\n- La salut sau mesaj vag, răspunzi călduros și întrebi cum poți ajuta\n- Folosești diacritice corecte: ă, â, î, ș, ț\n\nReguli:\n- NU folosești fraze robotice: "Desigur!", "Cu plăcere!", "Bineînțeles!"\n- NU repeta aceleași structuri de la un mesaj la altul\n\nLimba: răspunzi în limba în care ți se scrie.\n\n— Personalizează acest prompt din pagina Setări.'
@@ -75,7 +75,7 @@ export const aiRepository = {
     return rows[0]
   },
 
-  async updateSettings(userId: string, data: Partial<Pick<AiSettings, 'isActive' | 'adminDisabled' | 'timerMinutes' | 'systemPrompt' | 'knowledgeBase' | 'writingStyle' | 'pauseUntil' | 'notifyOnAiTakeover'>>): Promise<void> {
+  async updateSettings(userId: string, data: Partial<Pick<AiSettings, 'isActive' | 'adminDisabled' | 'timerMinutes' | 'systemPrompt' | 'knowledgeBase' | 'writingStyle' | 'pauseUntil' | 'notifyOnAiTakeover' | 'leadCriteria' | 'currency'>>): Promise<void> {
     await this.getSettings(userId)
     await db.update(aiSettings)
       .set({ ...data, updatedAt: Date.now() })
@@ -293,6 +293,63 @@ export const aiRepository = {
       .onConflictDoUpdate({
         target: [contactMemory.userId, contactMemory.contactPhone],
         set: { summary, updatedAt: now },
+      })
+  },
+
+  // Lista lead-urilor: toate contactele cu conversație + scorul cached (dacă a fost analizat).
+  // Sortate descrescător pe scor (neanalizate la coadă), apoi după ultima activitate.
+  async getLeads(userId: string): Promise<Array<{
+    contactPhone: string; lastMessage: string; lastAt: number; count: number
+    status: 'hot' | 'warm' | 'cold' | null; score: number | null; reason: string | null; analyzedAt: number | null
+  }>> {
+    const result = await pool.query(`
+      WITH ranked AS (
+        SELECT contact_phone, body, wa_timestamp,
+          ROW_NUMBER() OVER (PARTITION BY contact_phone ORDER BY wa_timestamp DESC) AS rn,
+          COUNT(*) OVER (PARTITION BY contact_phone) AS total_count
+        FROM conversation_messages
+        WHERE user_id = $1
+      )
+      SELECT r.contact_phone, r.body AS last_message, r.wa_timestamp AS last_at, r.total_count::int AS count,
+        li.status, li.score, li.reason, li.updated_at AS analyzed_at
+      FROM ranked r
+      LEFT JOIN lead_insights li ON li.user_id = $1 AND li.contact_phone = r.contact_phone
+      WHERE r.rn = 1
+      ORDER BY COALESCE(li.score, -1) DESC, r.wa_timestamp DESC
+      LIMIT 200
+    `, [userId])
+    return result.rows.map((r: any) => ({
+      contactPhone: r.contact_phone,
+      lastMessage: r.last_message,
+      lastAt: Number(r.last_at),
+      count: r.count,
+      status: r.status ?? null,
+      score: r.score === null || r.score === undefined ? null : Number(r.score),
+      reason: r.reason ?? null,
+      analyzedAt: r.analyzed_at === null || r.analyzed_at === undefined ? null : Number(r.analyzed_at),
+    }))
+  },
+
+  // Telefoanele distincte cu cele mai recente conversații (pentru recalcularea în masă, plafonată).
+  async getRecentContactPhones(userId: string, limit: number): Promise<string[]> {
+    const result = await pool.query(`
+      SELECT contact_phone
+      FROM conversation_messages
+      WHERE user_id = $1
+      GROUP BY contact_phone
+      ORDER BY MAX(wa_timestamp) DESC
+      LIMIT $2
+    `, [userId, limit])
+    return result.rows.map((r: any) => r.contact_phone)
+  },
+
+  async upsertLeadInsight(userId: string, contactPhone: string, data: { status: string; score: number; reason: string }): Promise<void> {
+    const now = Date.now()
+    await db.insert(leadInsights)
+      .values({ id: randomUUID(), userId, contactPhone, status: data.status, score: data.score, reason: data.reason, createdAt: now, updatedAt: now })
+      .onConflictDoUpdate({
+        target: [leadInsights.userId, leadInsights.contactPhone],
+        set: { status: data.status, score: data.score, reason: data.reason, updatedAt: now },
       })
   },
 }

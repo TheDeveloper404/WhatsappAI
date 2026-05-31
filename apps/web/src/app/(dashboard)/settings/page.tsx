@@ -2,7 +2,8 @@
 import { useEffect, useState } from 'react'
 import { useAuthStore } from '@/store/auth'
 import { api, type AiSettings, type WhatsappSession } from '@/lib/api'
-import { Loader2, Save, Plus, X, Bot, Clock, Shield, Terminal } from 'lucide-react'
+import { CURRENCIES, currencyLabel } from '@/lib/format'
+import { Loader2, Save, Plus, X, Bot, Clock, Shield, Terminal, Flame } from 'lucide-react'
 
 const inputCls = 'w-full rounded-xl border border-line px-3 py-2.5 text-[13px] text-ink bg-cardhi focus:outline-none focus:ring-2 focus:ring-acid/40 focus:border-acid transition-colors resize-y'
 
@@ -21,6 +22,8 @@ export default function SettingsPage() {
   const [systemPrompt, setSystemPrompt] = useState('')
   const [knowledgeBase, setKnowledgeBase] = useState('')
   const [writingStyle, setWritingStyle] = useState('')
+  const [leadCriteria, setLeadCriteria] = useState('')
+  const [currency, setCurrency] = useState('RON')
   const [savingStyle, setSavingStyle] = useState(false)
   const [savedStyle, setSavedStyle] = useState(false)
   const [analyzingStyle, setAnalyzingStyle] = useState(false)
@@ -30,6 +33,10 @@ export default function SettingsPage() {
   const [savingKB, setSavingKB] = useState(false)
   const [savedKB, setSavedKB] = useState(false)
   const [savingTimer, setSavingTimer] = useState(false)
+  const [savingLead, setSavingLead] = useState(false)
+  const [savedLead, setSavedLead] = useState(false)
+  const [savingCurrency, setSavingCurrency] = useState(false)
+  const [savedCurrency, setSavedCurrency] = useState(false)
   const [togglingAI, setTogglingAI] = useState(false)
   const [savedPrompt, setSavedPrompt] = useState(false)
   const [savedTimer, setSavedTimer] = useState(false)
@@ -53,6 +60,8 @@ export default function SettingsPage() {
         setSystemPrompt(s.systemPrompt)
         setKnowledgeBase(s.knowledgeBase ?? '')
         setWritingStyle(s.writingStyle ?? '')
+        setLeadCriteria(s.leadCriteria ?? '')
+        setCurrency(s.currency ?? 'RON')
         setTimerMinutes(s.timerMinutes)
         setBlacklist(phones)
         setWaSession(session)
@@ -97,6 +106,17 @@ export default function SettingsPage() {
     finally { setSavingTimer(false) }
   }
 
+  async function handleSaveCurrency() {
+    if (!accessToken) return
+    setSavingCurrency(true); setSavedCurrency(false); setError(null)
+    try {
+      const { settings: updated } = await api.ai.updateSettings(accessToken, { currency })
+      setSettings(updated); setSavedCurrency(true)
+      setTimeout(() => setSavedCurrency(false), 3000)
+    } catch { setError('Eroare la salvarea monedei.') }
+    finally { setSavingCurrency(false) }
+  }
+
   async function handleAnalyzeStyle() {
     if (!accessToken) return
     setAnalyzingStyle(true); setError(null)
@@ -128,6 +148,17 @@ export default function SettingsPage() {
       setTimeout(() => setSavedKB(false), 3000)
     } catch { setError('Eroare la salvarea informațiilor.') }
     finally { setSavingKB(false) }
+  }
+
+  async function handleSaveLead() {
+    if (!accessToken) return
+    setSavingLead(true); setSavedLead(false); setError(null)
+    try {
+      const { settings: updated } = await api.ai.updateSettings(accessToken, { leadCriteria })
+      setSettings(updated); setSavedLead(true)
+      setTimeout(() => setSavedLead(false), 3000)
+    } catch { setError('Eroare la salvarea criteriilor.') }
+    finally { setSavingLead(false) }
   }
 
   async function handleAddPhone() {
@@ -292,6 +323,37 @@ export default function SettingsPage() {
             </div>
           </div>
 
+          {/* Monedă */}
+          <div className="py-7">
+            <div className="flex items-center gap-2 mb-5">
+              <p className="font-mono-ui text-[11px] text-dimmer uppercase tracking-widest">Monedă</p>
+            </div>
+            <p className="font-mono-ui text-[13px] text-dim mb-5">
+              Moneda folosită în catalog și comenzi. Se aplică la afișarea prețurilor; nu face conversie valutară.
+            </p>
+            <div className="flex items-center gap-3 flex-wrap">
+              <select
+                value={currency}
+                onChange={e => setCurrency(e.target.value)}
+                className="w-40 rounded-xl border border-line px-3 py-2.5 text-[13px] text-ink bg-cardhi focus:outline-none focus:ring-2 focus:ring-acid/40 focus:border-acid transition-colors"
+              >
+                {CURRENCIES.map(c => (
+                  <option key={c} value={c}>{c} ({currencyLabel(c)})</option>
+                ))}
+              </select>
+              <button
+                onClick={handleSaveCurrency}
+                disabled={savingCurrency}
+                style={{ background: 'var(--acid)', color: 'var(--on-acid)' }}
+                className="ml-auto flex items-center gap-2 font-mono-ui text-[13px] px-4 py-2.5 rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+              >
+                {savingCurrency ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                Salvează
+              </button>
+              {savedCurrency && <span className="font-mono-ui text-[12px] text-green-600 dark:text-green-400 font-medium">Salvat!</span>}
+            </div>
+          </div>
+
         </div>
       )}
 
@@ -387,6 +449,36 @@ export default function SettingsPage() {
                 Salvează informațiile
               </button>
               {savedKB && <span className="font-mono-ui text-[12px] text-green-600 dark:text-green-400 font-medium">Salvat!</span>}
+            </div>
+          </div>
+
+          {/* Criterii lead-uri */}
+          <div className="py-7">
+            <div className="flex items-center gap-2 mb-1">
+              <Flame className="h-4 w-4 text-dimmer" />
+              <p className="font-mono-ui text-[14px] text-ink font-medium">Criterii calificare lead-uri</p>
+            </div>
+            <p className="font-mono-ui text-[13px] text-dim mb-4">
+              Ce înseamnă un client potențial bun pentru tine. Folosit la scorarea din pagina „Lead-uri”. Gol = criterii generice.
+            </p>
+            <textarea
+              value={leadCriteria}
+              onChange={e => setLeadCriteria(e.target.value)}
+              rows={4}
+              className={inputCls}
+              placeholder="ex: Un lead bun întreabă de preț sau disponibilitate, vrea programare, sau menționează un buget. Un lead slab doar întreabă lucruri generale."
+            />
+            <div className="flex items-center gap-3 mt-4">
+              <button
+                onClick={handleSaveLead}
+                disabled={savingLead || leadCriteria === (settings?.leadCriteria ?? '')}
+                style={{ background: 'var(--acid)', color: 'var(--on-acid)' }}
+                className="flex items-center gap-2 font-mono-ui text-[13px] px-4 py-2.5 rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+              >
+                {savingLead ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                Salvează criteriile
+              </button>
+              {savedLead && <span className="font-mono-ui text-[12px] text-green-600 dark:text-green-400 font-medium">Salvat!</span>}
             </div>
           </div>
 

@@ -6,6 +6,34 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added (2026-05-31) — Calificare lead-uri (backend, Faza 1-2)
+
+- **Schema** — tabel nou `lead_insights` (userId, contactPhone, status `hot/warm/cold`, score 0-100, reason, timestamps; UNIQUE userId+contactPhone; index pe userId+score) + coloană `ai_settings.lead_criteria` (text liber: ce înseamnă un lead bun pentru acel business). Migrat în toate cele 4 locuri (`migration-statements.ts`, `schema.ts`, `app.ts` runStartupMigrations, `test/global-setup.ts` + cleanup în `test/setup.ts`).
+- **Clasificare LLM** — `classifyLead(criteria, messages)` în `groq.client.ts`: apel Groq (temp 0) care întoarce JSON `{status, score, reason}`, **validat strict în cod** (status ∈ hot/warm/cold sau derivat din scor; scor plafonat 0-100; reason limitat). Doar clasifică, nu pune întrebări clientului. Criterii goale → ghid generic.
+- **Repository/Service** — `getLeads` (toate contactele + scorul cached, LEFT JOIN, sortate pe scor), `upsertLeadInsight`, `getRecentContactPhones`; service `analyzeLead` (un contact) + `analyzeAllLeads` (lot plafonat la 40, fail-soft per contact).
+- **Rute** — `GET /ai/leads` și `POST /ai/leads/analyze` (body opțional `{phone}` = un contact, fără body = lot). Ambele `authenticate`, scoped pe `req.user.id`; analyze are rate limit 5/min (cost LLM real). `lead_criteria` adăugat în schema `PATCH /ai/settings`.
+- Scorarea e **la cerere** (din dashboard), nu automat la fiecare mesaj — cost LLM controlat.
+
+### Added (2026-05-31) — Calificare lead-uri (UI, Faza 3)
+
+- **Pagină nouă `/leads`** (`apps/web/src/app/(dashboard)/leads/page.tsx`) — listă contacte sortate pe scor, badge hot/warm/cold + scor + justificare AI, filtre pe status, buton „Recalculează scoruri" (lot) și „Recalculează" per contact. Stil consistent cu pagina Comenzi.
+- **Navigare** — intrare „Lead-uri" (icon Flame) în sidebar + drawer mobil (`(dashboard)/layout.tsx`).
+- **Settings** — câmp nou „Criterii calificare lead-uri" în tab-ul Conținut → `leadCriteria` (`settings/page.tsx`).
+- **API client** (`lib/api.ts`) — tipuri `Lead`/`LeadStatus`/`LeadInsight`, `leadCriteria` în `AiSettings` + payload `updateSettings`, metode `api.ai.getLeads` / `api.ai.analyzeLeads`.
+- Notă: la rezolvarea unei erori de build s-a descoperit că `settings/page.tsx` și `orders/page.tsx` aveau conținut duplicat (JSX repetat din editări anterioare de sesiune) — ambele rescrise curat. Build web verde, `tsc --noEmit` curat pe API + web.
+
+### Added (2026-05-31) — Monedă per business (RON/EUR/USD/GBP)
+
+- **Schema** — coloană `ai_settings.currency` (default `RON`), validată `z.enum(['RON','EUR','USD','GBP'])` în `PATCH /ai/settings`. Migrat în cele 4 locuri. **Banii rămân integer subunitate** — se schimbă doar eticheta afișată; **fără conversie valutară** (un business = o monedă, totalul rămâne coerent).
+- **Helper partajat** `apps/web/src/lib/format.ts` — `formatAmount`, `currencyLabel`, `formatMoney`, `CURRENCIES`. Înlocuiește `formatLei` local duplicat din `orders` + `products`.
+- **UI** — selector monedă în Setări → Agent; `orders` și `products` afișează moneda businessului (în loc de „lei” hardcodat); eticheta din formularul de preț e dinamică. Backend: mesajul de confirmare comandă, notificarea owner și catalogul injectat în prompt folosesc eticheta monedei (`message.handler.ts`).
+
+### Fixed (2026-05-31) — Regresie settings + teste noi
+
+- **Regresie reparată**: la rescrierea `settings/page.tsx` (Faza 3) se pierduseră funcționalități din original (toggle activare/dezactivare AI, „Analizează automat” stil, lista comenzi WhatsApp, avertismente admin/WA neconectat, salvări per-secțiune). Pagina a fost restaurată complet, cu currency + leadCriteria adăugate peste structura originală.
+- **Teste noi** (le rulează userul): `lead.parser.test.ts` (12 teste pe validarea strictă a JSON-ului LLM din `parseLeadClassification` — extrasă ca funcție pură) + extinderi în `ai.integration.test.ts` (currency default/set/enum-invalid, leadCriteria, `GET /ai/leads` gol, `POST /ai/leads/analyze` lot gol fără apel LLM + phone invalid).
+- **Setup test reparat**: `global-setup.ts` adaugă `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` pentru `lead_criteria` + `currency` — altfel pe o DB de test creată înainte de aceste coloane, `CREATE TABLE IF NOT EXISTS` NU le-ar fi adăugat și ai fi avut teste picate local care în prod ar fi fost OK.
+
 ### Fixed (2026-05-31)
 
 - **Comenzi duplicate + răspuns robotic repetat** — `extractOrder` primea tot istoricul conversației, deci la FIECARE mesaj ulterior re-extrăgea aceeași comandă → crea o comandă nouă în DB și retrimitea identic „Am notat comanda ta… Îți confirmăm în scurt timp" (vizibil în prod: zeci de comenzi „2× Pizza Diavola" identice + conversație unde AI-ul nu răspundea la „în cât timp se livrează?"). Fix în `message.handler.ts` → `sendAiResponse`: înainte de a crea comanda, se calculează o semnătură `productId×qty` și se compară cu comenzile recente ale contactului (`ordersRepository.listRecentForContact`, fereastră 12h, exclude `cancelled`). Dacă există deja o comandă identică, NU se mai creează una nouă și NU se retrimite confirmarea — se injectează contextul comenzii active în system prompt (`[Comandă activă a clientului]`) și AI-ul răspunde firesc la mesajul curent (livrare, modificări, confirmare).

@@ -1,13 +1,19 @@
 import { aiRepository } from './ai.repository.js'
-import { extractWritingStyle } from './groq.client.js'
+import { extractWritingStyle, classifyLead } from './groq.client.js'
+import { logger } from '../../utils/logger.js'
 import type { AiSettings } from '../../db/schema.js'
+
+// Plafon pentru recalcularea în masă a lead-urilor — limitează costul LLM și durata
+// request-ului (apeluri Groq secvențiale) la un click „Recalculează". Ținut mic ca să
+// nu riscăm timeout de gateway pe Railway; restul se recalculează per-contact.
+const LEAD_ANALYZE_BATCH_MAX = 15
 
 export const aiService = {
   async getSettings(userId: string): Promise<AiSettings> {
     return aiRepository.getSettings(userId)
   },
 
-  async updateSettings(userId: string, data: { isActive?: boolean; timerMinutes?: number; systemPrompt?: string; knowledgeBase?: string; writingStyle?: string; notifyOnAiTakeover?: boolean }): Promise<AiSettings> {
+  async updateSettings(userId: string, data: { isActive?: boolean; timerMinutes?: number; systemPrompt?: string; knowledgeBase?: string; writingStyle?: string; notifyOnAiTakeover?: boolean; leadCriteria?: string; currency?: string }): Promise<AiSettings> {
     await aiRepository.updateSettings(userId, data)
     return aiRepository.getSettings(userId)
   },
@@ -50,5 +56,40 @@ export const aiService = {
 
   async getAdvancedStats(userId: string) {
     return aiRepository.getAdvancedStats(userId)
+  },
+
+  async getLeads(userId: string) {
+    return aiRepository.getLeads(userId)
+  },
+
+  // Recalculează scorul unui singur contact (la cerere din dashboard).
+  async analyzeLead(userId: string, contactPhone: string) {
+    const [settings, messages] = await Promise.all([
+      aiRepository.getSettings(userId),
+      aiRepository.getMessagesForContact(userId, contactPhone),
+    ])
+    if (messages.length === 0) throw new Error('Nu există conversație pentru acest contact.')
+    const result = await classifyLead(settings.leadCriteria, messages.map(m => ({ fromMe: m.fromMe, body: m.body })))
+    await aiRepository.upsertLeadInsight(userId, contactPhone, result)
+    return result
+  },
+
+  // Recalculează scorurile pentru cele mai recente contacte (plafonat). Fail-soft per contact.
+  async analyzeAllLeads(userId: string): Promise<{ analyzed: number }> {
+    const settings = await aiRepository.getSettings(userId)
+    const phones = await aiRepository.getRecentContactPhones(userId, LEAD_ANALYZE_BATCH_MAX)
+    let analyzed = 0
+    for (const phone of phones) {
+      try {
+        const messages = await aiRepository.getMessagesForContact(userId, phone)
+        if (messages.length === 0) continue
+        const result = await classifyLead(settings.leadCriteria, messages.map(m => ({ fromMe: m.fromMe, body: m.body })))
+        await aiRepository.upsertLeadInsight(userId, phone, result)
+        analyzed++
+      } catch (err) {
+        logger.error(`[AI][${userId.slice(0, 8)}] eroare calificare lead`, { err: String(err) })
+      }
+    }
+    return { analyzed }
   },
 }

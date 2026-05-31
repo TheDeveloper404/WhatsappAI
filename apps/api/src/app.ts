@@ -78,6 +78,20 @@ async function runStartupMigrations() {
       unit_price_bani INTEGER NOT NULL,
       quantity INTEGER NOT NULL
     )`,
+    `ALTER TABLE ai_settings ADD COLUMN IF NOT EXISTS lead_criteria TEXT NOT NULL DEFAULT ''`,
+    `ALTER TABLE ai_settings ADD COLUMN IF NOT EXISTS currency TEXT NOT NULL DEFAULT 'RON'`,
+    `CREATE TABLE IF NOT EXISTS lead_insights (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      contact_phone TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'cold' CHECK(status IN ('hot','warm','cold')),
+      score INTEGER NOT NULL DEFAULT 0,
+      reason TEXT NOT NULL DEFAULT '',
+      created_at BIGINT NOT NULL,
+      updated_at BIGINT NOT NULL,
+      UNIQUE(user_id, contact_phone)
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_lead_insights_user ON lead_insights(user_id, score)`,
   ]
   for (const stmt of stmts) {
     try { await pool.query(stmt) } catch { /* tabela poate lipsi la prima rulare */ }

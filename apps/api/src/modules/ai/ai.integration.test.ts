@@ -395,3 +395,99 @@ describe('DELETE /ai/conversations/:phone', () => {
     expect(res.statusCode).toBe(204)
   })
 })
+
+// ---------------------------------------------------------------------------
+// Currency (PATCH /ai/settings)
+// ---------------------------------------------------------------------------
+
+describe('PATCH /ai/settings — currency', () => {
+  it('200 — default RON', async () => {
+    const token = await registerAndLogin('currency-default@test.com')
+    const res = await app.inject({
+      method: 'GET', url: '/api/v1/ai/settings',
+      headers: { authorization: `Bearer ${token}` },
+    })
+    expect(res.json().settings.currency).toBe('RON')
+  })
+
+  it('200 — schimbă în EUR', async () => {
+    const token = await registerAndLogin('currency-eur@test.com')
+    const res = await app.inject({
+      method: 'PATCH', url: '/api/v1/ai/settings',
+      payload: { currency: 'EUR' },
+      headers: { authorization: `Bearer ${token}` },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(res.json().settings.currency).toBe('EUR')
+  })
+
+  it('400 — monedă neacceptată respinsă', async () => {
+    const token = await registerAndLogin('currency-bad@test.com')
+    const res = await app.inject({
+      method: 'PATCH', url: '/api/v1/ai/settings',
+      payload: { currency: 'JPY' },
+      headers: { authorization: `Bearer ${token}` },
+    })
+    expect(res.statusCode).toBe(400)
+  })
+
+  it('200 — salvează leadCriteria', async () => {
+    const token = await registerAndLogin('lead-criteria@test.com')
+    const res = await app.inject({
+      method: 'PATCH', url: '/api/v1/ai/settings',
+      payload: { leadCriteria: 'Un lead bun întreabă de preț și livrare.' },
+      headers: { authorization: `Bearer ${token}` },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(res.json().settings.leadCriteria).toContain('preț')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Lead-uri (GET /ai/leads, POST /ai/leads/analyze)
+// ---------------------------------------------------------------------------
+
+describe('GET /ai/leads', () => {
+  it('401 — fără token', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/v1/ai/leads' })
+    expect(res.statusCode).toBe(401)
+  })
+
+  it('200 — listă goală pentru user fără conversații', async () => {
+    const token = await registerAndLogin('leads-empty@test.com')
+    const res = await app.inject({
+      method: 'GET', url: '/api/v1/ai/leads',
+      headers: { authorization: `Bearer ${token}` },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(res.json().leads).toEqual([])
+  })
+})
+
+describe('POST /ai/leads/analyze', () => {
+  it('401 — fără token', async () => {
+    const res = await app.inject({ method: 'POST', url: '/api/v1/ai/leads/analyze', payload: {} })
+    expect(res.statusCode).toBe(401)
+  })
+
+  it('200 — lot gol (fără contacte) returnează analyzed:0, fără apel LLM', async () => {
+    const token = await registerAndLogin('leads-analyze-empty@test.com')
+    const res = await app.inject({
+      method: 'POST', url: '/api/v1/ai/leads/analyze',
+      payload: {},
+      headers: { authorization: `Bearer ${token}` },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(res.json().analyzed).toBe(0)
+  })
+
+  it('400 — phone invalid (prea scurt) respins', async () => {
+    const token = await registerAndLogin('leads-analyze-badphone@test.com')
+    const res = await app.inject({
+      method: 'POST', url: '/api/v1/ai/leads/analyze',
+      payload: { phone: '123' },
+      headers: { authorization: `Bearer ${token}` },
+    })
+    expect(res.statusCode).toBe(400)
+  })
+})

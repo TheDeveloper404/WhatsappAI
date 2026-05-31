@@ -68,6 +68,10 @@ export const aiSettings = pgTable('ai_settings', {
   knowledgeBase: text('knowledge_base').notNull().default(''),
   writingStyle: text('writing_style').notNull().default(''),
   notifyOnAiTakeover: boolean('notify_on_ai_takeover').notNull().default(true),
+  // Criterii (text liber, per-business): ce înseamnă un lead bun. Gol = clasificare generică.
+  leadCriteria: text('lead_criteria').notNull().default(''),
+  // Moneda businessului (RON/EUR/USD/GBP). Banii rămân stocați ca integer subunitate; se schimbă doar eticheta.
+  currency: text('currency').notNull().default('RON'),
   pauseUntil: bigint('pause_until', { mode: 'number' }),
   createdAt: bigint('created_at', { mode: 'number' }).notNull(),
   updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
@@ -120,6 +124,20 @@ export const contactMemory = pgTable('contact_memory', {
   userContactUnique: unique().on(t.userId, t.contactPhone),
 }))
 
+export const leadInsights = pgTable('lead_insights', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  contactPhone: text('contact_phone').notNull(),
+  // status: hot/warm/cold; score 0-100; reason = scurtă justificare a AI-ului
+  status: text('status').notNull().default('cold'),
+  score: integer('score').notNull().default(0),
+  reason: text('reason').notNull().default(''),
+  createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+  updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
+}, (t) => ({
+  userContactUnique: unique().on(t.userId, t.contactPhone),
+}))
+
 
 export const products = pgTable('products', {
   id: text('id').primaryKey(),
@@ -163,6 +181,7 @@ export type OrderItem = typeof orderItems.$inferSelect
 export type NewOrderItem = typeof orderItems.$inferInsert
 
 export type ContactMemory = typeof contactMemory.$inferSelect
+export type LeadInsight = typeof leadInsights.$inferSelect
 
 export type User = typeof users.$inferSelect
 export type NewUser = typeof users.$inferInsert

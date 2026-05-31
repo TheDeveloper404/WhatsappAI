@@ -7,6 +7,7 @@ beforeEach(async () => {
   await pool.query(`DELETE FROM conversation_messages`)
   await pool.query(`DELETE FROM contacts_blacklist`)
   await pool.query(`DELETE FROM contact_memory`)
+  await pool.query(`DELETE FROM lead_insights`)
   await pool.query(`DELETE FROM ai_settings`)
   await pool.query(`DELETE FROM platform_config`)
   await pool.query(`DELETE FROM whatsapp_sessions`)

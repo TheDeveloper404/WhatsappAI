@@ -204,7 +204,7 @@ export const api = {
         body: '{}',
       }),
 
-    updateSettings: (accessToken: string, data: { isActive?: boolean; timerMinutes?: number; systemPrompt?: string; knowledgeBase?: string; writingStyle?: string; notifyOnAiTakeover?: boolean }) =>
+    updateSettings: (accessToken: string, data: { isActive?: boolean; timerMinutes?: number; systemPrompt?: string; knowledgeBase?: string; writingStyle?: string; notifyOnAiTakeover?: boolean; leadCriteria?: string; currency?: string }) =>
       request<{ settings: AiSettings }>('/api/v1/ai/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
@@ -262,6 +262,21 @@ export const api = {
       request<{ stats: AiAdvancedStats }>('/api/v1/ai/stats/advanced', {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
         credentials: 'include',
+      }),
+
+    getLeads: (accessToken: string) =>
+      request<{ leads: Lead[] }>('/api/v1/ai/leads', {
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        credentials: 'include',
+      }),
+
+    // Fără phone → recalculează lotul; cu phone → un singur contact.
+    analyzeLeads: (accessToken: string, phone?: string) =>
+      request<{ analyzed: number } | { insight: LeadInsight }>('/api/v1/ai/leads/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        credentials: 'include',
+        body: JSON.stringify(phone ? { phone } : {}),
       }),
   },
 
@@ -430,9 +445,30 @@ export interface AiSettings {
   knowledgeBase: string
   writingStyle: string
   notifyOnAiTakeover: boolean
+  leadCriteria: string
+  currency: string
   pauseUntil: number | null
   createdAt: number
   updatedAt: number
+}
+
+export type LeadStatus = 'hot' | 'warm' | 'cold'
+
+export interface Lead {
+  contactPhone: string
+  lastMessage: string
+  lastAt: number
+  count: number
+  status: LeadStatus | null
+  score: number | null
+  reason: string | null
+  analyzedAt: number | null
+}
+
+export interface LeadInsight {
+  status: LeadStatus
+  score: number
+  reason: string
 }
 
 export interface AdminUser {

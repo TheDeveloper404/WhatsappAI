@@ -2,11 +2,8 @@
 import { useEffect, useState } from 'react'
 import { useAuthStore } from '@/store/auth'
 import { api, type Order, type OrderStatus } from '@/lib/api'
+import { formatAmount, currencyLabel } from '@/lib/format'
 import { Loader2, ShoppingCart, ChevronDown, Trash2 } from 'lucide-react'
-
-function formatLei(bani: number): string {
-  return (bani / 100).toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
 
 function formatDate(ts: number): string {
   return new Date(ts).toLocaleString('ro-RO', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
@@ -32,6 +29,7 @@ const FILTERS: { id: 'all' | OrderStatus; label: string }[] = [
 export default function OrdersPage() {
   const { accessToken } = useAuthStore()
   const [orders, setOrders] = useState<Order[]>([])
+  const [currency, setCurrency] = useState('RON')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<'all' | OrderStatus>('all')
@@ -40,8 +38,14 @@ export default function OrdersPage() {
 
   useEffect(() => {
     if (!accessToken) return
-    api.orders.list(accessToken)
-      .then(({ orders: o }) => setOrders(o))
+    Promise.all([
+      api.orders.list(accessToken),
+      api.ai.getSettings(accessToken).catch(() => null),
+    ])
+      .then(([{ orders: o }, settingsRes]) => {
+        setOrders(o)
+        if (settingsRes?.settings.currency) setCurrency(settingsRes.settings.currency)
+      })
       .catch(() => setError('Nu s-au putut încărca comenzile.'))
       .finally(() => setLoading(false))
   }, [accessToken])
@@ -141,7 +145,7 @@ export default function OrdersPage() {
                   {order.items.map(it => (
                     <li key={it.id} className="flex items-center justify-between font-mono-ui text-[13px]">
                       <span className="text-dim">{it.quantity}× {it.productName}</span>
-                      <span className="text-ink">{formatLei(it.unitPriceBani * it.quantity)} lei</span>
+                      <span className="text-ink">{formatAmount(it.unitPriceBani * it.quantity)} {currencyLabel(currency)}</span>
                     </li>
                   ))}
                 </ul>
@@ -154,7 +158,7 @@ export default function OrdersPage() {
 
                 <div className="flex items-center justify-between pt-3 border-t border-line">
                   <span className="font-display text-[20px] text-ink">
-                    {formatLei(order.totalBani)} <span className="text-[12px] text-dim">lei</span>
+                    {formatAmount(order.totalBani)} <span className="text-[12px] text-dim">{currencyLabel(currency)}</span>
                   </span>
                   <div className="flex items-center gap-2">
                     <div className="relative">

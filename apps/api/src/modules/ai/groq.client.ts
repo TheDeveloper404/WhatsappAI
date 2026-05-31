@@ -189,6 +189,67 @@ Mesaj client: "${message.replace(/"/g, "'").slice(0, 500)}"`
   return 'BUSINESS'
 }
 
+// Calificare lead: clasifică un contact pe baza conversației + criteriilor businessului.
+// Returnează status (hot/warm/cold), scor 0-100 și o justificare scurtă.
+// Doar clasifică — nu pune întrebări clientului. Codul validează strict output-ul.
+export type LeadClassification = { status: 'hot' | 'warm' | 'cold'; score: number; reason: string }
+
+export async function classifyLead(
+  criteria: string,
+  messages: Array<{ fromMe: boolean; body: string }>,
+): Promise<LeadClassification> {
+  const convoText = messages
+    .map(m => `${m.fromMe ? 'Vânzător' : 'Client'}: ${m.body}`)
+    .join('\n')
+
+  const criteriaBlock = criteria.trim()
+    ? `CRITERII DE CALIFICARE ale acestui business (ce înseamnă un lead bun):\n${criteria.trim()}`
+    : `CRITERII GENERALE: un lead bun arată intenție clară de cumpărare/programare, întreabă concret de preț/disponibilitate/livrare, oferă detalii, sau cere să finalizeze. Un lead slab doar salută vag, este off-topic, sau nu arată interes.`
+
+  const prompt = `Ești un sistem care califică lead-uri (clienți potențiali) dintr-o conversație WhatsApp de business.
+
+${criteriaBlock}
+
+CONVERSAȚIE:
+${convoText}
+
+Evaluează cât de probabil este acest contact să devină client, pe baza conversației și a criteriilor.
+
+Răspunde STRICT cu JSON valid, fără text în plus:
+{"status":"hot|warm|cold","score":<0-100>,"reason":"<o justificare scurtă, max 1 propoziție, în română>"}
+
+Ghid scoring:
+- hot (70-100): intenție clară, gata să cumpere/comande/programeze
+- warm (35-69): interesat, dar încă negociază/se informează
+- cold (0-34): interes scăzut sau neclar`
+
+  const raw = await callGroq([{ role: 'user', content: prompt }], { max_tokens: 200, temperature: 0 })
+  return parseLeadClassification(raw)
+}
+
+// Validare strictă a output-ului LLM (extrasă pentru testabilitate fără rețea).
+// LLM-ul nu e de încredere: scorul e plafonat 0-100, status-ul validat sau derivat din scor,
+// reason limitat. Orice JSON invalid/lipsă → fallback 'cold'/0.
+export function parseLeadClassification(raw: string): LeadClassification {
+  // Modelul poate împacheta JSON-ul în ```json``` sau text — extragem primul obiect.
+  const match = raw.match(/\{[\s\S]*\}/)
+  const fallback: LeadClassification = { status: 'cold', score: 0, reason: '' }
+  if (!match) return fallback
+  try {
+    const parsed = JSON.parse(match[0]) as Partial<LeadClassification>
+    const score = Math.max(0, Math.min(100, Math.round(Number(parsed.score) || 0)))
+    const status: LeadClassification['status'] =
+      parsed.status === 'hot' || parsed.status === 'warm' || parsed.status === 'cold'
+        ? parsed.status
+        // dacă modelul a omis/greșit status-ul, îl derivăm din scor
+        : score >= 70 ? 'hot' : score >= 35 ? 'warm' : 'cold'
+    const reason = typeof parsed.reason === 'string' ? parsed.reason.slice(0, 300) : ''
+    return { status, score, reason }
+  } catch {
+    return fallback
+  }
+}
+
 export async function extractContactMemory(
   existingSummary: string | null,
   messages: Array<{ fromMe: boolean; body: string }>,

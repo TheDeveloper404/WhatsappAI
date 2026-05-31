@@ -29,6 +29,10 @@ function extractPhone(jid: string): string {
   return jid.split('@')[0].split(':')[0]
 }
 
+// Eticheta monedei businessului (banii rămân integer subunitate; doar afișarea diferă).
+const CURRENCY_LABEL: Record<string, string> = { RON: 'lei', EUR: '€', USD: '$', GBP: '£' }
+const curLabel = (c: string) => CURRENCY_LABEL[c] ?? c
+
 function isIndividualChat(jid: string): boolean {
   return jid.endsWith('@s.whatsapp.net') || jid.endsWith('@lid')
 }
@@ -199,7 +203,8 @@ async function sendAiResponse(userId: string, contactPhone: string, jid: string,
           return { productId: p.id, productName: p.name, unitPriceBani: p.priceBani, quantity: it.quantity }
         })
         const signature = items.map(it => `${it.productId}x${it.quantity}`).sort().join('|')
-        const lines = items.map(it => `• ${it.quantity}× ${it.productName} — ${((it.unitPriceBani * it.quantity) / 100).toFixed(2)} lei`).join('\n')
+        const cur = curLabel(settings.currency)
+        const lines = items.map(it => `• ${it.quantity}× ${it.productName} — ${((it.unitPriceBani * it.quantity) / 100).toFixed(2)} ${cur}`).join('\n')
 
         // Anti-dublură: extractOrder primește tot istoricul, deci ar re-extrage aceeași
         // comandă la fiecare mesaj ulterior. Dacă există deja o comandă recentă identică,
@@ -221,7 +226,7 @@ async function sendAiResponse(userId: string, contactPhone: string, jid: string,
           logger.info(`[AI][${userId.slice(0, 8)}] comandă înregistrată`, { orderId: order.id, items: items.length, totalBani: order.totalBani })
 
           const totalLei = (order.totalBani / 100).toFixed(2)
-          const reply = `Am notat comanda ta:\n${lines}\n\n*Total: ${totalLei} lei*\n\nÎți confirmăm în scurt timp. Mulțumim!`
+          const reply = `Am notat comanda ta:\n${lines}\n\n*Total: ${totalLei} ${cur}*\n\nÎți confirmăm în scurt timp. Mulțumim!`
           await sock.sendMessage(jid, { text: reply })
           await aiRepository.saveMessage(userId, contactPhone, true, reply, Date.now(), true)
 
@@ -230,7 +235,7 @@ async function sendAiResponse(userId: string, contactPhone: string, jid: string,
           if (ownerJid) {
             const note = extracted.customerNote ? `\nNotă: ${extracted.customerNote}` : ''
             sock.sendMessage(ownerJid, {
-              text: `🛒 Comandă nouă de la +${contactPhone}\n${lines}\n\nTotal: ${totalLei} lei${note}\n\nVezi în dashboard.`,
+              text: `🛒 Comandă nouă de la +${contactPhone}\n${lines}\n\nTotal: ${totalLei} ${cur}${note}\n\nVezi în dashboard.`,
             }).catch(() => {})
           }
           return
@@ -240,7 +245,7 @@ async function sendAiResponse(userId: string, contactPhone: string, jid: string,
         const statusLabel = existing.status === 'pending' ? 'în așteptare de confirmare'
           : existing.status === 'confirmed' ? 'confirmată'
           : existing.status === 'completed' ? 'finalizată' : 'anulată'
-        activeOrderNote = `Clientul are deja o comandă înregistrată (${statusLabel}):\n${lines}\nTotal: ${(existing.totalBani / 100).toFixed(2)} lei.\nNU crea o comandă nouă și NU repeta confirmarea de înregistrare. Răspunde firesc la mesajul curent al clientului (ex: timp de livrare, modificări, când vine confirmarea). Dacă nu cunoști un detaliu exact, spune-i că proprietarul confirmă în scurt timp.`
+        activeOrderNote = `Clientul are deja o comandă înregistrată (${statusLabel}):\n${lines}\nTotal: ${(existing.totalBani / 100).toFixed(2)} ${cur}.\nNU crea o comandă nouă și NU repeta confirmarea de înregistrare. Răspunde firesc la mesajul curent al clientului (ex: timp de livrare, modificări, când vine confirmarea). Dacă nu cunoști un detaliu exact, spune-i că proprietarul confirmă în scurt timp.`
         logger.info(`[AI][${userId.slice(0, 8)}] comandă duplicată ignorată`, { orderId: existing.id })
       }
     } catch (err) {
@@ -257,7 +262,7 @@ async function sendAiResponse(userId: string, contactPhone: string, jid: string,
   }
   if (catalog.length > 0) {
     const catalogText = catalog
-      .map(p => `- ${p.name}${p.category ? ` (${p.category})` : ''}: ${(p.priceBani / 100).toFixed(2)} lei`)
+      .map(p => `- ${p.name}${p.category ? ` (${p.category})` : ''}: ${(p.priceBani / 100).toFixed(2)} ${curLabel(settings.currency)}`)
       .join('\n')
     systemPrompt += `\n\n---\n[Catalog produse — oferă doar din această listă, cu prețurile exacte. Dacă clientul vrea să comande, cere detaliile lipsă (cantitate, adresă).]\n${catalogText}`
   }

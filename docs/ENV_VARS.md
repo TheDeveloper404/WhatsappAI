@@ -108,11 +108,14 @@ openssl rand -hex 32
 
 | Mediu | Fișier | Note |
 |---|---|---|
-| Development | `apps/api/.env` | Nu se commitează niciodată |
+| Development local | `apps/api/.env` | Încărcat automat de cod. Valori sigure: `NODE_ENV=development`, DB locală, Stripe placeholder. Nu se commitează niciodată |
 | Teste API (vitest) | `vitest.config.ts` (hardcodat) | `DATABASE_URL=postgresql://localhost/whatsapp_ai_test` |
 | E2E Testing | Setate automat de Playwright | `E2E_MODE=true`, `DATABASE_URL=postgresql://localhost/whatsapp_ai_e2e` |
 | Production | Railway env vars | Nu se folosesc fișiere `.env` |
+| Backup producție | `apps/api/.env.production` | **DOAR referință** — NU este încărcat de cod. Ține valorile sincronizate cu Railway. Gitignored |
 
-> ⚠️ **NICIODATĂ** nu commita fișierul `.env`. Este în `.gitignore`.
+> ⚠️ **NICIODATĂ** nu commita `.env` sau `.env.production`. Ambele sunt în `.gitignore`.
+>
+> 🔒 `.env` (local) nu trebuie să conțină **niciun** secret de producție (fără `sk_live_`, fără DB Railway). Producția live trăiește exclusiv în Railway env vars.
 >
 > Setup DB și comenzi dev → vezi `DEV_SETUP.md`.

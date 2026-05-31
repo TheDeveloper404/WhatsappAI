@@ -189,6 +189,35 @@ Mesaj client: "${message.replace(/"/g, "'").slice(0, 500)}"`
   return 'BUSINESS'
 }
 
+// Confirmare comandă: decide dacă ULTIMUL mesaj al clientului confirmă explicit o comandă
+// pe care asistentul tocmai a propus-o (rezumat + „Vrei să confirm?"). Folosit ca poartă
+// înainte de a CREA comanda în DB. Fail-safe: la orice ambiguitate → false (nu creăm).
+export function parseConfirmation(raw: string): boolean {
+  return /\bDA\b/i.test(raw.trim())
+}
+
+export async function classifyOrderConfirmation(
+  messages: Array<{ fromMe: boolean; body: string }>,
+): Promise<boolean> {
+  const convoText = messages
+    .slice(-8)
+    .map(m => `${m.fromMe ? 'Asistent' : 'Client'}: ${m.body}`)
+    .join('\n')
+
+  const prompt = `Într-o conversație WhatsApp de business, asistentul a propus o comandă (rezumat cu produse și total) și a cerut confirmarea.
+
+CONVERSAȚIE:
+${convoText}
+
+Întrebare: ULTIMUL mesaj al CLIENTULUI confirmă explicit că vrea să plaseze/înregistreze comanda propusă (ex: „da", „confirm", „da, comand", „e ok, comand")?
+NU este confirmare dacă: clientul pune întrebări, cere modificări, dă detalii noi, negociază, sau mesajul e ambiguu.
+
+Răspunde DOAR cu un cuvânt: DA sau NU.`
+
+  const out = await callGroq([{ role: 'user', content: prompt }], { max_tokens: 5, temperature: 0 })
+  return parseConfirmation(out)
+}
+
 // Calificare lead: clasifică un contact pe baza conversației + criteriilor businessului.
 // Returnează status (hot/warm/cold), scor 0-100 și o justificare scurtă.
 // Doar clasifică — nu pune întrebări clientului. Codul validează strict output-ul.

@@ -1,5 +1,24 @@
 import { describe, it, expect } from 'vitest'
-import { parseLeadClassification } from './groq.client.js'
+import { parseLeadClassification, parseConfirmation } from './groq.client.js'
+
+// Poarta de confirmare comandă: doar „DA" (cuvânt întreg) creează comanda. Fail-safe la NU/ambiguu.
+describe('parseConfirmation', () => {
+  it('DA / da → true', () => {
+    expect(parseConfirmation('DA')).toBe(true)
+    expect(parseConfirmation('da')).toBe(true)
+    expect(parseConfirmation(' Da ')).toBe(true)
+  })
+  it('NU / text fără DA → false', () => {
+    expect(parseConfirmation('NU')).toBe(false)
+    expect(parseConfirmation('nu încă')).toBe(false)
+    expect(parseConfirmation('mai am o întrebare')).toBe(false)
+    expect(parseConfirmation('')).toBe(false)
+  })
+  it('nu se declanșează pe „da" ca substring (dată, dacă)', () => {
+    expect(parseConfirmation('dacă se poate')).toBe(false)
+    expect(parseConfirmation('la ce dată')).toBe(false)
+  })
+})
 
 // Testează DOAR validarea output-ului LLM (partea critică de securitate). Fără rețea.
 describe('parseLeadClassification', () => {

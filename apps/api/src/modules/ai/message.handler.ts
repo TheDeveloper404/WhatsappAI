@@ -1,7 +1,7 @@
 import type { WASocket } from '@whiskeysockets/baileys'
 import { downloadMediaMessage } from '@whiskeysockets/baileys'
 import { aiRepository } from './ai.repository.js'
-import { askGroq, extractContactMemory, transcribeAudio, classifyScopeLLM, extractOrder, type GroqMessage } from './groq.client.js'
+import { askGroq, extractContactMemory, transcribeAudio, classifyScopeLLM, extractOrder, classifyOrderConfirmation, type GroqMessage } from './groq.client.js'
 import { productsRepository } from '../orders/products.repository.js'
 import { ordersRepository } from '../orders/orders.repository.js'
 import { parseCommand, HELP_TEXT } from './command.parser.js'
@@ -32,6 +32,10 @@ function extractPhone(jid: string): string {
 // Eticheta monedei businessului (banii rămân integer subunitate; doar afișarea diferă).
 const CURRENCY_LABEL: Record<string, string> = { RON: 'lei', EUR: '€', USD: '$', GBP: '£' }
 const curLabel = (c: string) => CURRENCY_LABEL[c] ?? c
+
+// Marker (emoji rar) pus în mesajul de propunere a comenzii. Ne spune dacă AM propus deja
+// rezumatul, ca să nu-l retrimitem și să detectăm confirmarea în pasul următor.
+const ORDER_CONFIRM_MARKER = '🧾 *Vrei să confirm comanda?*'
 
 function isIndividualChat(jid: string): boolean {
   return jid.endsWith('@s.whatsapp.net') || jid.endsWith('@lid')
@@ -222,31 +226,55 @@ async function sendAiResponse(userId: string, contactPhone: string, jid: string,
         }
 
         if (!existing) {
-          const order = await ordersRepository.create(userId, contactPhone, items, extracted.customerNote)
-          logger.info(`[AI][${userId.slice(0, 8)}] comandă înregistrată`, { orderId: order.id, items: items.length, totalBani: order.totalBani })
+          const totalBani = items.reduce((s, it) => s + it.unitPriceBani * it.quantity, 0)
+          const totalLei = (totalBani / 100).toFixed(2)
+          // Am propus deja comanda? (ultimul mesaj al asistentului conține marker-ul de confirmare)
+          const lastAssistant = [...ordered].reverse().find(m => m.fromMe)?.body ?? ''
+          const alreadyProposed = lastAssistant.includes(ORDER_CONFIRM_MARKER)
 
-          const totalLei = (order.totalBani / 100).toFixed(2)
-          const reply = `Am notat comanda ta:\n${lines}\n\n*Total: ${totalLei} ${cur}*\n\nÎți confirmăm în scurt timp. Mulțumim!`
-          await sock.sendMessage(jid, { text: reply })
-          await aiRepository.saveMessage(userId, contactPhone, true, reply, Date.now(), true)
+          // Faza 1 flux conversațional: NU mai creăm comanda la prima intenție.
+          // O înregistrăm DOAR după ce clientul confirmă explicit rezumatul.
+          const confirmed = await classifyOrderConfirmation(ordered)
 
-          // Notifică owner-ul cu rezumatul comenzii (independent de throttle-ul de takeover)
-          const ownerJid = sock.user?.id
-          if (ownerJid) {
-            const note = extracted.customerNote ? `\nNotă: ${extracted.customerNote}` : ''
-            sock.sendMessage(ownerJid, {
-              text: `🛒 Comandă nouă de la +${contactPhone}\n${lines}\n\nTotal: ${totalLei} ${cur}${note}\n\nVezi în dashboard.`,
-            }).catch(() => {})
+          if (confirmed) {
+            const order = await ordersRepository.create(userId, contactPhone, items, extracted.customerNote)
+            logger.info(`[AI][${userId.slice(0, 8)}] comandă înregistrată`, { orderId: order.id, items: items.length, totalBani: order.totalBani })
+
+            const reply = `✅ Comanda ta a fost înregistrată:\n${lines}\n\n*Total: ${totalLei} ${cur}*\n\nÎți confirmăm în scurt timp. Mulțumim!`
+            await sock.sendMessage(jid, { text: reply })
+            await aiRepository.saveMessage(userId, contactPhone, true, reply, Date.now(), true)
+
+            // Notifică owner-ul cu rezumatul comenzii (independent de throttle-ul de takeover)
+            const ownerJid = sock.user?.id
+            if (ownerJid) {
+              const note = extracted.customerNote ? `\nNotă: ${extracted.customerNote}` : ''
+              sock.sendMessage(ownerJid, {
+                text: `🛒 Comandă nouă de la +${contactPhone}\n${lines}\n\nTotal: ${totalLei} ${cur}${note}\n\nVezi în dashboard.`,
+              }).catch(() => {})
+            }
+            return
           }
-          return
-        }
 
-        // Comandă deja existentă: nu o dublăm. Îi dăm AI-ului contextul ca să răspundă la mesaj.
-        const statusLabel = existing.status === 'pending' ? 'în așteptare de confirmare'
-          : existing.status === 'confirmed' ? 'confirmată'
-          : existing.status === 'completed' ? 'finalizată' : 'anulată'
-        activeOrderNote = `Clientul are deja o comandă înregistrată (${statusLabel}):\n${lines}\nTotal: ${(existing.totalBani / 100).toFixed(2)} ${cur}.\nNU crea o comandă nouă și NU repeta confirmarea de înregistrare. Răspunde firesc la mesajul curent al clientului (ex: timp de livrare, modificări, când vine confirmarea). Dacă nu cunoști un detaliu exact, spune-i că proprietarul confirmă în scurt timp.`
-        logger.info(`[AI][${userId.slice(0, 8)}] comandă duplicată ignorată`, { orderId: existing.id })
+          if (!alreadyProposed) {
+            // Prima detecție: propunem rezumatul și cerem confirmarea. NU creăm încă.
+            const reply = `${ORDER_CONFIRM_MARKER}\n\n${lines}\n\n*Total: ${totalLei} ${cur}*\n\nRăspunde cu *da* ca să înregistrez comanda, sau spune-mi ce vrei să ajustăm.`
+            await sock.sendMessage(jid, { text: reply })
+            await aiRepository.saveMessage(userId, contactPhone, true, reply, Date.now(), true)
+            return
+          }
+
+          // Am propus deja, dar clientul nu a confirmat — nu spamăm rezumatul.
+          // Lăsăm AI-ul să răspundă firesc la mesajul curent, cu contextul propunerii.
+          activeOrderNote = `Clientul are o comandă PROPUSĂ dar NEconfirmată:\n${lines}\nTotal: ${totalLei} ${cur}.\nRăspunde firesc la mesajul curent (întrebare, detalii, modificare). Dacă vrea să finalizeze, amintește-i scurt să confirme cu „da". NU crea comanda și NU inventa prețuri.`
+          logger.info(`[AI][${userId.slice(0, 8)}] comandă propusă, neconfirmată`)
+        } else {
+          // Comandă deja existentă: nu o dublăm. Îi dăm AI-ului contextul ca să răspundă la mesaj.
+          const statusLabel = existing.status === 'pending' ? 'în așteptare de confirmare'
+            : existing.status === 'confirmed' ? 'confirmată'
+            : existing.status === 'completed' ? 'finalizată' : 'anulată'
+          activeOrderNote = `Clientul are deja o comandă înregistrată (${statusLabel}):\n${lines}\nTotal: ${(existing.totalBani / 100).toFixed(2)} ${cur}.\nNU crea o comandă nouă și NU repeta confirmarea de înregistrare. Răspunde firesc la mesajul curent al clientului (ex: timp de livrare, modificări, când vine confirmarea). Dacă nu cunoști un detaliu exact, spune-i că proprietarul confirmă în scurt timp.`
+          logger.info(`[AI][${userId.slice(0, 8)}] comandă duplicată ignorată`, { orderId: existing.id })
+        }
       }
     } catch (err) {
       logger.error(`[AI][${userId.slice(0, 8)}] eroare extragere comandă`, { err: String(err) })

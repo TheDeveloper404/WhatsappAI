@@ -6,6 +6,14 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added (2026-05-31) — Comenzi: confirmare înainte de creare (flux conversațional, Faza 1)
+
+- **Problema** (din conversații reale, IMG_4091-93): AI-ul crea comanda *instant* la prima intenție vagă („vreau un website" → „Am notat comanda ta: 1000€") înainte să întrebe orice — penibil, exact ca la pizza. Clientul reacționa: „Păi nu mă întrebați de detalii?".
+- **Fix** (`message.handler.ts` + `groq.client.ts`): la prima detectare de produse, AI-ul **propune** un rezumat cu total și cere confirmarea (marker `ORDER_CONFIRM_MARKER`), **fără a crea** comanda. Comanda se înregistrează în DB **doar după** ce clientul confirmă explicit — verificat de `classifyOrderConfirmation` (apel Groq scurt, temp 0) cu poartă `parseConfirmation` (doar „DA" cuvânt-întreg → true; fail-safe la NU/ambiguu). Prețurile/totalul rămân din DB, niciodată din LLM.
+- Dacă a fost propusă dar neconfirmată, AI-ul răspunde firesc la mesajul curent (context injectat în prompt) și amintește scurt să confirme cu „da" — fără să spameze rezumatul.
+- Test nou: `parseConfirmation` în `lead.parser.test.ts`.
+- **Rămâne pentru fazele următoare** (din IMG_4091-93): `details` actualizabile pe comandă + „confirmarea" promisă clientului conectată cu schimbarea statusului în dashboard (mesaj automat la confirmare owner). Vezi `docs/FEATURE_ORDERS_CONVERSATIONAL.md`.
+
 ### Added (2026-05-31) — Calificare lead-uri (backend, Faza 1-2)
 
 - **Schema** — tabel nou `lead_insights` (userId, contactPhone, status `hot/warm/cold`, score 0-100, reason, timestamps; UNIQUE userId+contactPhone; index pe userId+score) + coloană `ai_settings.lead_criteria` (text liber: ce înseamnă un lead bun pentru acel business). Migrat în toate cele 4 locuri (`migration-statements.ts`, `schema.ts`, `app.ts` runStartupMigrations, `test/global-setup.ts` + cleanup în `test/setup.ts`).

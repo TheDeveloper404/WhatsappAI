@@ -40,3 +40,6 @@ npm-debug.log*
 # Reminder-uri și documente locale
 BAILEYS_UPDATE.md
 docs/
+
+# Backup valori producție (referință locală, nu se commitează)
+.env.production

@@ -42,12 +42,31 @@ pnpm --filter api test:watch
 pnpm --filter api test:coverage
 ```
 
+### Cerințe pentru testele API
+- **PostgreSQL pornit** — verifică: `& "C:\dev\apps\postgresql\18.4\bin\pg_ctl.exe" status -D "C:\dev\apps\postgresql\18.4\data"`
+- **DB `whatsapp_ai_test` (UTF-8)** — verifică cu `psql -l`; dacă lipsește, vezi secțiunea DB de mai sus.
+- **`pnpm install`** rulat.
+
+> ⚠️ **Capcană:** testele NU rulează migrările. `test/global-setup.ts` recreează schema cu `CREATE TABLE IF NOT EXISTS`, care **nu adaugă coloane noi** la un tabel deja existent. Pe un `whatsapp_ai_test` vechi, coloane ca `lead_criteria`/`currency` ar putea lipsi → teste picate local (dar OK în prod). `global-setup.ts` are deja `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` pentru cazurile cunoscute. Dacă pică pe coloane lipsă:
+> ```powershell
+> psql whatsapp_ai_test -c "ALTER TABLE ai_settings ADD COLUMN IF NOT EXISTS currency TEXT NOT NULL DEFAULT 'RON';"
+> psql whatsapp_ai_test -c "ALTER TABLE ai_settings ADD COLUMN IF NOT EXISTS lead_criteria TEXT NOT NULL DEFAULT '';"
+> ```
+
+Rulare țintită (un singur fișier):
+```powershell
+& "C:\dev\apps\postgresql\18.4\bin\pg_ctl.exe" start -D "C:\dev\apps\postgresql\18.4\data" -w
+pnpm --filter api test lead.parser
+pnpm --filter api test ai.integration
+```
+
 ## E2E Playwright
 
 ```powershell
 # Din apps/e2e/ — Playwright pornește API + web automat cu E2E_MODE=true
 cd D:\production_mode\WhatsappAI\apps\e2e
-pnpm exec playwright test
+pnpm exec playwright test           # toate
+pnpm exec playwright test settings  # țintit
 ```
 
 ## Stripe CLI

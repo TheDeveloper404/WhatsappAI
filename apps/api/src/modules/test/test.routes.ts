@@ -26,6 +26,7 @@ export async function testRoutes(app: FastifyInstance) {
   // Șterge tabelele în ordinea corectă (fk constraints), ignoring missing tables
   app.post('/reset', async (_req, reply) => {
     const tables = [
+      'lead_insights', 'order_items', 'orders', 'products',
       'notifications', 'conversation_messages', 'contacts_blacklist',
       'contact_memory', 'ai_settings', 'platform_config', 'whatsapp_sessions',
       'subscriptions', 'login_attempts', 'refresh_tokens', 'users',

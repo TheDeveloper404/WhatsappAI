@@ -22,6 +22,23 @@ function readApiAdminSecret(): string {
 const E2E_ADMIN_SECRET = process.env.E2E_ADMIN_SECRET ?? readApiAdminSecret()
 process.env.E2E_ADMIN_SECRET = E2E_ADMIN_SECRET
 
+// Rutele de test (/api/v1/test/*) cer header x-e2e-secret == env.E2E_SECRET pe API.
+// Citim valoarea din .env-ul API-ului și o expunem ȘI procesului de teste (pentru
+// helperii din helpers/api.ts), ca să nu primim 401 la resetDb()/createUser().
+function readApiE2eSecret(): string {
+  try {
+    const envPath = path.join(__dirname, '../api/.env')
+    const content = fs.readFileSync(envPath, 'utf-8')
+    const match = content.match(/^E2E_SECRET=(.+)$/m)
+    return match?.[1]?.trim() ?? ''
+  } catch {
+    return ''
+  }
+}
+
+const E2E_SECRET = process.env.E2E_SECRET ?? readApiE2eSecret()
+process.env.E2E_SECRET = E2E_SECRET
+
 export default defineConfig({
   testDir: './tests',
   fullyParallel: false,
@@ -54,6 +71,7 @@ export default defineConfig({
       timeout: 30_000,
       env: {
         E2E_MODE: 'true',
+        E2E_SECRET,
         DATABASE_URL: 'postgresql://localhost/whatsapp_ai_e2e',
         ADMIN_SECRET: E2E_ADMIN_SECRET,
       },

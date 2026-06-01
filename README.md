@@ -10,9 +10,13 @@ SaaS platform care conectează WhatsApp-ul unui business cu un agent AI. Agentul
 - **Personality cloning** — agentul analizează mesajele trimise anterior și mimează stilul de scriere al proprietarului
 - **Memorie per contact** — agentul reține informații despre fiecare client (nume, nevoi, context)
 - **Knowledge base** — informații despre business injectate în prompt (servicii, prețuri, program)
+- **RAG / documente** — owner-ul încarcă PDF/DOCX/TXT (max 10 MB); agentul caută în ele (embeddings Gemini + cosine în cod) și răspunde din conținutul real, fără să inventeze
 - **Comenzi prin WhatsApp** — catalog de produse (cu import CSV), AI extrage comanda din conversație, owner o gestionează în dashboard. Prețurile/totalul se calculează în cod din DB, niciodată de LLM
 - **Preț estimativ („de la")** — servicii pe proiect custom: agentul nu propune total fix, strânge cerințele și predă owner-ului pentru ofertă personalizată
 - **Programări** — servicii rezervabile (frizerie, clinică): agentul strânge serviciul + intervalul + numele, creează o programare și predă owner-ului confirmarea intervalului (pagina Programări)
+- **Calificare lead-uri** — fiecare contact e clasificat automat hot/warm/cold (scor + justificare) după criteriile owner-ului; AI-ul doar clasifică, validarea output-ului e în cod (pagina Lead-uri)
+- **Vision (citește poze)** — clientul trimite o imagine (ex. captură de comandă); agentul extrage datele relevante (Gemini vision, procesare in-memory)
+- **Email confirmare comandă** — la cerere, clientul primește un email cu rezumatul comenzii (Resend); datele sunt pre-formatate în cod, nu de LLM
 - **Gatekeeper business-only** — refuză cereri off-topic (bancuri, rețete) și prompt injection (keyword + LLM)
 - **Statistici & metrici** — activitate AI (azi/7z/lună) + performanță agent (rată rezolvare, escaladări, grafic 7 zile)
 - **Transcriere vocale** — mesajele audio sunt transcrise automat (Groq Whisper)
@@ -32,7 +36,10 @@ SaaS platform care conectează WhatsApp-ul unui business cu un agent AI. Agentul
 - Token hash stocat în DB (compromiterea DB nu expune tokens)
 - XSS escaping în toate emailurile trimise
 - PII exclus din loguri de producție
-- E2E_MODE blocat în producție
+- E2E_MODE blocat în producție (rute de test dublu-gated: `NODE_ENV !== 'production'` + header `x-e2e-secret`)
+- IDOR-safe: toate resursele scopate pe `userId`, cu verificare de proprietate înainte de update/delete
+- Stripe webhook cu verificare de semnătură (raw body) + deduplicare evenimente
+- Audit securitate (2026-06-02): Semgrep (~200 reguli OWASP/secrets/security-audit) + review manual → 0 vulnerabilități
 
 ## Comenzi WhatsApp
 
@@ -58,7 +65,7 @@ Controlezi agentul direct din WhatsApp, trimițindu-ți ție însuți comenzi:
 | Backend | Fastify 4, Node.js 24, TypeScript |
 | Frontend | Next.js 14 App Router, Tailwind CSS, Zustand |
 | Bază de date | PostgreSQL, Drizzle ORM |
-| AI | Groq (Llama 3.3 70B) sau Gemini 2.0 Flash — comutabil via `LLM_PROVIDER`; voce mereu pe Groq Whisper |
+| AI | Groq (Llama 3.3 70B) sau Gemini 2.5 Flash — comutabil via `LLM_PROVIDER`; voce mereu pe Groq Whisper; vision + embeddings (RAG) pe Gemini |
 | WhatsApp | Baileys (`@whiskeysockets/baileys`) |
 | Email | Resend |
 | Plăți | Stripe |
@@ -80,6 +87,7 @@ docs/
   DEV_SETUP.md        — comenzi dev și setup local
   RUNBOOK.md          — proceduri de incident
   env_vars.md         — documentație variabile de mediu
+  security.md         — audit de securitate + postură (Semgrep + review manual)
 ```
 
 ## Rulare locală

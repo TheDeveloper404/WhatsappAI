@@ -115,7 +115,7 @@ function Hero() {
             <span className="relative flex w-1.5 h-1.5">
               <span className="absolute inline-flex w-full h-full rounded-full bg-acid pulse-dot" />
             </span>
-            Versiune Beta · fii primul din nișa ta
+            Versiunea 1.1 · fii primul din nișa ta
             <span className="text-dimmer">→</span>
           </a>
         </div>
@@ -126,8 +126,8 @@ function Hero() {
           când nu <em className="not-italic text-acid">răspunzi.</em>
         </h1>
 
-        <p className="mt-8 text-[18px] text-dim max-w-[500px] mx-auto leading-relaxed">
-          AI-ul care preia automat conversațiile și păstrează experiența personală a brandului tău.
+        <p className="mt-8 text-[18px] text-dim max-w-[560px] mx-auto leading-relaxed">
+          Agentul AI care preia conversațiile, comenzile și programările pe WhatsApp — în stilul brandului tău, non-stop.
         </p>
 
         {/* CTAs */}
@@ -438,37 +438,32 @@ function Differentiator() {
       <div className="absolute inset-0 gridlines opacity-20 pointer-events-none" />
       <div className="max-w-[1440px] mx-auto px-6 lg:px-8 relative">
 
-        {/* Header row */}
-        <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 mb-16">
-          <div>
-            <div className="font-mono-ui text-[11px] text-acid tracking-widest mb-6">§03 — HIGHLIGHTS</div>
-            <h2 className="font-display text-[34px] sm:text-[56px] lg:text-[80px] text-ink">
-              mult mai mult<br />
-              <span className="text-dim">decât un</span><br />
-              <span className="text-acid">simplu bot.</span>
-            </h2>
-          </div>
-          <div className="flex items-end pb-2">
-            <p className="text-[16px] text-dim leading-relaxed">
-              Agentul nu doar răspunde — <strong className="text-ink">știe ce vinzi, cine cumpără și ce scrie în documentele tale.</strong> Trei capabilități care îl transformă dintr-un chatbot într-un <strong className="text-acid">coleg de business.</strong>
-            </p>
-          </div>
+        {/* Statement — un singur enunț, urmat de 3 dovezi (nu carduri) */}
+        <div className="max-w-[920px] mb-14">
+          <div className="font-mono-ui text-[11px] text-acid tracking-widest mb-6">§03 — DINCOLO DE RĂSPUNSURI</div>
+          <h2 className="font-display text-[32px] sm:text-[52px] lg:text-[72px] text-ink leading-[1.05]">
+            nu doar răspunde la mesaje.{' '}
+            <span className="text-acid">vinde, califică și răspunde din documentele tale.</span>
+          </h2>
+          <p className="mt-6 text-[16px] text-dim leading-relaxed max-w-[560px]">
+            Trei lucruri pe care un autoresponder nu le face niciodată — și care îl transformă dintr-un bot într-un coleg de business.
+          </p>
         </div>
 
-        {/* Highlight cards */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {/* Cele 3 dovezi — rânduri, nu carduri */}
+        <div className="divide-y border-t border-b" style={{ borderColor: 'var(--line)' }}>
           {HIGHLIGHTS.map(({ icon: Icon, tag, title, desc, detail }) => (
-            <div key={tag} className="card-elevated rounded-2xl p-6 flex flex-col transition-transform duration-300 hover:-translate-y-1.5 hover:shadow-xl">
-              <div className="flex items-center gap-2.5 mb-5">
-                <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl"
-                  style={{ background: 'color-mix(in oklab, var(--acid) 16%, var(--card-hi))' }}>
-                  <Icon className="h-4 w-4 text-acid" />
-                </span>
-                <span className="font-mono-ui text-[10px] text-acid tracking-widest">{tag}</span>
+            <div key={tag} className="grid grid-cols-[44px_1fr] sm:grid-cols-[44px_260px_1fr_auto] items-center gap-4 sm:gap-8 py-6 group hover:bg-cardhi transition-colors px-2 rounded">
+              <span className="inline-flex items-center justify-center w-10 h-10 rounded-xl"
+                style={{ background: 'color-mix(in oklab, var(--acid) 16%, var(--card-hi))' }}>
+                <Icon className="h-4 w-4 text-acid" />
+              </span>
+              <div>
+                <div className="font-mono-ui text-[10px] text-acid tracking-widest mb-1">{tag}</div>
+                <h3 className="font-display text-[20px] sm:text-[22px] text-ink leading-tight">{title}</h3>
               </div>
-              <h3 className="font-display text-[22px] text-ink mb-3 leading-tight">{title}</h3>
-              <p className="text-[14px] text-dim leading-relaxed flex-1">{desc}</p>
-              <div className="mt-5 pt-4 border-t border-line">{detail}</div>
+              <p className="hidden sm:block text-[14px] text-dim leading-relaxed">{desc}</p>
+              <div className="hidden sm:flex items-center justify-end">{detail}</div>
             </div>
           ))}
         </div>
@@ -895,7 +890,7 @@ function Pricing() {
                 </div>
                 <div className="text-right">
                   <div className="font-display text-[36px] leading-none" style={{ color: 'var(--on-acid)' }}>
-                    399
+                    399<span className="text-[22px]">.99</span>
                   </div>
                   <div className="font-mono-ui text-[10px]" style={{ color: 'var(--on-acid-muted)' }}>RON / an</div>
                 </div>

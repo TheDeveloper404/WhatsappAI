@@ -4,6 +4,7 @@ import { useAuthStore } from '@/store/auth'
 import { api, type Order, type OrderStatus } from '@/lib/api'
 import { formatAmount, currencyLabel } from '@/lib/format'
 import { Loader2, ShoppingCart, ChevronDown, Trash2 } from 'lucide-react'
+import { SalesTabs } from '@/components/SalesTabs'
 
 function formatDate(ts: number): string {
   return new Date(ts).toLocaleString('ro-RO', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
@@ -101,6 +102,7 @@ export default function OrdersPage() {
 
   return (
     <div>
+      <SalesTabs />
       <div className="mb-8">
         <h1 className="font-display text-[32px] text-ink leading-none">Comenzi</h1>
         <p className="font-mono-ui text-[13px] text-dim mt-1">

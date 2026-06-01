@@ -8,10 +8,13 @@
 | Backend | Fastify, TypeScript, Drizzle ORM |
 | Database | PostgreSQL (Railway) |
 | WhatsApp | Baileys (Signal Protocol) |
-| AI | Groq (LLaMA) |
+| AI — text | Groq Llama 3.3 70B (default) · Gemini 2.5 Flash (opțional, prin `LLM_PROVIDER=gemini`) |
+| AI — voce | Groq Whisper Large V3 (mereu pe Groq, indiferent de `LLM_PROVIDER`) |
+| AI — vision | Gemini 2.5 Flash (citire imagini la comandă) |
+| AI — embeddings (RAG) | Gemini `text-embedding-004` |
 | Email | Resend |
 | Payments | Stripe |
-| Deploy | Vercel (web) + Railway (api) |
+| Deploy | Vercel (web) + Railway (api) + Cloudflare (DNS/CDN/HTTPS) |
 
 ---
 
@@ -107,6 +110,8 @@ Toate culorile și fonturile sunt definite ca variabile CSS și mapate în Tailw
 
 Dark mode: clasa `html.dark` + `localStorage['wa-ai-theme']`.
 
+**Fonturi:** self-hostate prin `next/font/google` (Space Grotesk + Geist Mono, expuse ca `--font-space-grotesk` / `--font-geist-mono`, cu `latin-ext` pentru diacritice RO). NU se mai încarcă prin `<link>` sincron spre Google Fonts (bloca randarea ~2s pe mobil). `globals.css` are și `html, body { overflow-x: clip }` — guard contra „shrink-to-fit" pe Safari iOS.
+
 ---
 
 ### 8. Statistici AI — fus orar și fereastră de timp
@@ -138,3 +143,30 @@ Necesar mai ales înainte de a adăuga logică **ne-idempotentă** (contoare, em
 - **Nu se sincronizează** între instanțe multiple.
 
 Acceptabil pe Railway single-instance. **Blocaj la scalare orizontală** — soluția ar fi mutarea pe Redis/DB. De abordat doar când se trece la 2+ instanțe.
+
+---
+
+## Module funcționale livrate (decizii-cheie)
+
+Conversația cu clientul e orchestrată în `message.handler.ts`, care ramifică pe trei moduri de tranzacție în funcție de cum e marcat produsul. Deciziile non-evidente, per modul:
+
+### 11. Comenzi (`modules/orders/`)
+- **Banii se calculează în COD, niciodată de LLM.** `analyzeOrderIntent` (Groq, temp 0) doar *clasifică* faza (none/collecting/ready) și mapează pe catalog; totalul se compune din prețurile reale din DB. Previne ca modelul să inventeze prețuri.
+- **Stoc scăzut atomic** (`decrementStock`, `WHERE stock >= qty`) la confirmare — previne supravânzarea pe ultimul produs (race a 2 clienți). Produse `stock = NULL` = nelimitat (servicii).
+- `public_ref` (`ord_xxx`) ca „număr de bon" lizibil; UUID-ul rămâne intern.
+
+### 12. Programări (`modules/orders/appointments.*`)
+- Flag `products.isBookable`. `analyzeBookingIntent` strânge serviciu + interval (text liber) + nume → creează programare `pending` → notifică owner-ul „📅 Programare nouă". **Handoff ușor: owner-ul confirmă intervalul** (AI-ul NU confirmă singur — nu există verificare de disponibilitate). Auto-confirmare cu disponibilitate reală/calendar = B6 în BACKLOG.
+
+### 13. Calificare lead-uri (`classifyLead` în `groq.client.ts`)
+- LLM-ul *doar clasifică* (hot/warm/cold + scor 0-100 + justificare), pe baza `ai_settings.lead_criteria` (text liber per business). **Output-ul e validat strict în cod** (`parseLeadClassification`: scor plafonat, status validat, fallback `cold`). Tabel `lead_insights`.
+
+### 14. RAG / documente (`modules/knowledge/`)
+- Owner-ul încarcă PDF/DOCX/TXT (max 10 MB) → text extras → embeddings Gemini `text-embedding-004`, stocate ca `jsonb`. La retrieval, **cosine similarity calculat în cod** (fără pgvector), top-3 peste prag, **fail-open** (eroare embeddings nu blochează răspunsul). Tabele `documents`, `document_chunks`.
+
+### 15. Vision + Preț estimativ
+- **Vision:** `extractFromImage` (Gemini) — imagine procesată **base64 in-memory**, doar `image/*`, fără conținut în loguri (PII), fail-open fără cheie.
+- **Preț estimativ:** flag `products.isEstimate` → agentul NU dă total fix / NU înregistrează comandă; rămâne în discovery și face handoff tăcut „📌 Lead nou (ofertă custom)".
+
+### 16. Navigare dashboard (web)
+- Meniu **fix pe desktop (sidebar) / drawer pe mobil**, grupat în 5 intrări: Principal (Dashboard · Conversații · Vânzări) + Cont (Setări · Profil). „Conversații" și „Vânzări" sunt **tab-uri pe bază de rută** (`ConversationsTabs` → conversations/leads; `SalesTabs` → products/orders/appointments) — paginile rămân rute independente, doar grupate vizual. Conectarea WhatsApp e inline în pagina Dashboard (nu mai există rută `/connect`).

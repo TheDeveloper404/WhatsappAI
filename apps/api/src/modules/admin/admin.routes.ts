@@ -4,19 +4,27 @@ import { env } from '../../config/env.js'
 import { Errors } from '../../utils/errors.js'
 import { sendCustomEmail } from '../../utils/email.js'
 import { logger } from '../../utils/logger.js'
+import { timingSafeEqual } from 'crypto'
+
+// Comparație constant-time pentru secretul de admin — evită timing side-channel.
+function secretsMatch(provided: string, expected: string): boolean {
+  const a = Buffer.from(provided)
+  const b = Buffer.from(expected)
+  return a.length === b.length && timingSafeEqual(a, b)
+}
 
 function verifyAdminToken(req: { headers: { authorization?: string } }) {
   const header = req.headers.authorization
   if (!header?.startsWith('Bearer ')) throw Errors.unauthorized('Token admin lipsă.')
   const token = header.slice(7)
-  if (!env.ADMIN_SECRET || token !== env.ADMIN_SECRET) throw Errors.unauthorized('Token admin invalid.')
+  if (!env.ADMIN_SECRET || !secretsMatch(token, env.ADMIN_SECRET)) throw Errors.unauthorized('Token admin invalid.')
 }
 
 export async function adminRoutes(app: FastifyInstance) {
   // POST /admin/auth
   app.post('/auth', { config: { rateLimit: { max: 10, timeWindow: '15 minutes' } } }, async (req, reply) => {
     const { secret } = req.body as { secret?: string }
-    if (!secret || !env.ADMIN_SECRET || secret !== env.ADMIN_SECRET) {
+    if (!secret || !env.ADMIN_SECRET || !secretsMatch(secret, env.ADMIN_SECRET)) {
       throw Errors.unauthorized('Cod incorect.')
     }
     return reply.send({ ok: true })

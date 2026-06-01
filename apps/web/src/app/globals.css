@@ -36,10 +36,16 @@ html.dark {
 
 /* ─── BASE ───────────────────────────────────────────────────────── */
 html { scroll-behavior: smooth; }
+
+/* iOS Safari face „shrink-to-fit": dacă orice element depășește cu un pic
+   lățimea ecranului, micșorează TOATĂ pagina (pare că dai zoom-out) în loc
+   să pună scroll orizontal. `overflow-x: clip` taie overflow-ul marginal fără
+   să strice `position: sticky` (cum ar face `overflow: hidden`). */
+html, body { overflow-x: clip; }
 body {
   background: var(--bg);
   color: var(--ink);
-  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-family: var(--font-space-grotesk), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   font-feature-settings: 'ss01','ss02';
 }
@@ -52,9 +58,9 @@ body {
 }
 
 /* ─── TYPOGRAPHY ─────────────────────────────────────────────────── */
-.font-display { font-family: 'Geist Mono', ui-monospace, monospace; letter-spacing: -0.04em; line-height: 0.92; font-weight: 700; }
-.font-display-md { font-family: 'Geist Mono', ui-monospace, monospace; letter-spacing: -0.03em; line-height: 0.96; font-weight: 600; }
-.font-mono-ui { font-family: 'Geist Mono', ui-monospace, monospace; font-feature-settings: 'zero'; }
+.font-display { font-family: var(--font-geist-mono), ui-monospace, monospace; letter-spacing: -0.04em; line-height: 0.92; font-weight: 700; }
+.font-display-md { font-family: var(--font-geist-mono), ui-monospace, monospace; letter-spacing: -0.03em; line-height: 0.96; font-weight: 600; }
+.font-mono-ui { font-family: var(--font-geist-mono), ui-monospace, monospace; font-feature-settings: 'zero'; }
 
 /* ─── SURFACE HELPERS ────────────────────────────────────────────── */
 .card-glass { background: linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.005)); border: 1px solid var(--line); }

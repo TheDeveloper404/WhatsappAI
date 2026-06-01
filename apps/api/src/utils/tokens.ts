@@ -1,4 +1,4 @@
-import { createHmac, randomBytes } from 'crypto'
+import { createHmac, randomBytes, timingSafeEqual } from 'crypto'
 import { env } from '../config/env.js'
 
 // Parses "15m" → ms, "7d" → ms
@@ -31,8 +31,13 @@ function verify(token: string, secret: string): TokenPayload {
   const parts = token.split('.')
   if (parts.length !== 3) throw new Error('Invalid token structure')
   const [header, body, sig] = parts
-  const expected = createHmac('sha256', secret).update(`${header}.${body}`).digest('base64url')
-  if (sig !== expected) throw new Error('Invalid token signature')
+  // Comparație constant-time a semnăturii — evită timing side-channel pe HMAC.
+  const expected = createHmac('sha256', secret).update(`${header}.${body}`).digest()
+  let provided: Buffer
+  try { provided = Buffer.from(sig, 'base64url') } catch { throw new Error('Invalid token signature') }
+  if (provided.length !== expected.length || !timingSafeEqual(provided, expected)) {
+    throw new Error('Invalid token signature')
+  }
   const payload = JSON.parse(Buffer.from(body, 'base64url').toString()) as TokenPayload
   if (Date.now() > payload.exp * 1000) throw new Error('Token expired')
   return payload

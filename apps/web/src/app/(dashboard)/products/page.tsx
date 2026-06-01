@@ -5,6 +5,7 @@ import { api, type Product } from '@/lib/api'
 import { parseCsv, rowsToProducts, type ParsedProduct } from '@/lib/csv'
 import { formatAmount, currencyLabel } from '@/lib/format'
 import { Loader2, Plus, Pencil, Trash2, X, Package, Save, Upload, FileSpreadsheet } from 'lucide-react'
+import { SalesTabs } from '@/components/SalesTabs'
 
 const inputCls = 'w-full rounded-xl border border-line px-3 py-2.5 text-[13px] text-ink bg-cardhi focus:outline-none focus:ring-2 focus:ring-acid/40 focus:border-acid transition-colors'
 
@@ -190,6 +191,7 @@ export default function ProductsPage() {
 
   return (
     <div>
+      <SalesTabs />
       <div className="mb-8 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
           <h1 className="font-display text-[32px] text-ink leading-none">Catalog produse</h1>

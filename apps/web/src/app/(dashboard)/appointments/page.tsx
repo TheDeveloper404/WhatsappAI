@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useAuthStore } from '@/store/auth'
 import { api, type Appointment, type AppointmentStatus } from '@/lib/api'
 import { Loader2, CalendarClock, ChevronDown, Trash2 } from 'lucide-react'
+import { SalesTabs } from '@/components/SalesTabs'
 
 function formatDate(ts: number): string {
   return new Date(ts).toLocaleString('ro-RO', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
@@ -93,6 +94,7 @@ export default function AppointmentsPage() {
 
   return (
     <div>
+      <SalesTabs />
       <div className="mb-8">
         <h1 className="font-display text-[32px] text-ink leading-none">Programări</h1>
         <p className="font-mono-ui text-[13px] text-dim mt-1">

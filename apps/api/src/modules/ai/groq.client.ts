@@ -2,7 +2,7 @@ import { env } from '../../config/env.js'
 
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions'
 const GROQ_WHISPER_URL = 'https://api.groq.com/openai/v1/audio/transcriptions'
-const GEMINI_MODEL = 'gemini-2.0-flash'
+const GEMINI_MODEL = 'gemini-2.5-flash'
 const GEMINI_EMBED_MODEL = 'text-embedding-004'
 // Gemini batchEmbedContents acceptă max 100 cereri/apel — împărțim în loturi.
 const EMBED_BATCH = 100

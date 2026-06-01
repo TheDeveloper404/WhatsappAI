@@ -1,7 +1,21 @@
 import type { Metadata, Viewport } from "next";
+import { Space_Grotesk, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { CookieBanner } from "@/components/CookieBanner";
 import { Analytics } from "@vercel/analytics/next";
+
+// Fonturi self-hostate prin next/font (non-blocking) — înlocuiesc <link> sincron spre Google Fonts,
+// care bloca randarea (~2s pe mobil în Lighthouse). `latin-ext` = diacritice românești (ș/ț/ă/â/î).
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin", "latin-ext"],
+  variable: "--font-space-grotesk",
+  display: "swap",
+});
+const geistMono = Geist_Mono({
+  subsets: ["latin", "latin-ext"],
+  variable: "--font-geist-mono",
+  display: "swap",
+});
 
 export const viewport: Viewport = {
   themeColor: '#0d0d0d',
@@ -50,12 +64,9 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="ro" suppressHydrationWarning>
+    <html lang="ro" className={`${spaceGrotesk.variable} ${geistMono.variable}`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-        <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
       </head>
       <body className="antialiased font-sans bg-base text-ink">
         {children}

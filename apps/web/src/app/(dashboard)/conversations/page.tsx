@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useAuthStore } from '@/store/auth'
 import { api, API_URL, type Conversation, type ConversationMessage } from '@/lib/api'
 import { Loader2, MessageSquare, ChevronDown, ChevronUp, Trash2, RefreshCw } from 'lucide-react'
+import { ConversationsTabs } from '@/components/ConversationsTabs'
 
 function formatTime(ts: number) {
   const d = new Date(ts)
@@ -188,6 +189,7 @@ export default function ConversationsPage() {
 
   return (
     <div>
+      <ConversationsTabs />
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="font-display text-[32px] text-ink leading-none">Conversații</h1>

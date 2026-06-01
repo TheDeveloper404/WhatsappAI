@@ -4,7 +4,7 @@ import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuthStore } from '@/store/auth'
 import { api } from '@/lib/api'
-import { Loader2, LayoutDashboard, MessageSquare, Settings, User, LogOut, Package, ShoppingCart, CalendarClock, Flame, Menu, X } from 'lucide-react'
+import { Loader2, LayoutDashboard, MessageSquare, Settings, User, LogOut, ShoppingCart, Menu, X } from 'lucide-react'
 import { ThemeToggle } from '@/components/ThemeToggle'
 
 function WaIcon({ size = 16 }: { size?: number }) {
@@ -15,18 +15,104 @@ function WaIcon({ size = 16 }: { size?: number }) {
   )
 }
 
-const NAV_LINKS = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/conversations', label: 'Conversații', icon: MessageSquare },
-  { href: '/products', label: 'Catalog', icon: Package },
-  { href: '/orders', label: 'Comenzi', icon: ShoppingCart },
-  { href: '/appointments', label: 'Programări', icon: CalendarClock },
-  { href: '/leads', label: 'Lead-uri', icon: Flame },
-  { href: '/settings', label: 'Setări', icon: Settings },
-  { href: '/profile', label: 'Profil', icon: User },
+// Navigare grupată pe secțiuni + descriere scurtă (ca userul să știe la ce e fiecare).
+// Sursă unică pentru sidebar (desktop) și drawer (mobil).
+// `match` = când e activă o intrare care acoperă mai multe rute (ex. Vânzări = catalog/comenzi/programări).
+type NavItem = { href: string; label: string; desc: string; icon: typeof LayoutDashboard; match?: (p: string) => boolean }
+const SALES_PATHS = ['/products', '/orders', '/appointments']
+const INBOX_PATHS = ['/conversations', '/leads']
+const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
+  {
+    title: 'Principal',
+    items: [
+      { href: '/dashboard', label: 'Dashboard', desc: 'Privire de ansamblu și metrici', icon: LayoutDashboard },
+      { href: '/conversations', label: 'Conversații', desc: 'Mesaje și lead-uri', icon: MessageSquare, match: p => INBOX_PATHS.includes(p) },
+      { href: '/products', label: 'Vânzări', desc: 'Catalog, comenzi și programări', icon: ShoppingCart, match: p => SALES_PATHS.includes(p) },
+    ],
+  },
+  {
+    title: 'Cont',
+    items: [
+      { href: '/settings', label: 'Setări', desc: 'Configurarea agentului AI', icon: Settings },
+      { href: '/profile', label: 'Profil', desc: 'Cont, parolă și abonament', icon: User },
+    ],
+  },
 ]
 
-// Drawer de navigare — același pe desktop și mobile (deschis prin hamburger din top bar).
+// Un rând de navigare (folosit în sidebar și drawer).
+function NavRow({ item, active, onClick }: { item: NavItem; active: boolean; onClick?: () => void }) {
+  const Icon = item.icon
+  return (
+    <Link
+      href={item.href}
+      onClick={onClick}
+      className={`flex items-start gap-3 px-3 py-2.5 rounded-xl transition-colors ${
+        active ? 'bg-cardhi text-ink' : 'text-dim hover:text-ink hover:bg-cardhi'
+      }`}
+    >
+      <Icon className={`h-5 w-5 flex-shrink-0 mt-0.5 ${active ? 'text-acid' : ''}`} />
+      <span className="min-w-0">
+        <span className="block font-mono-ui text-[14px] leading-tight">{item.label}</span>
+        <span className="block font-mono-ui text-[10.5px] text-dimmer leading-tight mt-0.5 truncate">{item.desc}</span>
+      </span>
+    </Link>
+  )
+}
+
+// Conținutul navigării (grupuri + descrieri), refolosit de sidebar și drawer.
+function NavGroups({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {
+  return (
+    <nav className="flex-1 p-3 space-y-4 overflow-y-auto">
+      {NAV_GROUPS.map(group => (
+        <div key={group.title}>
+          <p className="px-3 mb-1 font-mono-ui text-[9px] font-semibold tracking-widest uppercase text-dimmer">
+            {group.title}
+          </p>
+          <div className="space-y-0.5">
+            {group.items.map(item => (
+              <NavRow
+                key={item.href}
+                item={item}
+                active={item.match ? item.match(pathname) : pathname === item.href}
+                onClick={onNavigate}
+              />
+            ))}
+          </div>
+        </div>
+      ))}
+    </nav>
+  )
+}
+
+function BrandLink({ size = 'sm', onClick }: { size?: 'sm' | 'lg'; onClick?: () => void }) {
+  const circle = size === 'lg' ? 'w-8 h-8' : 'w-7 h-7'
+  const text = size === 'lg' ? 'text-[18px]' : 'text-[16px]'
+  return (
+    <Link href="/dashboard" onClick={onClick} className="flex items-center gap-2.5">
+      <span className={`inline-flex items-center justify-center ${circle} rounded-full flex-shrink-0`} style={{ background: '#25D366' }}>
+        <WaIcon size={size === 'lg' ? 18 : 16} />
+      </span>
+      <span className={`font-mono-ui ${text} font-semibold text-ink`}>
+        wa<span className="text-acid">ai.</span>
+      </span>
+    </Link>
+  )
+}
+
+// Sidebar FIX pe desktop (nu mai dispare la schimbarea paginii). Ascuns pe mobil.
+// Doar brand + navigare; theme/deconectare rămân în top bar (ca înainte).
+function Sidebar({ pathname }: { pathname: string }) {
+  return (
+    <aside className="hidden lg:flex fixed left-0 top-0 z-30 h-full w-[260px] bg-base border-r border-line flex-col">
+      <div className="px-5 py-4 border-b border-line">
+        <BrandLink size="lg" />
+      </div>
+      <NavGroups pathname={pathname} />
+    </aside>
+  )
+}
+
+// Drawer de navigare — DOAR pe mobil (deschis prin hamburger din top bar).
 function NavDrawer({
   open, onClose, pathname, userEmail,
 }: {
@@ -48,7 +134,7 @@ function NavDrawer({
   }, [open, onClose])
 
   return (
-    <>
+    <div className="lg:hidden">
       {/* Overlay */}
       <div
         className={`fixed inset-0 z-40 bg-black/40 backdrop-blur-sm transition-opacity duration-200 ${
@@ -69,14 +155,7 @@ function NavDrawer({
       >
         {/* Header drawer */}
         <div className="px-5 py-4 border-b border-line flex items-center justify-between">
-          <Link href="/dashboard" onClick={onClose} className="flex items-center gap-2.5">
-            <span className="inline-flex items-center justify-center w-8 h-8 rounded-full flex-shrink-0" style={{ background: '#25D366' }}>
-              <WaIcon size={18} />
-            </span>
-            <span className="font-mono-ui text-[18px] font-semibold text-ink">
-              wa<span className="text-acid">ai.</span>
-            </span>
-          </Link>
+          <BrandLink size="lg" onClick={onClose} />
           <button
             onClick={onClose}
             className="p-2 text-dimmer hover:text-ink hover:bg-cardhi rounded-lg transition-colors"
@@ -86,44 +165,26 @@ function NavDrawer({
           </button>
         </div>
 
-        {/* Nav */}
-        <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
-          {NAV_LINKS.map(({ href, label, icon: Icon }) => {
-            const active = pathname === href
-            return (
-              <Link
-                key={href}
-                href={href}
-                onClick={onClose}
-                className={`flex items-center gap-3 px-3 py-3 rounded-xl font-mono-ui text-[14px] transition-colors ${
-                  active ? 'bg-cardhi text-ink' : 'text-dim hover:text-ink hover:bg-cardhi'
-                }`}
-              >
-                <Icon className={`h-5 w-5 flex-shrink-0 ${active ? 'text-acid' : ''}`} />
-                {label}
-              </Link>
-            )
-          })}
-        </nav>
+        <NavGroups pathname={pathname} onNavigate={onClose} />
 
-        {/* Bottom — doar email (toggle + deconectare au trecut în top bar, ca în admin) */}
+        {/* Bottom — doar email (toggle + deconectare sunt în top bar pe mobil) */}
         {userEmail && (
           <div className="p-3 border-t border-line">
             <p className="font-mono-ui text-[11px] text-dimmer px-3 py-1 truncate">{userEmail}</p>
           </div>
         )}
       </aside>
-    </>
+    </div>
   )
 }
 
-// Top bar consistent — același pe desktop și mobile.
-// ThemeToggle + deconectare sunt aici, în dreapta (la fel ca în pagina de admin).
+// Top bar — theme + deconectare în dreapta (ca înainte). Pe mobil are și hamburger + brand;
+// pe desktop brand-ul e în sidebar, deci stânga rămâne goală.
 function TopBar({ onMenu, onLogout }: { onMenu: () => void; onLogout: () => void }) {
   return (
-    <header className="sticky top-0 z-30 border-b border-line bg-base/90 backdrop-blur-sm">
+    <header className="sticky top-0 z-20 border-b border-line bg-base/90 backdrop-blur-sm">
       <div className="flex items-center justify-between gap-3 px-4 py-3">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 lg:hidden">
           <button
             onClick={onMenu}
             className="p-2 -ml-1 text-dim hover:text-ink hover:bg-cardhi rounded-lg transition-colors"
@@ -131,17 +192,10 @@ function TopBar({ onMenu, onLogout }: { onMenu: () => void; onLogout: () => void
           >
             <Menu className="h-5 w-5" />
           </button>
-          <Link href="/dashboard" className="flex items-center gap-2">
-            <span className="inline-flex items-center justify-center w-7 h-7 rounded-full" style={{ background: '#25D366' }}>
-              <WaIcon size={16} />
-            </span>
-            <span className="font-mono-ui text-[16px] font-semibold text-ink">
-              wa<span className="text-acid">ai.</span>
-            </span>
-          </Link>
+          <BrandLink size="sm" />
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 ml-auto">
           <ThemeToggle />
           <button
             onClick={onLogout}
@@ -165,7 +219,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const subVerified = useRef(false)
 
-  // Închide meniul la schimbarea paginii
+  // Închide meniul (drawer mobil) la schimbarea paginii
   useEffect(() => { setMenuOpen(false) }, [pathname])
 
   useEffect(() => {
@@ -235,8 +289,8 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-base flex flex-col">
-      <TopBar onMenu={() => setMenuOpen(true)} onLogout={handleLogout} />
+    <div className="min-h-screen bg-base">
+      {/* Mobil: drawer */}
       <NavDrawer
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
@@ -244,16 +298,23 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         userEmail={user?.email}
       />
 
-      <main className="flex-1 p-4 sm:p-6">
-        {/* Lățime unică pentru toate paginile din dashboard — sursă unică de adevăr */}
-        <div className="max-w-6xl mx-auto w-full">
-          {checking ? (
-            <div className="flex items-center justify-center py-20">
-              <Loader2 className="h-5 w-5 animate-spin text-acid" />
-            </div>
-          ) : children}
-        </div>
-      </main>
+      {/* Desktop: sidebar fix (doar brand + navigare) */}
+      <Sidebar pathname={pathname} />
+
+      {/* Conținut — decalat la dreapta de sidebar pe desktop */}
+      <div className="lg:pl-[260px]">
+        <TopBar onMenu={() => setMenuOpen(true)} onLogout={handleLogout} />
+        <main className="p-4 sm:p-6">
+          {/* Lățime unică pentru toate paginile din dashboard — sursă unică de adevăr */}
+          <div className="max-w-6xl mx-auto w-full">
+            {checking ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="h-5 w-5 animate-spin text-acid" />
+              </div>
+            ) : children}
+          </div>
+        </main>
+      </div>
     </div>
   )
 }

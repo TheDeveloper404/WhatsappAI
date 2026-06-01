@@ -25,7 +25,7 @@ const PLANS = [
   {
     id: 'annual' as const,
     label: 'ANUAL',
-    price: '399',
+    price: '399.99',
     period: 'an',
     pricePerMonth: '~33.25 RON / lună',
     badge: 'economisești 33%',

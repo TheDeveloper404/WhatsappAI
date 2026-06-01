@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useAuthStore } from '@/store/auth'
 import { api, type Lead, type LeadStatus } from '@/lib/api'
 import { Loader2, Flame, RefreshCw } from 'lucide-react'
+import { ConversationsTabs } from '@/components/ConversationsTabs'
 
 function formatDate(ts: number): string {
   return new Date(ts).toLocaleString('ro-RO', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
@@ -85,6 +86,7 @@ export default function LeadsPage() {
 
   return (
     <div>
+      <ConversationsTabs />
       <div className="mb-8 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
           <h1 className="font-display text-[32px] text-ink leading-none">Lead-uri</h1>

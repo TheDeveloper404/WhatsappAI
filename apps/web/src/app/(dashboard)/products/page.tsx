@@ -409,7 +409,7 @@ export default function ProductsPage() {
                 <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${form.isEstimate ? 'translate-x-6' : 'translate-x-1'}`} />
               </button>
               <span className="font-mono-ui text-[13px] text-dim">
-                Preț estimativ („de la") {form.isEstimate ? '— proiect custom; agentul nu propune un total fix, predă ofertarea ție' : '— preț fix; agentul poate finaliza comanda'}
+                Preț estimativ („de la”) {form.isEstimate ? '— proiect custom; agentul nu propune un total fix, predă ofertarea ție' : '— preț fix; agentul poate finaliza comanda'}
               </span>
             </label>
 

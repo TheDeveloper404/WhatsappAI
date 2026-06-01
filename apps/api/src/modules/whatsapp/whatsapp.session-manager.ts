@@ -5,6 +5,8 @@ import NodeCache from 'node-cache'
 import { whatsappRepository } from './whatsapp.repository.js'
 import { usePostgresAuthState, clearAuthState } from './whatsapp.auth-state.js'
 import { handleMessages } from '../ai/message.handler.js'
+import { aiRepository } from '../ai/ai.repository.js'
+import { appEvents } from '../../utils/events.js'
 import { logger } from '../../utils/logger.js'
 
 const _require = createRequire(import.meta.url)
@@ -186,6 +188,28 @@ export async function requestQrCode(userId: string): Promise<string> {
 
   attachPersistentHandlers(sock, userId)
   return firstQr
+}
+
+// Trimite un mesaj proactiv către un contact (ex: notificare schimbare status comandă).
+// Folosește sesiunea WA activă a owner-ului. Fail-soft: dacă nu e conectat, returnează false
+// (nu aruncă — owner-ul vede comanda în dashboard oricum). Mesajul se salvează în istoric ca
+// `is_ai` și se emite pe stream-ul de conversații, ca să apară în UI.
+export async function sendToContact(userId: string, contactPhone: string, text: string): Promise<boolean> {
+  const sock = sessions.get(userId)
+  if (!sock) return false
+  const phone = contactPhone.replace(/[^0-9]/g, '')
+  if (!phone) return false
+  const jid = `${phone}@s.whatsapp.net`
+  try {
+    await sock.sendMessage(jid, { text })
+    const now = Date.now()
+    await aiRepository.saveMessage(userId, phone, true, text, now, true)
+    appEvents.emit(`conv:${userId}`, { contactPhone: phone, lastMessage: text, lastAt: now, fromMe: true })
+    return true
+  } catch (err) {
+    logger.error(`[WA][${userId.slice(0, 8)}] sendToContact eșuat`, { err: String(err) })
+    return false
+  }
 }
 
 export async function disconnectSession(userId: string): Promise<void> {

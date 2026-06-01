@@ -8,12 +8,16 @@ import { Errors } from '../../utils/errors.js'
 // Niciodată float în DB — convertim la integer aici.
 const leiToBani = (lei: number) => Math.round(lei * 100)
 
+// stock: null = nelimitat, întreg >= 0 = cantitate. Plafon larg ca să nu abuzeze nimeni.
+const stockSchema = z.number().int().min(0).max(1_000_000).nullable()
+
 const createSchema = z.object({
   name: z.string().min(1).max(120),
   description: z.string().max(500).optional().default(''),
   priceLei: z.number().nonnegative().max(1_000_000),
   category: z.string().max(60).optional().default(''),
   isAvailable: z.boolean().optional().default(true),
+  stock: stockSchema.optional().default(null),
 })
 
 const updateSchema = z.object({
@@ -22,6 +26,7 @@ const updateSchema = z.object({
   priceLei: z.number().nonnegative().max(1_000_000).optional(),
   category: z.string().max(60).optional(),
   isAvailable: z.boolean().optional(),
+  stock: stockSchema.optional(),
 })
 
 // Import în masă din CSV (parsat în browser, trimis ca JSON).
@@ -33,6 +38,7 @@ const importSchema = z.object({
     priceLei: z.number().nonnegative().max(1_000_000),
     category: z.string().max(60).optional().default(''),
     isAvailable: z.boolean().optional().default(true),
+    stock: stockSchema.optional().default(null),
   })).min(1).max(1000),
 })
 
@@ -45,9 +51,9 @@ export async function productsRoutes(app: FastifyInstance) {
   app.post('/', { preHandler: authenticate }, async (req, reply) => {
     const result = createSchema.safeParse(req.body)
     if (!result.success) throw Errors.validation(result.error.errors.map(e => ({ field: String(e.path[0]), message: e.message })))
-    const { name, description, priceLei, category, isAvailable } = result.data
+    const { name, description, priceLei, category, isAvailable, stock } = result.data
     const product = await productsRepository.create(req.user!.id, {
-      name, description, priceBani: leiToBani(priceLei), category, isAvailable,
+      name, description, priceBani: leiToBani(priceLei), category, isAvailable, stock,
     })
     return reply.status(201).send({ product })
   })
@@ -78,6 +84,7 @@ export async function productsRoutes(app: FastifyInstance) {
       priceBani: leiToBani(it.priceLei),
       category: it.category,
       isAvailable: it.isAvailable,
+      stock: it.stock,
     })))
     return reply.status(201).send({ imported: count })
   })

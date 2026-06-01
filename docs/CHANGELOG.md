@@ -6,6 +6,55 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added (2026-06-01) — Agent real: stoc numeric + scenarii comandă + onestitate
+
+- **Problema**: agentul „vorbea" — promitea acțiuni neexecutate („am anunțat proprietarul") și nu putea gestiona stocul (catalogul avea doar `isAvailable` boolean, iar produsele indisponibile erau ascunse complet, deci agentul nici nu știa că există ca să spună „epuizat").
+- **Pilon A — stoc numeric real**: coloană `products.stock` (`NULL` = nelimitat pentru servicii; `N` = cantitate; `0` = epuizat). Migrat în 4 locuri. `decrementStock(userId, productId, qty)` — scădere **atomică** (`WHERE stock >= qty`, previne race-ul a 2 clienți pe ultimul produs). UI Catalog: input stoc (gol = nelimitat) + badge „stoc: N"/„epuizat". Tipuri web + payload create/update/import extinse.
+- **Pilon B — agent real**:
+  - **Catalog complet în prompt** — agentul vede acum și produsele epuizate/indisponibile, cu starea marcată (`[EPUIZAT]`, `[INDISPONIBIL]`, `[stoc: N]`), ca să spună onest „momentan nu mai avem X" și să propună alternativă, în loc să le ascundă.
+  - **Verificare stoc în COD** (nu LLM) după extragere: produs indisponibil / epuizat / cerere > stoc → ramură nouă care **blochează propunerea** și instruiește agentul să explice onest problema. Repară scenariile cerute (nu există / nu e disponibil / stoc insuficient).
+  - **Scădere atomică la confirmarea „da"**: dacă între propunere și confirmare s-a epuizat stocul, comanda se **anulează onest** cu mesaj (+ rollback la ce s-a apucat să scadă). Produsele `NULL` (nelimitat) nu sunt afectate.
+  - **Guard anti-promisiune** în system prompt (`honestyGuard`): agentul NU mai afirmă acțiuni neconfirmate (email, anunț owner, comandă) — doar ce i se spune explicit în context că s-a executat. Repară halucinațiile de tip „am trimis/am anunțat".
+- Cod mort eliminat: `listAvailable` (înlocuit cu `list`). `tsc --noEmit` verde pe API + web. Se validează manual (necesită WhatsApp + stoc real în catalog).
+
+### Added (2026-06-01) — Comenzi: email confirmare la cerere (Faza 5 — feature complet)
+
+- **Scop** (din IMG_4117-18): clientul cere „vreau confirmarea pe email" și dă o adresă → primește un email cu rezumatul comenzii. Repară și bug-ul din poză unde agentul promitea email fără să aibă adresa.
+- **`sendOrderConfirmationEmail(to, businessName, orders[])`** nou în `utils/email.ts`: refolosește `baseTemplate`/`escapeHtml`; randează linii + total + details. **Datele sunt pre-formatate de handler din prețurile din DB** — email.ts doar randează, nu atinge banii.
+- **`message.handler.ts`** — dacă ultimul mesaj al clientului conține o adresă de email validă (regex + `z.string().email()`) ȘI clientul are o comandă recentă (≤24h, necancelată), trimitem confirmarea. Apoi instruim AI-ul (`emailNote`) să confirme scurt că emailul a plecat — **nu mai promite ce nu face**. Dacă a dat email dar n-are comandă, AI-ul NU spune că a trimis (evită halucinația din poză).
+- **Securitate/guards**: adresa validată zod; **throttle 10 min/contact** (anti-spam); emailul merge la adresa pe care clientul însuși a dat-o, conține doar comenzile lui (scoped pe userId+contactPhone); **fără PII (adresă/email) în logs**; fail-soft (eroare email nu blochează conversația). Resend e în sandbox până la verificarea domeniului — în prod livrează doar către adresa contului Resend.
+- `tsc --noEmit` verde pe API + web. **Feature comenzi conversațional COMPLET** (fazele 1-5). Se validează manual (necesită Resend + comandă reală).
+
+### Added (2026-06-01) — Comenzi: citire date din imagini / vision (Faza 4)
+
+- **Scop** (din IMG demo optician): clientul trimite o poză (rețetă, document, formular), agentul extrage datele și le folosește în colectarea comenzii — fără să tasteze manual SPH/CYL/AX etc.
+- **`extractFromImage(buffer, mimeType, hint)`** nou în `groq.client.ts`: Gemini vision (`inlineData` base64, temp 0), ghidat de `order_intake_prompt`-ul businessului (la optică cere câmpurile de rețetă, la altele câmpurile relevante). Prompt strict: transcrie DOAR ce e vizibil, NU inventează valori lipsă; imagine irelevantă → răspunde `NIMIC_RELEVANT`.
+- **`message.handler.ts`** — `processMessage` detectează `imageMessage` (lângă branch-ul audio existent), descarcă cu `downloadMediaMessage` (deja folosit la voce), extrage datele și le injectează ca mesaj de la client (`[Date extrase din imaginea trimisă de client]\n...`) → intră natural în mașina de stare a comenzii (Faza 2). Caption-ul, dacă există, e păstrat.
+- **Securitate/guards**: doar `image/*`; limită 5 MB; imaginea stă **doar în memorie** (base64), nu se scrie pe disc; **fail-open** — dacă vision eșuează sau lipsește `GEMINI_API_KEY`, păstrăm caption-ul ca să nu pierdem mesajul; **fără conținut imagine în logs** (doar „imagine procesată"). Vision merge mereu pe Gemini (ca vocea pe Groq Whisper), independent de `LLM_PROVIDER`.
+- `tsc --noEmit` verde pe API. Se validează manual (necesită imagine reală + cheie Gemini). **Rămâne**: Faza 5 (email confirmare).
+
+### Added (2026-06-01) — Comenzi: notificare automată client la schimbarea statusului (Faza 3)
+
+- **Problema** (din conversații reale, IMG_4116-18): clientul rămânea cu „Aștept confirmarea" — owner-ul schimba statusul comenzii în dashboard, dar clientul nu afla nimic. Bucla rămânea deschisă.
+- **Fix** — la `PATCH /orders/:id/status`, dacă statusul se schimbă efectiv (tranziție reală, nu re-setare), clientul primește automat un mesaj pe WhatsApp: `confirmed` → „Comanda ta a fost confirmată", `completed` → „finalizată", `cancelled` → „anulată". `pending` (starea inițială) nu notifică.
+- **`sendToContact(userId, contactPhone, text)`** nou în `whatsapp.session-manager.ts`: trimite proactiv prin sesiunea WA activă a owner-ului, salvează mesajul în istoric (`is_ai`) și-l emite pe stream-ul de conversații (apare în UI). **Fail-soft**: dacă WhatsApp nu e conectat, returnează `false` — statusul tot se salvează în dashboard.
+- **Securitate**: mesajul merge la `contactPhone` din DB, scoped pe `req.user.id` (fără IDOR). Textul e **fix în cod**, nu trece prin LLM. Fără PII în logs.
+- **UI** (`/orders`): owner-ul vede feedback după schimbarea statusului — „✅ Clientul a fost notificat" sau „ℹ️ Status salvat, clientul NU a fost notificat (WhatsApp neconectat)". Ruta întoarce `{ ok, notified }`.
+- `tsc --noEmit` verde pe API + web. Fără ciclu de import (verificat: `ai.repository` nu importă din `whatsapp`). **Rămâne**: Faza 4 (vision/poză rețetă), Faza 5 (email confirmare).
+
+### Added (2026-06-01) — Comenzi: colectare conversațională ghidată (flux 2 faze, Faza 2)
+
+- **Problema** (din conversații reale, IMG_4116-18): la o cerere fără cantitate clară („vreau un website de 3000€"), AI-ul **inventa** o structură de catalog — „3× Aplicații web — 3000€" — fiindcă vechiul `extractOrder` gândea doar în `produs×cantitate` și forța orice în acel tipar. În plus promitea acțiuni neexecutate (email fără adresă).
+- **Fix** — `extractOrder` înlocuit cu **`analyzeOrderIntent`** (`groq.client.ts`): mașină de stare în 3 faze (`none`/`collecting`/`ready`). LLM-ul **doar clasifică și extrage id-uri din catalog**; codul decide acțiunea și calculează banii din DB.
+  - `collecting` → agentul **cere natural ce lipsește** (`missingInfo` injectat în prompt), NU propune rezumat, NU inventează cantități/prețuri.
+  - `ready` (produse clare + info completă) → cod construiește rezumatul cu **total din DB** → cere confirmarea (marker existent) → creează DOAR după „da" (`classifyOrderConfirmation`, fail-safe).
+  - **Custom-budget** (ex: „website 3000€", fără produs în catalog) → rămâne `collecting`, cererea intră în `details`, agentul spune că **proprietarul confirmă prețul** — LLM-ul nu atinge banii.
+- **Validare strictă în cod** — `parseOrderIntent` (extras pentru test fără rețea): id ∈ catalog (altfel aruncat), qty plafonat 0–999, `ready` fără produs valid → retrogradat la `collecting`, `missingInfo` ≤ 8×120 char, `details`/`customerNote` plafonate. JSON invalid → fază goală.
+- **Schema** — `orders.details` (specificații structurate colectate) + `ai_settings.order_intake_prompt` (instrucțiuni colectare per-business: optică ≠ pizzerie). Migrat în cele 4 locuri (`schema.ts`, `migration-statements.ts`, `app.ts`, `test/global-setup.ts`).
+- **UI** — câmp „Instrucțiuni colectare comandă" în Setări → Conținut; pagina `/orders` afișează `details` (🧾). API client (`lib/api.ts`) extins (`orderIntakePrompt` în `AiSettings` + `updateSettings`, `details` în `Order`).
+- **Test nou** — `order.intent.test.ts` (16 cazuri, fără rețea): catalog-guard, retrogradări de fază, custom-budget, plafonări, fallback JSON invalid.
+- `tsc --noEmit` verde pe API + web. **Rămâne**: Faza 3 (dashboard: status→mesaj client la confirmare owner), Faza 4 (vision/poză rețetă), Faza 5 (email confirmare).
+
 ### Added (2026-05-31) — Comenzi: confirmare înainte de creare (flux conversațional, Faza 1)
 
 - **Problema** (din conversații reale, IMG_4091-93): AI-ul crea comanda *instant* la prima intenție vagă („vreau un website" → „Am notat comanda ta: 1000€") înainte să întrebe orice — penibil, exact ca la pizza. Clientul reacționa: „Păi nu mă întrebați de detalii?".

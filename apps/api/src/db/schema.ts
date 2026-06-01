@@ -70,6 +70,9 @@ export const aiSettings = pgTable('ai_settings', {
   notifyOnAiTakeover: boolean('notify_on_ai_takeover').notNull().default(true),
   // Criterii (text liber, per-business): ce înseamnă un lead bun. Gol = clasificare generică.
   leadCriteria: text('lead_criteria').notNull().default(''),
+  // Instrucțiuni colectare comandă (per-business): ce detalii cere agentul înainte de a propune
+  // comanda (la optică: SPH/CYL/AX, material; la pizzerie: adresă). Gol = colectare generică.
+  orderIntakePrompt: text('order_intake_prompt').notNull().default(''),
   // Moneda businessului (RON/EUR/USD/GBP). Banii rămân stocați ca integer subunitate; se schimbă doar eticheta.
   currency: text('currency').notNull().default('RON'),
   pauseUntil: bigint('pause_until', { mode: 'number' }),
@@ -148,6 +151,9 @@ export const products = pgTable('products', {
   priceBani: integer('price_bani').notNull(),
   category: text('category').notNull().default(''),
   isAvailable: boolean('is_available').notNull().default(true),
+  // Stoc numeric. NULL = nelimitat (servicii, producție la cerere). N = cantitate reală,
+  // scade atomic la confirmarea comenzii de către client. 0 = epuizat (dar produsul există).
+  stock: integer('stock'),
   createdAt: bigint('created_at', { mode: 'number' }).notNull(),
   updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
 })
@@ -159,6 +165,9 @@ export const orders = pgTable('orders', {
   status: text('status').notNull().default('pending'),
   totalBani: integer('total_bani').notNull().default(0),
   customerNote: text('customer_note').notNull().default(''),
+  // Detalii structurate colectate conversațional (text liber: specificații, cerințe custom).
+  // Separat de customerNote — aici intră ce a cerut clientul dincolo de produs×cantitate.
+  details: text('details').notNull().default(''),
   createdAt: bigint('created_at', { mode: 'number' }).notNull(),
   updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
 })

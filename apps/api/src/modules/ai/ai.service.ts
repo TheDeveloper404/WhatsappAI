@@ -13,7 +13,7 @@ export const aiService = {
     return aiRepository.getSettings(userId)
   },
 
-  async updateSettings(userId: string, data: { isActive?: boolean; timerMinutes?: number; systemPrompt?: string; knowledgeBase?: string; writingStyle?: string; notifyOnAiTakeover?: boolean; leadCriteria?: string; currency?: string }): Promise<AiSettings> {
+  async updateSettings(userId: string, data: { isActive?: boolean; timerMinutes?: number; systemPrompt?: string; knowledgeBase?: string; writingStyle?: string; notifyOnAiTakeover?: boolean; leadCriteria?: string; currency?: string; orderIntakePrompt?: string }): Promise<AiSettings> {
     await aiRepository.updateSettings(userId, data)
     return aiRepository.getSettings(userId)
   },

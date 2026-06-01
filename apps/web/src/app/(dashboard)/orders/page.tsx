@@ -32,6 +32,7 @@ export default function OrdersPage() {
   const [currency, setCurrency] = useState('RON')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
   const [filter, setFilter] = useState<'all' | OrderStatus>('all')
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -54,9 +55,17 @@ export default function OrdersPage() {
     if (!accessToken) return
     setUpdatingId(id)
     setError(null)
+    setNotice(null)
     try {
-      await api.orders.updateStatus(accessToken, id, status)
+      const { notified } = await api.orders.updateStatus(accessToken, id, status)
       setOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o))
+      // Feedback despre notificarea clientului (doar pentru tranziții care trimit mesaj).
+      if (status !== 'pending') {
+        setNotice(notified
+          ? '✅ Clientul a fost notificat pe WhatsApp.'
+          : 'ℹ️ Status salvat. Clientul NU a fost notificat (WhatsApp neconectat).')
+        setTimeout(() => setNotice(null), 5000)
+      }
     } catch {
       setError('Eroare la actualizarea statusului.')
     } finally {
@@ -101,6 +110,10 @@ export default function OrdersPage() {
 
       {error && (
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-3 font-mono-ui text-[13px] text-red-700 dark:text-red-300 mb-6">{error}</div>
+      )}
+
+      {notice && (
+        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-3 font-mono-ui text-[13px] text-green-700 dark:text-green-300 mb-6">{notice}</div>
       )}
 
       {/* Filtre */}
@@ -149,6 +162,12 @@ export default function OrdersPage() {
                     </li>
                   ))}
                 </ul>
+
+                {order.details && (
+                  <p className="font-mono-ui text-[12px] text-dim bg-cardhi/60 rounded-lg px-3 py-2 mb-3 whitespace-pre-wrap">
+                    🧾 {order.details}
+                  </p>
+                )}
 
                 {order.customerNote && (
                   <p className="font-mono-ui text-[12px] text-dim bg-cardhi/60 rounded-lg px-3 py-2 mb-3">

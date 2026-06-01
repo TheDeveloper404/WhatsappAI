@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto'
 import { eq, and, asc } from 'drizzle-orm'
-import { db } from '../../config/database.js'
+import { db, pool } from '../../config/database.js'
 import { products } from '../../db/schema.js'
 import type { Product } from '../../db/schema.js'
 
@@ -12,14 +12,6 @@ export const productsRepository = {
       .orderBy(asc(products.category), asc(products.name))
   },
 
-  // Doar produsele disponibile — folosit la injectarea catalogului în prompt-ul AI
-  async listAvailable(userId: string): Promise<Product[]> {
-    return db.select()
-      .from(products)
-      .where(and(eq(products.userId, userId), eq(products.isAvailable, true)))
-      .orderBy(asc(products.category), asc(products.name))
-  },
-
   async findById(userId: string, id: string): Promise<Product | null> {
     const rows = await db.select()
       .from(products)
@@ -28,7 +20,7 @@ export const productsRepository = {
   },
 
   async create(userId: string, data: {
-    name: string; description: string; priceBani: number; category: string; isAvailable: boolean
+    name: string; description: string; priceBani: number; category: string; isAvailable: boolean; stock?: number | null
   }): Promise<Product> {
     const now = Date.now()
     const row = {
@@ -39,6 +31,7 @@ export const productsRepository = {
       priceBani: data.priceBani,
       category: data.category,
       isAvailable: data.isAvailable,
+      stock: data.stock ?? null,
       createdAt: now,
       updatedAt: now,
     }
@@ -48,7 +41,7 @@ export const productsRepository = {
 
   // Import în masă (CSV). Inserează toate produsele primite într-un singur batch.
   async createMany(userId: string, items: Array<{
-    name: string; description: string; priceBani: number; category: string; isAvailable: boolean
+    name: string; description: string; priceBani: number; category: string; isAvailable: boolean; stock?: number | null
   }>): Promise<number> {
     if (items.length === 0) return 0
     const now = Date.now()
@@ -60,6 +53,7 @@ export const productsRepository = {
       priceBani: it.priceBani,
       category: it.category,
       isAvailable: it.isAvailable,
+      stock: it.stock ?? null,
       createdAt: now,
       updatedAt: now,
     }))
@@ -68,7 +62,7 @@ export const productsRepository = {
   },
 
   async update(userId: string, id: string, data: Partial<{
-    name: string; description: string; priceBani: number; category: string; isAvailable: boolean
+    name: string; description: string; priceBani: number; category: string; isAvailable: boolean; stock: number | null
   }>): Promise<void> {
     await db.update(products)
       .set({ ...data, updatedAt: Date.now() })
@@ -78,5 +72,17 @@ export const productsRepository = {
   async remove(userId: string, id: string): Promise<void> {
     await db.delete(products)
       .where(and(eq(products.userId, userId), eq(products.id, id)))
+  },
+
+  // Scădere atomică de stoc la confirmarea comenzii. Condiția `stock >= qty` în WHERE
+  // previne race-ul (2 clienți pe ultimul produs): doar primul update reușește.
+  // Produsele cu stock NULL (nelimitat) nu sunt afectate. Returnează true dacă a scăzut.
+  async decrementStock(userId: string, productId: string, qty: number): Promise<boolean> {
+    const res = await pool.query(
+      `UPDATE products SET stock = stock - $1, updated_at = $2
+       WHERE user_id = $3 AND id = $4 AND stock IS NOT NULL AND stock >= $1`,
+      [qty, Date.now(), userId, productId],
+    )
+    return (res.rowCount ?? 0) > 0
   },
 }

@@ -23,6 +23,7 @@ export default function SettingsPage() {
   const [knowledgeBase, setKnowledgeBase] = useState('')
   const [writingStyle, setWritingStyle] = useState('')
   const [leadCriteria, setLeadCriteria] = useState('')
+  const [orderIntakePrompt, setOrderIntakePrompt] = useState('')
   const [currency, setCurrency] = useState('RON')
   const [savingStyle, setSavingStyle] = useState(false)
   const [savedStyle, setSavedStyle] = useState(false)
@@ -35,6 +36,8 @@ export default function SettingsPage() {
   const [savingTimer, setSavingTimer] = useState(false)
   const [savingLead, setSavingLead] = useState(false)
   const [savedLead, setSavedLead] = useState(false)
+  const [savingIntake, setSavingIntake] = useState(false)
+  const [savedIntake, setSavedIntake] = useState(false)
   const [savingCurrency, setSavingCurrency] = useState(false)
   const [savedCurrency, setSavedCurrency] = useState(false)
   const [togglingAI, setTogglingAI] = useState(false)
@@ -61,6 +64,7 @@ export default function SettingsPage() {
         setKnowledgeBase(s.knowledgeBase ?? '')
         setWritingStyle(s.writingStyle ?? '')
         setLeadCriteria(s.leadCriteria ?? '')
+        setOrderIntakePrompt(s.orderIntakePrompt ?? '')
         setCurrency(s.currency ?? 'RON')
         setTimerMinutes(s.timerMinutes)
         setBlacklist(phones)
@@ -159,6 +163,17 @@ export default function SettingsPage() {
       setTimeout(() => setSavedLead(false), 3000)
     } catch { setError('Eroare la salvarea criteriilor.') }
     finally { setSavingLead(false) }
+  }
+
+  async function handleSaveIntake() {
+    if (!accessToken) return
+    setSavingIntake(true); setSavedIntake(false); setError(null)
+    try {
+      const { settings: updated } = await api.ai.updateSettings(accessToken, { orderIntakePrompt })
+      setSettings(updated); setSavedIntake(true)
+      setTimeout(() => setSavedIntake(false), 3000)
+    } catch { setError('Eroare la salvarea instrucțiunilor de comandă.') }
+    finally { setSavingIntake(false) }
   }
 
   async function handleAddPhone() {
@@ -479,6 +494,37 @@ export default function SettingsPage() {
                 Salvează criteriile
               </button>
               {savedLead && <span className="font-mono-ui text-[12px] text-green-600 dark:text-green-400 font-medium">Salvat!</span>}
+            </div>
+          </div>
+
+          {/* Instrucțiuni colectare comandă */}
+          <div className="py-7">
+            <div className="flex items-center gap-2 mb-1">
+              <Terminal className="h-4 w-4 text-dimmer" />
+              <p className="font-mono-ui text-[14px] text-ink font-medium">Instrucțiuni colectare comandă</p>
+            </div>
+            <p className="font-mono-ui text-[13px] text-dim mb-4">
+              Ce informații trebuie să strângă agentul înainte de a propune o comandă. Agentul le cere pe rând,
+              firesc, și nu finalizează până nu le are. Gol = colectare generică (produs + cantitate).
+            </p>
+            <textarea
+              value={orderIntakePrompt}
+              onChange={e => setOrderIntakePrompt(e.target.value)}
+              rows={5}
+              className={inputCls}
+              placeholder={'Ex. (optică): pentru lentile cere SPH/CYL/AX pentru fiecare ochi, materialul și tratamentul.\nEx. (pizzerie): cere adresa de livrare și ora dorită.'}
+            />
+            <div className="flex items-center gap-3 mt-4">
+              <button
+                onClick={handleSaveIntake}
+                disabled={savingIntake || orderIntakePrompt === (settings?.orderIntakePrompt ?? '')}
+                style={{ background: 'var(--acid)', color: 'var(--on-acid)' }}
+                className="flex items-center gap-2 font-mono-ui text-[13px] px-4 py-2.5 rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+              >
+                {savingIntake ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                Salvează instrucțiunile
+              </button>
+              {savedIntake && <span className="font-mono-ui text-[12px] text-green-600 dark:text-green-400 font-medium">Salvat!</span>}
             </div>
           </div>
 

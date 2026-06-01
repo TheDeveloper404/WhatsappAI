@@ -204,7 +204,7 @@ export const api = {
         body: '{}',
       }),
 
-    updateSettings: (accessToken: string, data: { isActive?: boolean; timerMinutes?: number; systemPrompt?: string; knowledgeBase?: string; writingStyle?: string; notifyOnAiTakeover?: boolean; leadCriteria?: string; currency?: string }) =>
+    updateSettings: (accessToken: string, data: { isActive?: boolean; timerMinutes?: number; systemPrompt?: string; knowledgeBase?: string; writingStyle?: string; notifyOnAiTakeover?: boolean; leadCriteria?: string; currency?: string; orderIntakePrompt?: string }) =>
       request<{ settings: AiSettings }>('/api/v1/ai/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
@@ -287,7 +287,7 @@ export const api = {
         credentials: 'include',
       }),
 
-    create: (accessToken: string, data: { name: string; description?: string; priceLei: number; category?: string; isAvailable?: boolean }) =>
+    create: (accessToken: string, data: { name: string; description?: string; priceLei: number; category?: string; isAvailable?: boolean; stock?: number | null }) =>
       request<{ product: Product }>('/api/v1/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
@@ -295,7 +295,7 @@ export const api = {
         body: JSON.stringify(data),
       }),
 
-    update: (accessToken: string, id: string, data: { name?: string; description?: string; priceLei?: number; category?: string; isAvailable?: boolean }) =>
+    update: (accessToken: string, id: string, data: { name?: string; description?: string; priceLei?: number; category?: string; isAvailable?: boolean; stock?: number | null }) =>
       request<{ ok: boolean }>(`/api/v1/products/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
@@ -310,7 +310,7 @@ export const api = {
         credentials: 'include',
       }),
 
-    import: (accessToken: string, items: Array<{ name: string; description?: string; priceLei: number; category?: string; isAvailable?: boolean }>) =>
+    import: (accessToken: string, items: Array<{ name: string; description?: string; priceLei: number; category?: string; isAvailable?: boolean; stock?: number | null }>) =>
       request<{ imported: number }>('/api/v1/products/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
@@ -327,7 +327,7 @@ export const api = {
       }),
 
     updateStatus: (accessToken: string, id: string, status: OrderStatus) =>
-      request<{ ok: boolean }>(`/api/v1/orders/${id}/status`, {
+      request<{ ok: boolean; notified: boolean }>(`/api/v1/orders/${id}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
         credentials: 'include',
@@ -447,6 +447,7 @@ export interface AiSettings {
   notifyOnAiTakeover: boolean
   leadCriteria: string
   currency: string
+  orderIntakePrompt: string
   pauseUntil: number | null
   createdAt: number
   updatedAt: number
@@ -520,6 +521,7 @@ export interface Product {
   priceBani: number
   category: string
   isAvailable: boolean
+  stock: number | null
   createdAt: number
   updatedAt: number
 }
@@ -542,6 +544,7 @@ export interface Order {
   status: OrderStatus
   totalBani: number
   customerNote: string
+  details: string
   createdAt: number
   updatedAt: number
   items: OrderItem[]

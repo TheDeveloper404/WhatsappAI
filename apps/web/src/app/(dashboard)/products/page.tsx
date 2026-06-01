@@ -14,9 +14,10 @@ type FormState = {
   priceLei: string
   category: string
   isAvailable: boolean
+  stock: string  // '' = nelimitat; altfel număr întreg >= 0
 }
 
-const EMPTY_FORM: FormState = { name: '', description: '', priceLei: '', category: '', isAvailable: true }
+const EMPTY_FORM: FormState = { name: '', description: '', priceLei: '', category: '', isAvailable: true, stock: '' }
 
 export default function ProductsPage() {
   const { accessToken } = useAuthStore()
@@ -66,6 +67,7 @@ export default function ProductsPage() {
       priceLei: (p.priceBani / 100).toFixed(2),
       category: p.category,
       isAvailable: p.isAvailable,
+      stock: p.stock === null || p.stock === undefined ? '' : String(p.stock),
     })
     setFormError(null)
   }
@@ -83,6 +85,15 @@ export default function ProductsPage() {
     if (!name) { setFormError('Numele este obligatoriu.'); return }
     if (isNaN(priceLei) || priceLei < 0) { setFormError('Prețul trebuie să fie un număr valid.'); return }
 
+    // Stoc: gol → null (nelimitat); altfel întreg >= 0.
+    let stock: number | null = null
+    const stockRaw = form.stock.trim()
+    if (stockRaw !== '') {
+      const n = parseInt(stockRaw, 10)
+      if (isNaN(n) || n < 0) { setFormError('Stocul trebuie să fie un număr întreg pozitiv (sau gol = nelimitat).'); return }
+      stock = n
+    }
+
     setSaving(true); setFormError(null)
     try {
       const payload = {
@@ -91,6 +102,7 @@ export default function ProductsPage() {
         priceLei,
         category: form.category.trim(),
         isAvailable: form.isAvailable,
+        stock,
       }
       if (editingId) {
         await api.products.update(accessToken, editingId, payload)
@@ -338,6 +350,21 @@ export default function ProductsPage() {
             </div>
 
             <div>
+              <label className="font-mono-ui text-[12px] text-dim block mb-1.5">Stoc</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={form.stock}
+                onChange={e => setForm(f => ({ ...f, stock: e.target.value }))}
+                placeholder="lasă gol = nelimitat (ex: servicii)"
+                className={inputCls}
+              />
+              <p className="font-mono-ui text-[11px] text-dimmer mt-1">
+                Gol = nelimitat. Un număr = cantitate reală; scade automat la fiecare comandă. 0 = epuizat.
+              </p>
+            </div>
+
+            <div>
               <label className="font-mono-ui text-[12px] text-dim block mb-1.5">Descriere</label>
               <textarea
                 value={form.description}
@@ -407,6 +434,11 @@ export default function ProductsPage() {
                   )}
                   {!p.isAvailable && (
                     <span className="font-mono-ui text-[10px] text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 rounded-full">indisponibil</span>
+                  )}
+                  {p.stock !== null && p.stock !== undefined && (
+                    p.stock === 0
+                      ? <span className="font-mono-ui text-[10px] text-red-700 dark:text-red-400 bg-red-100 dark:bg-red-900/30 px-2 py-0.5 rounded-full">epuizat</span>
+                      : <span className="font-mono-ui text-[10px] text-dim bg-cardhi px-2 py-0.5 rounded-full">stoc: {p.stock}</span>
                   )}
                 </div>
                 {p.description && (

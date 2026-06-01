@@ -22,6 +22,7 @@ export async function aiRoutes(app: FastifyInstance) {
       notifyOnAiTakeover: z.boolean().optional(),
       leadCriteria: z.string().max(2000).optional(),
       currency: z.enum(['RON', 'EUR', 'USD', 'GBP']).optional(),
+      orderIntakePrompt: z.string().max(2000).optional(),
     })
     const result = schema.safeParse(req.body)
     if (!result.success) throw Errors.validation(result.error.errors.map(e => ({ field: String(e.path[0]), message: e.message })))

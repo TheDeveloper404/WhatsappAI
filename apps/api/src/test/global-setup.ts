@@ -165,6 +165,9 @@ export async function setup() {
     // pica teste local pe coloane lipsă (deși în prod runStartupMigrations le adaugă).
     `ALTER TABLE ai_settings ADD COLUMN IF NOT EXISTS lead_criteria TEXT NOT NULL DEFAULT ''`,
     `ALTER TABLE ai_settings ADD COLUMN IF NOT EXISTS currency TEXT NOT NULL DEFAULT 'RON'`,
+    `ALTER TABLE ai_settings ADD COLUMN IF NOT EXISTS order_intake_prompt TEXT NOT NULL DEFAULT ''`,
+    `ALTER TABLE orders ADD COLUMN IF NOT EXISTS details TEXT NOT NULL DEFAULT ''`,
+    `ALTER TABLE products ADD COLUMN IF NOT EXISTS stock INTEGER`,
   ]
 
   for (const sql of statements) {

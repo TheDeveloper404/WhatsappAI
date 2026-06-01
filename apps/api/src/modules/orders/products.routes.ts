@@ -17,6 +17,10 @@ const createSchema = z.object({
   priceLei: z.number().nonnegative().max(1_000_000),
   category: z.string().max(60).optional().default(''),
   isAvailable: z.boolean().optional().default(true),
+  // Preț estimativ („începând de la"): pentru aceste produse agentul nu propune total fix.
+  isEstimate: z.boolean().optional().default(false),
+  // Serviciu rezervabil (programare): agentul face programare cu handoff la owner, nu comandă.
+  isBookable: z.boolean().optional().default(false),
   stock: stockSchema.optional().default(null),
 })
 
@@ -26,6 +30,8 @@ const updateSchema = z.object({
   priceLei: z.number().nonnegative().max(1_000_000).optional(),
   category: z.string().max(60).optional(),
   isAvailable: z.boolean().optional(),
+  isEstimate: z.boolean().optional(),
+  isBookable: z.boolean().optional(),
   stock: stockSchema.optional(),
 })
 
@@ -38,6 +44,8 @@ const importSchema = z.object({
     priceLei: z.number().nonnegative().max(1_000_000),
     category: z.string().max(60).optional().default(''),
     isAvailable: z.boolean().optional().default(true),
+    isEstimate: z.boolean().optional().default(false),
+    isBookable: z.boolean().optional().default(false),
     stock: stockSchema.optional().default(null),
   })).min(1).max(1000),
 })
@@ -51,9 +59,9 @@ export async function productsRoutes(app: FastifyInstance) {
   app.post('/', { preHandler: authenticate }, async (req, reply) => {
     const result = createSchema.safeParse(req.body)
     if (!result.success) throw Errors.validation(result.error.errors.map(e => ({ field: String(e.path[0]), message: e.message })))
-    const { name, description, priceLei, category, isAvailable, stock } = result.data
+    const { name, description, priceLei, category, isAvailable, isEstimate, isBookable, stock } = result.data
     const product = await productsRepository.create(req.user!.id, {
-      name, description, priceBani: leiToBani(priceLei), category, isAvailable, stock,
+      name, description, priceBani: leiToBani(priceLei), category, isAvailable, isEstimate, isBookable, stock,
     })
     return reply.status(201).send({ product })
   })
@@ -84,6 +92,8 @@ export async function productsRoutes(app: FastifyInstance) {
       priceBani: leiToBani(it.priceLei),
       category: it.category,
       isAvailable: it.isAvailable,
+      isEstimate: it.isEstimate,
+      isBookable: it.isBookable,
       stock: it.stock,
     })))
     return reply.status(201).send({ imported: count })

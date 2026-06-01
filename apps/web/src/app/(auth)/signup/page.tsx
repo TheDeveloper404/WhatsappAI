@@ -21,6 +21,8 @@ export default function SignupPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  // Honeypot anti-bot: rămâne mereu gol pentru oameni; boții care completează automat câmpurile îl umplu.
+  const [website, setWebsite] = useState('')
   const [error, setError] = useState('')
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
@@ -44,7 +46,7 @@ export default function SignupPage() {
 
     setLoading(true)
     try {
-      await api.auth.register({ name, email, password })
+      await api.auth.register({ name, email, password, website })
       setSuccess(true)
     } catch (err) {
       if (err instanceof ApiRequestError) {
@@ -88,6 +90,17 @@ export default function SignupPage() {
       </div>
 
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
+        {/* Honeypot anti-bot — ascuns vizual și de la cititoarele de ecran; oamenii nu îl ating. */}
+        <input
+          type="text"
+          name="website"
+          value={website}
+          onChange={e => setWebsite(e.target.value)}
+          tabIndex={-1}
+          autoComplete="off"
+          aria-hidden="true"
+          style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, opacity: 0 }}
+        />
         <Input
           label="Nume complet"
           type="text"

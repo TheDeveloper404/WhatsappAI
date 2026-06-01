@@ -6,6 +6,30 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added (2026-06-01) — Anti-spam la înregistrare (blocare email temporar + honeypot)
+
+- **Problema**: pe `/register` (endpoint public) apăruseră conturi-spam create automat de un scanner/bot, cu emailuri de unică folosință (mailinator, guerrillamailblock, wshu.net) și nume „Pentest/Audit". Nu o breșă — abuz al formularului public; conturile erau neverificate/neplătite, dar zgomot.
+- **Blocare email de unică folosință**: `utils/disposable-email.ts` (`isDisposableEmail`) cu listă de domenii throwaway; aplicat în `registerSchema` ca `.refine` pe email → eroare clară sub câmpul email. Ar fi blocat 100% din spam-ul observat.
+- **Honeypot anti-bot**: câmp ascuns `website` în schema de înregistrare (`.max(0)`) + input ascuns vizual în pagina `/signup`. Oamenii îl lasă gol; boții care autocompletează câmpurile îl umplu → validarea pică.
+- **Existau deja**: rate limit pe `/register` (5/10 min/IP) + verificare email obligatorie (cont creat `emailVerified: false`). Test unit `disposable-email.test.ts`. `tsc --noEmit` verde pe API + web.
+- **Rămas opțional** (`BACKLOG.md`): CAPTCHA (Cloudflare Turnstile) ca strat suplimentar — necesită cont Cloudflare + chei.
+
+### Added (2026-06-01) — Programări: servicii rezervabile (N1, handoff ușor)
+
+- **Scop**: acoperă businessurile pe bază de rezervare (frizerie, clinică, salon), care nu „comandă produse" ci rezervă un interval. Axa „tip tranzacție", complementară prețului fix/estimativ.
+- **Flag `products.isBookable`** (`schema.ts` + migrat în 3 locuri: `migration-statements.ts`, `app.ts`, `test/global-setup.ts`). Tabel nou **`appointments`** (id, public_ref `prg_xxx`, contact, status, service_name, requested_slot text, details). `appointments.repository.ts` + `appointments.routes.ts` (list / updateStatus + notificare client / delete), înregistrate pe `/api/v1/appointments`.
+- **`analyzeBookingIntent` / `parseBookingIntent`** în `groq.client.ts`: LLM-ul clasifică faza (none/collecting/ready) și extrage serviciul + intervalul (text liber) + numele; codul validează (serviceId ∈ catalog, „ready" fără serviciu/interval → collecting).
+- **`message.handler.ts`**: catalogul se împarte în servicii rezervabile (flux programări) și restul (flux comenzi). La „ready" → creează programare 'pending', răspunde clientului („proprietarul confirmă intervalul"), notifică owner-ul „📅 Programare nouă"; anti-dublură 12h pe contact+serviciu+interval. Marcaj `[REZERVABIL]` în catalogul din prompt.
+- **Dashboard**: pagina `/appointments` (listă, filtre, schimbare status cu notificare client, ștergere) + intrare nav „Programări". Toggle „Rezervabil" în formularul de produs + badge + coloană CSV `rezervabil`.
+- **Decizii**: handoff ușor (owner-ul confirmă intervalul), fără verificare de disponibilitate — extensia cu sloturi reale/anti dublă-rezervare e B6 în `BACKLOG.md`. `parseBookingIntent` testat (unit). `tsc --noEmit` verde pe API + web.
+
+### Added (2026-06-01) — Preț estimativ („de la") + handoff ofertă custom + fix-uri agent
+
+- **Scop** (din test real IMG_4201-4209): pentru businessuri cu prețuri „începând de la" (agenții software), agentul nu trebuie să propună un total fix sau să înregistreze o comandă — strânge cerințele și predă owner-ului pentru ofertă.
+- **Flag `products.isEstimate`** (migrat în 3 locuri). Dacă un produs din coș e estimativ → `message.handler.ts` NU propune card „Total" și NU creează comandă; rămâne în discovery, trimite owner-ului „📌 Lead nou (ofertă custom)". Catalog în prompt: „de la X [preț estimativ — NU da total fix]".
+- **Fix-uri de comportament**: `honestyGuard` întărit (interzice inventarea de persoane/colegi și relatarea unor discuții inexistente; cere consecvență — să nu nege un preț spus anterior). `classifyScopeLLM` calibrat (mesaje scurte/„??"/întrebări de continuare → BUSINESS; OFF_TOPIC doar cu subiect clar nelegat; INJECTION neatins).
+- **`formatCatalogLine`** extras (pur, exportat) + testat. Toggle „Preț estimativ" + badge + coloană CSV `estimativ`. `tsc --noEmit` verde pe API + web.
+
 ### Added (2026-06-01) — Comenzi: referință scurtă `public_ref` (ord_xxx)
 
 - **Scop**: clientul și owner-ul nu pot folosi UUID-ul intern al comenzii într-o conversație. Fiecare comandă primește o referință scurtă lizibilă (ex. `ord_a1b2c3`) — un „număr de bon" prietenos. ID-ul UUID rămâne pentru sistem.

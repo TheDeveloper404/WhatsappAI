@@ -14,6 +14,7 @@ import { aiRoutes } from './modules/ai/ai.routes.js'
 import { adminRoutes } from './modules/admin/admin.routes.js'
 import { productsRoutes } from './modules/orders/products.routes.js'
 import { ordersRoutes } from './modules/orders/orders.routes.js'
+import { appointmentsRoutes } from './modules/orders/appointments.routes.js'
 import { knowledgeRoutes } from './modules/knowledge/knowledge.routes.js'
 import { testRoutes } from './modules/test/test.routes.js'
 import { AppError } from './utils/errors.js'
@@ -84,6 +85,21 @@ async function runStartupMigrations() {
     `ALTER TABLE ai_settings ADD COLUMN IF NOT EXISTS order_intake_prompt TEXT NOT NULL DEFAULT ''`,
     `ALTER TABLE orders ADD COLUMN IF NOT EXISTS details TEXT NOT NULL DEFAULT ''`,
     `ALTER TABLE products ADD COLUMN IF NOT EXISTS stock INTEGER`,
+    `ALTER TABLE products ADD COLUMN IF NOT EXISTS is_estimate BOOLEAN NOT NULL DEFAULT FALSE`,
+    `ALTER TABLE products ADD COLUMN IF NOT EXISTS is_bookable BOOLEAN NOT NULL DEFAULT FALSE`,
+    `CREATE TABLE IF NOT EXISTS appointments (
+      id TEXT PRIMARY KEY,
+      public_ref TEXT NOT NULL,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      contact_phone TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','confirmed','completed','cancelled')),
+      service_name TEXT NOT NULL,
+      requested_slot TEXT NOT NULL DEFAULT '',
+      details TEXT NOT NULL DEFAULT '',
+      created_at BIGINT NOT NULL,
+      updated_at BIGINT NOT NULL
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_appointments_user ON appointments(user_id, created_at)`,
     `CREATE TABLE IF NOT EXISTS lead_insights (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -142,6 +158,7 @@ export async function buildApp() {
   await app.register(adminRoutes, { prefix: '/api/v1/admin' })
   await app.register(productsRoutes, { prefix: '/api/v1/products' })
   await app.register(ordersRoutes, { prefix: '/api/v1/orders' })
+  await app.register(appointmentsRoutes, { prefix: '/api/v1/appointments' })
   await app.register(knowledgeRoutes, { prefix: '/api/v1/knowledge' })
 
   if (env.E2E_MODE === 'true' && env.NODE_ENV !== 'production') {

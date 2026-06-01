@@ -4,7 +4,7 @@ import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuthStore } from '@/store/auth'
 import { api } from '@/lib/api'
-import { Loader2, LayoutDashboard, MessageSquare, Settings, User, LogOut, Package, ShoppingCart, Flame, Menu, X } from 'lucide-react'
+import { Loader2, LayoutDashboard, MessageSquare, Settings, User, LogOut, Package, ShoppingCart, CalendarClock, Flame, Menu, X } from 'lucide-react'
 import { ThemeToggle } from '@/components/ThemeToggle'
 
 function WaIcon({ size = 16 }: { size?: number }) {
@@ -20,6 +20,7 @@ const NAV_LINKS = [
   { href: '/conversations', label: 'Conversații', icon: MessageSquare },
   { href: '/products', label: 'Catalog', icon: Package },
   { href: '/orders', label: 'Comenzi', icon: ShoppingCart },
+  { href: '/appointments', label: 'Programări', icon: CalendarClock },
   { href: '/leads', label: 'Lead-uri', icon: Flame },
   { href: '/settings', label: 'Setări', icon: Settings },
   { href: '/profile', label: 'Profil', icon: User },

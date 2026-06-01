@@ -172,6 +172,27 @@ export const migrationStatements = [
   `ALTER TABLE orders ADD COLUMN IF NOT EXISTS details TEXT NOT NULL DEFAULT ''`,
   // Stoc numeric per produs (NULL = nelimitat)
   `ALTER TABLE products ADD COLUMN IF NOT EXISTS stock INTEGER`,
+  // Preț estimativ („începând de la"): servicii pe proiect custom. Default FALSE ⇒ produsele
+  // existente (preț fix) rămân neschimbate. Pentru cele estimative nu propunem total fix / comandă.
+  `ALTER TABLE products ADD COLUMN IF NOT EXISTS is_estimate BOOLEAN NOT NULL DEFAULT FALSE`,
+  // Serviciu rezervabil (programare): frizerie/clinică/salon. Default FALSE ⇒ produsele existente
+  // rămân „comandabile". Pentru cele rezervabile, agentul face programare (handoff owner), nu comandă.
+  `ALTER TABLE products ADD COLUMN IF NOT EXISTS is_bookable BOOLEAN NOT NULL DEFAULT FALSE`,
+  // Programări (N1): handoff ușor — agentul strânge serviciul + intervalul dorit + numele și creează
+  // o programare 'pending'; owner-ul confirmă intervalul. Fără calcul de sloturi/disponibilitate.
+  `CREATE TABLE IF NOT EXISTS appointments (
+    id TEXT PRIMARY KEY,
+    public_ref TEXT NOT NULL,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    contact_phone TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','confirmed','completed','cancelled')),
+    service_name TEXT NOT NULL,
+    requested_slot TEXT NOT NULL DEFAULT '',
+    details TEXT NOT NULL DEFAULT '',
+    created_at BIGINT NOT NULL,
+    updated_at BIGINT NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_appointments_user ON appointments(user_id, created_at)`,
   // Referință scurtă, prietenoasă, per comandă (ex. „ord_a1b2c3"). Coloana intră nullable ca
   // ALTER-ul să nu pice pe comenzile existente; backfill imediat le dă o referință, iar codul
   // de creare setează mereu una pentru comenzile noi.

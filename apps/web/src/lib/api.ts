@@ -118,7 +118,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 export const api = {
   auth: {
-    register: (body: { name: string; email: string; password: string }) =>
+    register: (body: { name: string; email: string; password: string; website?: string }) =>
       request('/api/v1/auth/register', { method: 'POST', body: JSON.stringify(body) }),
 
     login: (body: { email: string; password: string }) =>
@@ -287,7 +287,7 @@ export const api = {
         credentials: 'include',
       }),
 
-    create: (accessToken: string, data: { name: string; description?: string; priceLei: number; category?: string; isAvailable?: boolean; stock?: number | null }) =>
+    create: (accessToken: string, data: { name: string; description?: string; priceLei: number; category?: string; isAvailable?: boolean; isEstimate?: boolean; isBookable?: boolean; stock?: number | null }) =>
       request<{ product: Product }>('/api/v1/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
@@ -295,7 +295,7 @@ export const api = {
         body: JSON.stringify(data),
       }),
 
-    update: (accessToken: string, id: string, data: { name?: string; description?: string; priceLei?: number; category?: string; isAvailable?: boolean; stock?: number | null }) =>
+    update: (accessToken: string, id: string, data: { name?: string; description?: string; priceLei?: number; category?: string; isAvailable?: boolean; isEstimate?: boolean; isBookable?: boolean; stock?: number | null }) =>
       request<{ ok: boolean }>(`/api/v1/products/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
@@ -310,7 +310,7 @@ export const api = {
         credentials: 'include',
       }),
 
-    import: (accessToken: string, items: Array<{ name: string; description?: string; priceLei: number; category?: string; isAvailable?: boolean; stock?: number | null }>) =>
+    import: (accessToken: string, items: Array<{ name: string; description?: string; priceLei: number; category?: string; isAvailable?: boolean; isEstimate?: boolean; isBookable?: boolean; stock?: number | null }>) =>
       request<{ imported: number }>('/api/v1/products/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
@@ -336,6 +336,29 @@ export const api = {
 
     remove: (accessToken: string, id: string) =>
       request<void>(`/api/v1/orders/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        credentials: 'include',
+      }),
+  },
+
+  appointments: {
+    list: (accessToken: string) =>
+      request<{ appointments: Appointment[] }>('/api/v1/appointments', {
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        credentials: 'include',
+      }),
+
+    updateStatus: (accessToken: string, id: string, status: AppointmentStatus) =>
+      request<{ ok: boolean; notified: boolean }>(`/api/v1/appointments/${id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        credentials: 'include',
+        body: JSON.stringify({ status }),
+      }),
+
+    remove: (accessToken: string, id: string) =>
+      request<void>(`/api/v1/appointments/${id}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
         credentials: 'include',
@@ -548,6 +571,8 @@ export interface Product {
   priceBani: number
   category: string
   isAvailable: boolean
+  isEstimate: boolean
+  isBookable: boolean
   stock: number | null
   createdAt: number
   updatedAt: number
@@ -576,6 +601,21 @@ export interface Order {
   createdAt: number
   updatedAt: number
   items: OrderItem[]
+}
+
+export type AppointmentStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled'
+
+export interface Appointment {
+  id: string
+  publicRef: string
+  userId: string
+  contactPhone: string
+  status: AppointmentStatus
+  serviceName: string
+  requestedSlot: string
+  details: string
+  createdAt: number
+  updatedAt: number
 }
 
 export interface KnowledgeDocument {

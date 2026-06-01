@@ -11,6 +11,8 @@ SaaS platform care conectează WhatsApp-ul unui business cu un agent AI. Agentul
 - **Memorie per contact** — agentul reține informații despre fiecare client (nume, nevoi, context)
 - **Knowledge base** — informații despre business injectate în prompt (servicii, prețuri, program)
 - **Comenzi prin WhatsApp** — catalog de produse (cu import CSV), AI extrage comanda din conversație, owner o gestionează în dashboard. Prețurile/totalul se calculează în cod din DB, niciodată de LLM
+- **Preț estimativ („de la")** — servicii pe proiect custom: agentul nu propune total fix, strânge cerințele și predă owner-ului pentru ofertă personalizată
+- **Programări** — servicii rezervabile (frizerie, clinică): agentul strânge serviciul + intervalul + numele, creează o programare și predă owner-ului confirmarea intervalului (pagina Programări)
 - **Gatekeeper business-only** — refuză cereri off-topic (bancuri, rețete) și prompt injection (keyword + LLM)
 - **Statistici & metrici** — activitate AI (azi/7z/lună) + performanță agent (rată rezolvare, escaladări, grafic 7 zile)
 - **Transcriere vocale** — mesajele audio sunt transcrise automat (Groq Whisper)
@@ -71,12 +73,13 @@ apps/
   web/          — frontend Next.js
   e2e/          — teste Playwright
 docs/
-  ARCHITECTURE.md   — decizii de design non-evidente
-  CHANGELOG.md      — istoricul versiunilor
-  ROADMAP.md        — funcționalități viitoare și respinse
-  DEV_SETUP.md      — comenzi dev și setup local
-  RUNBOOK.md        — proceduri de incident
-  env_vars.md       — documentație variabile de mediu
+  ARCHITECTURE.md     — decizii de design non-evidente
+  CHANGELOG.md        — istoricul versiunilor
+  BACKLOG.md          — ce rămâne de făcut (necesare / nice-to-have / pe viitor) + referințe livrate
+  FLUX_APLICATIE.md   — ghidul complet din perspectiva owner-ului (setări dashboard, exemple)
+  DEV_SETUP.md        — comenzi dev și setup local
+  RUNBOOK.md          — proceduri de incident
+  env_vars.md         — documentație variabile de mediu
 ```
 
 ## Rulare locală

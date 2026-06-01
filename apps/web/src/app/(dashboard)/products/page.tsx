@@ -14,10 +14,12 @@ type FormState = {
   priceLei: string
   category: string
   isAvailable: boolean
+  isEstimate: boolean  // preț „începând de la" (proiecte custom) — agentul nu propune total fix
+  isBookable: boolean  // serviciu rezervabil — agentul face programare cu handoff la owner
   stock: string  // '' = nelimitat; altfel număr întreg >= 0
 }
 
-const EMPTY_FORM: FormState = { name: '', description: '', priceLei: '', category: '', isAvailable: true, stock: '' }
+const EMPTY_FORM: FormState = { name: '', description: '', priceLei: '', category: '', isAvailable: true, isEstimate: false, isBookable: false, stock: '' }
 
 export default function ProductsPage() {
   const { accessToken } = useAuthStore()
@@ -67,6 +69,8 @@ export default function ProductsPage() {
       priceLei: (p.priceBani / 100).toFixed(2),
       category: p.category,
       isAvailable: p.isAvailable,
+      isEstimate: p.isEstimate ?? false,
+      isBookable: p.isBookable ?? false,
       stock: p.stock === null || p.stock === undefined ? '' : String(p.stock),
     })
     setFormError(null)
@@ -102,6 +106,8 @@ export default function ProductsPage() {
         priceLei,
         category: form.category.trim(),
         isAvailable: form.isAvailable,
+        isEstimate: form.isEstimate,
+        isBookable: form.isBookable,
         stock,
       }
       if (editingId) {
@@ -240,7 +246,7 @@ export default function ProductsPage() {
 
           <p className="font-mono-ui text-[12px] text-dim mb-4">
             Coloane așteptate: <code className="text-acid">nume</code>, <code className="text-acid">pret</code> (obligatorii) +
-            opțional <code className="text-acid">categorie</code>, <code className="text-acid">descriere</code>, <code className="text-acid">disponibil</code>.
+            opțional <code className="text-acid">categorie</code>, <code className="text-acid">descriere</code>, <code className="text-acid">disponibil</code>, <code className="text-acid">estimativ</code>, <code className="text-acid">rezervabil</code>.
             Produsele se adaugă la cele existente (nu le înlocuiesc).
           </p>
 
@@ -391,6 +397,38 @@ export default function ProductsPage() {
               </span>
             </label>
 
+            <label className="flex items-center gap-3 cursor-pointer">
+              <button
+                type="button"
+                onClick={() => setForm(f => ({ ...f, isEstimate: !f.isEstimate }))}
+                style={form.isEstimate ? { background: 'var(--acid)' } : undefined}
+                className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none ${
+                  form.isEstimate ? '' : 'bg-cardhi border border-line'
+                }`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${form.isEstimate ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
+              <span className="font-mono-ui text-[13px] text-dim">
+                Preț estimativ („de la") {form.isEstimate ? '— proiect custom; agentul nu propune un total fix, predă ofertarea ție' : '— preț fix; agentul poate finaliza comanda'}
+              </span>
+            </label>
+
+            <label className="flex items-center gap-3 cursor-pointer">
+              <button
+                type="button"
+                onClick={() => setForm(f => ({ ...f, isBookable: !f.isBookable }))}
+                style={form.isBookable ? { background: 'var(--acid)' } : undefined}
+                className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none ${
+                  form.isBookable ? '' : 'bg-cardhi border border-line'
+                }`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${form.isBookable ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
+              <span className="font-mono-ui text-[13px] text-dim">
+                Rezervabil {form.isBookable ? '— serviciu pe programare; agentul strânge intervalul, tu confirmi' : '— fără programare'}
+              </span>
+            </label>
+
             {formError && <p className="font-mono-ui text-[12px] text-red-500 dark:text-red-400">{formError}</p>}
 
             <div className="flex items-center gap-3 pt-1">
@@ -434,6 +472,12 @@ export default function ProductsPage() {
                   )}
                   {!p.isAvailable && (
                     <span className="font-mono-ui text-[10px] text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 rounded-full">indisponibil</span>
+                  )}
+                  {p.isEstimate && (
+                    <span className="font-mono-ui text-[10px] text-acid bg-acid/10 px-2 py-0.5 rounded-full">preț de la</span>
+                  )}
+                  {p.isBookable && (
+                    <span className="font-mono-ui text-[10px] text-acid bg-acid/10 px-2 py-0.5 rounded-full">rezervabil</span>
                   )}
                   {p.stock !== null && p.stock !== undefined && (
                     p.stock === 0

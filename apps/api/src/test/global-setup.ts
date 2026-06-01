@@ -187,7 +187,21 @@ export async function setup() {
     `ALTER TABLE ai_settings ADD COLUMN IF NOT EXISTS order_intake_prompt TEXT NOT NULL DEFAULT ''`,
     `ALTER TABLE orders ADD COLUMN IF NOT EXISTS details TEXT NOT NULL DEFAULT ''`,
     `ALTER TABLE products ADD COLUMN IF NOT EXISTS stock INTEGER`,
+    `ALTER TABLE products ADD COLUMN IF NOT EXISTS is_estimate BOOLEAN NOT NULL DEFAULT FALSE`,
+    `ALTER TABLE products ADD COLUMN IF NOT EXISTS is_bookable BOOLEAN NOT NULL DEFAULT FALSE`,
     `ALTER TABLE orders ADD COLUMN IF NOT EXISTS public_ref TEXT`,
+    `CREATE TABLE IF NOT EXISTS appointments (
+      id TEXT PRIMARY KEY,
+      public_ref TEXT NOT NULL,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      contact_phone TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','confirmed','completed','cancelled')),
+      service_name TEXT NOT NULL,
+      requested_slot TEXT NOT NULL DEFAULT '',
+      details TEXT NOT NULL DEFAULT '',
+      created_at BIGINT NOT NULL,
+      updated_at BIGINT NOT NULL
+    )`,
   ]
 
   for (const sql of statements) {

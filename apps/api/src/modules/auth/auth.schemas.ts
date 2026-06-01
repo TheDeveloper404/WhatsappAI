@@ -1,13 +1,19 @@
 import { z } from 'zod'
+import { isDisposableEmail } from '../../utils/disposable-email.js'
 
 export const registerSchema = z.object({
   name: z.string().trim().min(2).max(100),
-  email: z.string().email().max(255).transform(v => v.toLowerCase()),
+  email: z.string().email().max(255).transform(v => v.toLowerCase())
+    // Blocăm emailurile de unică folosință (anti-spam la înregistrare).
+    .refine(v => !isDisposableEmail(v), 'Folosește o adresă de email permanentă (nu una temporară).'),
   password: z
     .string()
     .min(8)
     .regex(/[A-Z]/, 'Must contain at least one uppercase letter')
     .regex(/[0-9]/, 'Must contain at least one number'),
+  // Honeypot anti-bot: câmp ascuns pe care oamenii NU îl completează. Dacă vine cu conținut, e un bot
+  // → validarea pică (lungime max 0). Real users îl trimit gol sau deloc.
+  website: z.string().max(0).optional(),
 })
 
 export const loginSchema = z.object({

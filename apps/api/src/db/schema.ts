@@ -151,6 +151,15 @@ export const products = pgTable('products', {
   priceBani: integer('price_bani').notNull(),
   category: text('category').notNull().default(''),
   isAvailable: boolean('is_available').notNull().default(true),
+  // Preț estimativ („începând de la"). TRUE = serviciu pe proiect custom (agenții, dezvoltare):
+  // prețul afișat e doar un punct de pornire, finalul se stabilește după discuție. Pentru
+  // aceste produse NU propunem total fix și NU înregistrăm comandă — rămânem în discovery și
+  // predăm owner-ului pentru ofertă personalizată. FALSE = preț fix (model magazin).
+  isEstimate: boolean('is_estimate').notNull().default(false),
+  // Serviciu rezervabil (programare pe dată/oră). TRUE = frizerie/clinică/salon: clientul nu „comandă",
+  // ci rezervă un interval. Agentul strânge serviciul + intervalul dorit + numele, creează o programare
+  // 'pending' și predă owner-ului să confirme intervalul (handoff ușor, fără verificare de disponibilitate).
+  isBookable: boolean('is_bookable').notNull().default(false),
   // Stoc numeric. NULL = nelimitat (servicii, producție la cerere). N = cantitate reală,
   // scade atomic la confirmarea comenzii de către client. 0 = epuizat (dar produsul există).
   stock: integer('stock'),
@@ -185,6 +194,25 @@ export const orderItems = pgTable('order_items', {
   quantity: integer('quantity').notNull(),
 })
 
+// Programări (N1): servicii rezervabile (frizerie, clinică, salon). Handoff ușor — agentul strânge
+// serviciul + intervalul dorit (text liber) + numele, creează o programare 'pending' și anunță owner-ul,
+// care confirmă manual intervalul. Fără calcul de sloturi/disponibilitate la acest nivel.
+export const appointments = pgTable('appointments', {
+  id: text('id').primaryKey(),
+  // Referință scurtă lizibilă arătată în conversație/dashboard (ex. „prg_a1b2c3").
+  publicRef: text('public_ref').notNull(),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  contactPhone: text('contact_phone').notNull(),
+  status: text('status').notNull().default('pending'),
+  // Serviciul cerut (denormalizat — numele la momentul programării).
+  serviceName: text('service_name').notNull(),
+  // Intervalul dorit, ca text liber („vineri pe la 15"). Nu calculăm sloturi reale aici.
+  requestedSlot: text('requested_slot').notNull().default(''),
+  details: text('details').notNull().default(''),
+  createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+  updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
+})
+
 // RAG — documente încărcate de owner ca bază de cunoștințe pentru agent.
 export const documents = pgTable('documents', {
   id: text('id').primaryKey(),
@@ -217,6 +245,8 @@ export type Order = typeof orders.$inferSelect
 export type NewOrder = typeof orders.$inferInsert
 export type OrderItem = typeof orderItems.$inferSelect
 export type NewOrderItem = typeof orderItems.$inferInsert
+export type Appointment = typeof appointments.$inferSelect
+export type NewAppointment = typeof appointments.$inferInsert
 export type Document = typeof documents.$inferSelect
 export type NewDocument = typeof documents.$inferInsert
 export type DocumentChunk = typeof documentChunks.$inferSelect

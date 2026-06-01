@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import {
   Moon, Sun, Menu, X, ArrowRight, Check, Play, ChevronUp,
+  FileText, Flame, ShoppingCart,
 } from 'lucide-react'
 
 // ─── THEME HOOK ───────────────────────────────────────────────────────────────
@@ -50,7 +51,7 @@ function Navbar() {
         <nav className="hidden md:flex items-center gap-7 text-[15px] text-dim font-mono-ui">
           <a href="#how"      className="hover:text-ink transition-colors pb-0.5 border-b border-transparent hover:border-acid">cum.merge</a>
           <a href="#features" className="hover:text-ink transition-colors pb-0.5 border-b border-transparent hover:border-acid">funcționalități</a>
-          <a href="#diff"     className="hover:text-ink transition-colors pb-0.5 border-b border-transparent hover:border-acid">tonul.tău</a>
+          <a href="#diff"     className="hover:text-ink transition-colors pb-0.5 border-b border-transparent hover:border-acid">highlights</a>
           <a href="#pricing"  className="hover:text-ink transition-colors pb-0.5 border-b border-transparent hover:border-acid">prețuri</a>
           <a href="#faq"      className="hover:text-ink transition-colors pb-0.5 border-b border-transparent hover:border-acid">faq</a>
         </nav>
@@ -80,7 +81,7 @@ function Navbar() {
           {[
             { href: '#how',      label: 'cum.merge' },
             { href: '#features', label: 'funcționalități' },
-            { href: '#diff',     label: 'tonul.tău' },
+            { href: '#diff',     label: 'highlights' },
             { href: '#pricing',  label: 'prețuri' },
             { href: '#faq',      label: 'faq' },
           ].map(l => (
@@ -388,6 +389,49 @@ function Ticker() {
 }
 
 // ─── §01 DIFFERENTIATOR ───────────────────────────────────────────────────────
+const HIGHLIGHTS = [
+  {
+    icon: FileText,
+    tag: 'RAG',
+    title: 'răspunde din documentele tale',
+    desc: 'Încarci PDF, DOCX sau TXT. Agentul caută în ele și răspunde clienților exact din informațiile tale — prețuri, politici, specificații — fără să inventeze.',
+    detail: (
+      <div className="flex items-center gap-1.5 font-mono-ui text-[10px] text-dimmer">
+        <span className="px-1.5 py-0.5 rounded bg-cardhi text-ink">PDF</span>
+        <span className="px-1.5 py-0.5 rounded bg-cardhi text-ink">DOCX</span>
+        <span className="px-1.5 py-0.5 rounded bg-cardhi text-ink">TXT</span>
+        <ArrowRight className="h-3 w-3 text-acid" />
+        <span className="text-acid">răspuns exact</span>
+      </div>
+    ),
+  },
+  {
+    icon: Flame,
+    tag: 'LEAD-URI',
+    title: 'califică automat contactele',
+    desc: 'Fiecare client primește un scor hot / warm / cold după criteriile tale. Vezi instant cine merită un telefon acum și cine poate aștepta.',
+    detail: (
+      <div className="flex items-center gap-3 font-mono-ui text-[10px]">
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{ background: 'var(--danger)' }} />hot</span>
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{ background: 'var(--acid)' }} />warm</span>
+        <span className="flex items-center gap-1 text-dimmer"><span className="w-2 h-2 rounded-full" style={{ background: 'var(--line)' }} />cold</span>
+      </div>
+    ),
+  },
+  {
+    icon: ShoppingCart,
+    tag: 'COMENZI + STOC',
+    title: 'preia comenzi și ține stocul',
+    desc: 'Agentul colectează comanda în conversație, calculează totalul din prețurile reale și scade stocul atomic la confirmare. Tu vezi totul în dashboard.',
+    detail: (
+      <div className="flex items-center justify-between font-mono-ui text-[10.5px]">
+        <span className="text-dim">2× tunsoare</span>
+        <span className="text-ink">90 lei <span className="text-acid">✓</span></span>
+      </div>
+    ),
+  },
+]
+
 function Differentiator() {
   return (
     <section id="diff" className="relative py-24 lg:py-32 border-b border-line overflow-hidden">
@@ -397,116 +441,36 @@ function Differentiator() {
         {/* Header row */}
         <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 mb-16">
           <div>
-            <div className="font-mono-ui text-[11px] text-acid tracking-widest mb-6">§03 — TONUL.TĂU</div>
+            <div className="font-mono-ui text-[11px] text-acid tracking-widest mb-6">§03 — HIGHLIGHTS</div>
             <h2 className="font-display text-[34px] sm:text-[56px] lg:text-[80px] text-ink">
-              sună ca tine,<br />
-              <span className="text-dim">nu ca un alt</span><br />
-              <span className="text-acid">bot ai.</span>
+              mult mai mult<br />
+              <span className="text-dim">decât un</span><br />
+              <span className="text-acid">simplu bot.</span>
             </h2>
           </div>
           <div className="flex items-end pb-2">
             <p className="text-[16px] text-dim leading-relaxed">
-              Exportați chat-ul WhatsApp. Analizăm <strong className="text-ink">1.000+ mesaje</strong> în ~60 secunde — vocabular, lungime, emoji, ritm, când spui &bdquo;salut&rdquo; și când spui &bdquo;hei&rdquo;. Agentul reproduce <strong className="text-acid">tot.</strong>
+              Agentul nu doar răspunde — <strong className="text-ink">știe ce vinzi, cine cumpără și ce scrie în documentele tale.</strong> Trei capabilități care îl transformă dintr-un chatbot într-un <strong className="text-acid">coleg de business.</strong>
             </p>
           </div>
         </div>
 
-        {/* Side-by-side chat cards */}
-        <div className="grid sm:grid-cols-2 gap-4 mb-4">
-          {/* Original — Tu */}
-          <div className="card-elevated rounded-2xl p-5 transition-transform duration-300 hover:-translate-y-1.5 hover:shadow-xl">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-7 h-7 rounded-full font-mono-ui text-[10px] font-bold text-ink flex items-center justify-center"
-                style={{ background: 'var(--line)' }}>tu</div>
-              <div>
-                <div className="font-mono-ui text-[11px] text-ink">cum scrii tu</div>
-                <div className="font-mono-ui text-[9.5px] text-dimmer">arhivă · 1.247 mesaje · marți</div>
+        {/* Highlight cards */}
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {HIGHLIGHTS.map(({ icon: Icon, tag, title, desc, detail }) => (
+            <div key={tag} className="card-elevated rounded-2xl p-6 flex flex-col transition-transform duration-300 hover:-translate-y-1.5 hover:shadow-xl">
+              <div className="flex items-center gap-2.5 mb-5">
+                <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl"
+                  style={{ background: 'color-mix(in oklab, var(--acid) 16%, var(--card-hi))' }}>
+                  <Icon className="h-4 w-4 text-acid" />
+                </span>
+                <span className="font-mono-ui text-[10px] text-acid tracking-widest">{tag}</span>
               </div>
-              <div className="ml-auto font-mono-ui text-[9.5px] text-dimmer">REFERINȚĂ</div>
+              <h3 className="font-display text-[22px] text-ink mb-3 leading-tight">{title}</h3>
+              <p className="text-[14px] text-dim leading-relaxed flex-1">{desc}</p>
+              <div className="mt-5 pt-4 border-t border-line">{detail}</div>
             </div>
-            <div className="space-y-2.5">
-              <div className="bubble-l px-3 py-2 text-[12.5px] text-dim inline-block"
-                style={{ background: 'var(--card-bg)', border: '1px solid var(--line)' }}>
-                salut 🍕 când vrei să trecem?
-              </div>
-              <div className="flex justify-end">
-                <div className="bubble-r px-3 py-2 text-[12.5px] text-dim"
-                  style={{ background: 'color-mix(in oklab, var(--acid) 12%, var(--card-hi))' }}>
-                  am liber joi după 6 sau vineri dim
-                </div>
-              </div>
-              <div className="bubble-l px-3 py-2 text-[12.5px] text-dim inline-block"
-                style={{ background: 'var(--card-bg)', border: '1px solid var(--line)' }}>
-                vineri dim sună bine 👊
-              </div>
-              <div className="flex justify-end">
-                <div className="bubble-r px-3 py-2 text-[12.5px] text-dim"
-                  style={{ background: 'color-mix(in oklab, var(--acid) 12%, var(--card-hi))' }}>
-                  ok perfect, ne vedem la 9 la cafenea
-                </div>
-              </div>
-            </div>
-            {/* Fingerprint */}
-            <div className="mt-5 pt-4 border-t border-line">
-              <div className="font-mono-ui text-[9px] text-dimmer uppercase tracking-widest mb-3">FINGERPRINT</div>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-2 font-mono-ui text-[10.5px]">
-                <div className="flex justify-between gap-1"><span className="text-dimmer">lungime medie</span><span className="text-ink">4–7 cuv.</span></div>
-                <div className="flex justify-between gap-1"><span className="text-dimmer">salut preferat</span><span className="text-ink">&bdquo;salut&rdquo;, &bdquo;hei&rdquo;</span></div>
-                <div className="flex justify-between gap-1"><span className="text-dimmer">emoji frecvent</span><span className="text-ink">🍕 👊 🤝</span></div>
-                <div className="flex justify-between gap-1"><span className="text-dimmer">punctuație</span><span className="text-ink">minimă</span></div>
-                <div className="flex justify-between gap-1"><span className="text-dimmer">caps</span><span className="text-ink">fără</span></div>
-                <div className="flex justify-between gap-1"><span className="text-dimmer">diacritice</span><span className="text-ink">50%</span></div>
-              </div>
-            </div>
-          </div>
-
-          {/* Agent — AI */}
-          <div className="card-elevated rounded-2xl p-5 relative transition-transform duration-300 hover:-translate-y-1.5 hover:shadow-xl">
-            <div className="absolute top-4 right-4 font-mono-ui text-[10px] font-bold px-2.5 py-1 rounded-full"
-              style={{ background: 'var(--acid)', color: 'var(--on-acid)' }}>99% MATCH</div>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-7 h-7 rounded-full font-mono-ui text-[10px] font-bold flex items-center justify-center"
-                style={{ background: 'var(--acid)', color: 'var(--on-acid)' }}>ai</div>
-              <div>
-                <div className="font-mono-ui text-[11px] text-ink">cum scrie agentul</div>
-                <div className="font-mono-ui text-[9.5px] text-dimmer">clonă stil · azi noapte</div>
-              </div>
-            </div>
-            <div className="space-y-2.5">
-              <div className="bubble-l px-3 py-2 text-[12.5px] text-dim inline-block"
-                style={{ background: 'var(--card-bg)', border: '1px solid var(--line)' }}>
-                salut, mai e liber tunsul pentru sâmbătă?
-              </div>
-              <div className="flex justify-end">
-                <div className="bubble-r px-3 py-2 text-[12.5px] text-ink"
-                  style={{ background: 'color-mix(in oklab, var(--acid) 20%, var(--card-hi))' }}>
-                  hei da, am la 11 sau 14 sâmbătă
-                </div>
-              </div>
-              <div className="bubble-l px-3 py-2 text-[12.5px] text-dim inline-block"
-                style={{ background: 'var(--card-bg)', border: '1px solid var(--line)' }}>
-                14 e ok
-              </div>
-              <div className="flex justify-end">
-                <div className="bubble-r px-3 py-2 text-[12.5px] text-ink"
-                  style={{ background: 'color-mix(in oklab, var(--acid) 20%, var(--card-hi))' }}>
-                  ok te-am trecut, ne vedem sâmbătă la 14 👊
-                </div>
-              </div>
-            </div>
-            {/* Reproduces */}
-            <div className="mt-5 pt-4 border-t border-line">
-              <div className="font-mono-ui text-[9px] text-acid uppercase tracking-widest mb-3">REPRODUCE</div>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-2 font-mono-ui text-[10.5px]">
-                <div className="flex justify-between gap-1"><span className="text-dimmer">lungime medie</span><span className="text-ink">5 cuv. <span className="text-acid">✓</span></span></div>
-                <div className="flex justify-between gap-1"><span className="text-dimmer">salut preferat</span><span className="text-ink">&bdquo;hei&rdquo; <span className="text-acid">✓</span></span></div>
-                <div className="flex justify-between gap-1"><span className="text-dimmer">emoji frecvent</span><span className="text-ink">👊 <span className="text-acid">✓</span></span></div>
-                <div className="flex justify-between gap-1"><span className="text-dimmer">punctuație</span><span className="text-ink">minimă <span className="text-acid">✓</span></span></div>
-                <div className="flex justify-between gap-1"><span className="text-dimmer">caps</span><span className="text-ink">fără <span className="text-acid">✓</span></span></div>
-                <div className="flex justify-between gap-1"><span className="text-dimmer">diacritice</span><span className="text-ink">52% <span className="text-acid">✓</span></span></div>
-              </div>
-            </div>
-          </div>
+          ))}
         </div>
       </div>
     </section>

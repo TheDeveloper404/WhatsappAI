@@ -161,6 +161,24 @@ export async function setup() {
       updated_at BIGINT NOT NULL,
       UNIQUE(user_id, contact_phone)
     )`,
+    `CREATE TABLE IF NOT EXISTS documents (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      filename TEXT NOT NULL,
+      mime TEXT NOT NULL,
+      char_count INTEGER NOT NULL DEFAULT 0,
+      status TEXT NOT NULL DEFAULT 'ready',
+      created_at BIGINT NOT NULL
+    )`,
+    `CREATE TABLE IF NOT EXISTS document_chunks (
+      id TEXT PRIMARY KEY,
+      document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      chunk_index INTEGER NOT NULL,
+      content TEXT NOT NULL,
+      embedding JSONB NOT NULL,
+      created_at BIGINT NOT NULL
+    )`,
     // ALTER idempotent pentru DB de test create înainte de aceste coloane — altfel
     // CREATE TABLE IF NOT EXISTS NU adaugă coloane la un tabel deja existent și ai
     // pica teste local pe coloane lipsă (deși în prod runStartupMigrations le adaugă).

@@ -14,6 +14,7 @@ import { aiRoutes } from './modules/ai/ai.routes.js'
 import { adminRoutes } from './modules/admin/admin.routes.js'
 import { productsRoutes } from './modules/orders/products.routes.js'
 import { ordersRoutes } from './modules/orders/orders.routes.js'
+import { knowledgeRoutes } from './modules/knowledge/knowledge.routes.js'
 import { testRoutes } from './modules/test/test.routes.js'
 import { AppError } from './utils/errors.js'
 
@@ -141,6 +142,7 @@ export async function buildApp() {
   await app.register(adminRoutes, { prefix: '/api/v1/admin' })
   await app.register(productsRoutes, { prefix: '/api/v1/products' })
   await app.register(ordersRoutes, { prefix: '/api/v1/orders' })
+  await app.register(knowledgeRoutes, { prefix: '/api/v1/knowledge' })
 
   if (env.E2E_MODE === 'true' && env.NODE_ENV !== 'production') {
     await app.register(testRoutes, { prefix: '/api/v1/test' })

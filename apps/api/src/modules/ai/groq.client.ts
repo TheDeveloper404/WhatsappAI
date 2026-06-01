@@ -3,6 +3,9 @@ import { env } from '../../config/env.js'
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions'
 const GROQ_WHISPER_URL = 'https://api.groq.com/openai/v1/audio/transcriptions'
 const GEMINI_MODEL = 'gemini-2.0-flash'
+const GEMINI_EMBED_MODEL = 'text-embedding-004'
+// Gemini batchEmbedContents acceptă max 100 cereri/apel — împărțim în loturi.
+const EMBED_BATCH = 100
 
 export type GroqMessage = { role: 'system' | 'user' | 'assistant'; content: string }
 type LLMOptions = { max_tokens?: number; temperature?: number }
@@ -112,6 +115,50 @@ Reguli:
   const data = await res.json() as any
   const out = data.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join('') ?? ''
   return String(out).trim()
+}
+
+// Embeddings pentru RAG (Gemini text-embedding-004). `taskType` ajustează vectorul pentru rolul lui:
+// RETRIEVAL_DOCUMENT la indexarea chunk-urilor, RETRIEVAL_QUERY la întrebarea clientului — îmbunătățește
+// potrivirea. Întoarce un vector per text, în aceeași ordine. Aruncă dacă lipsește cheia sau API-ul
+// dă alt număr de vectori (apelantul decide fail-open). Fără conținut în logs.
+export async function embedTexts(
+  texts: string[],
+  taskType: 'RETRIEVAL_DOCUMENT' | 'RETRIEVAL_QUERY' = 'RETRIEVAL_DOCUMENT',
+): Promise<number[][]> {
+  if (!env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY not configured')
+  if (texts.length === 0) return []
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_EMBED_MODEL}:batchEmbedContents?key=${env.GEMINI_API_KEY}`
+  const out: number[][] = []
+
+  for (let i = 0; i < texts.length; i += EMBED_BATCH) {
+    const slice = texts.slice(i, i + EMBED_BATCH)
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        requests: slice.map(text => ({
+          model: `models/${GEMINI_EMBED_MODEL}`,
+          content: { parts: [{ text }] },
+          taskType,
+        })),
+      }),
+    })
+
+    if (!res.ok) {
+      const text = await res.text()
+      throw new Error(`Gemini embed error ${res.status}: ${text}`)
+    }
+
+    const data = await res.json() as any
+    const embeddings = (data.embeddings ?? []) as Array<{ values: number[] }>
+    if (embeddings.length !== slice.length) {
+      throw new Error(`Gemini embed: așteptam ${slice.length} vectori, am primit ${embeddings.length}`)
+    }
+    for (const e of embeddings) out.push(e.values)
+  }
+
+  return out
 }
 
 // Dispatcher: alege furnizorul după LLM_PROVIDER. Transcrierea vocală NU trece pe aici

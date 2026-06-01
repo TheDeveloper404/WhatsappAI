@@ -1,4 +1,4 @@
-import { pgTable, text, integer, boolean, bigint, unique, primaryKey } from 'drizzle-orm/pg-core'
+import { pgTable, text, integer, boolean, bigint, jsonb, unique, primaryKey } from 'drizzle-orm/pg-core'
 
 export const users = pgTable('users', {
   id: text('id').primaryKey(),
@@ -185,12 +185,42 @@ export const orderItems = pgTable('order_items', {
   quantity: integer('quantity').notNull(),
 })
 
+// RAG — documente încărcate de owner ca bază de cunoștințe pentru agent.
+export const documents = pgTable('documents', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  filename: text('filename').notNull(),
+  mime: text('mime').notNull(),
+  // Lungimea textului extras (caractere) — pentru afișare/diagnostic, NU stocăm fișierul brut.
+  charCount: integer('char_count').notNull().default(0),
+  // 'ready' = procesat și indexat; 'failed' = extragere/embedding eșuat.
+  status: text('status').notNull().default('ready'),
+  createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+})
+
+// Bucățile (chunks) unui document + embedding-ul lor. Căutarea cosine se face în cod.
+export const documentChunks = pgTable('document_chunks', {
+  id: text('id').primaryKey(),
+  documentId: text('document_id').notNull().references(() => documents.id, { onDelete: 'cascade' }),
+  // Denormalizat pentru scoping/IDOR direct la retrieval, fără join pe documents.
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  chunkIndex: integer('chunk_index').notNull(),
+  content: text('content').notNull(),
+  // Vector embedding (Gemini text-embedding-004), stocat ca array de float.
+  embedding: jsonb('embedding').$type<number[]>().notNull(),
+  createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+})
+
 export type Product = typeof products.$inferSelect
 export type NewProduct = typeof products.$inferInsert
 export type Order = typeof orders.$inferSelect
 export type NewOrder = typeof orders.$inferInsert
 export type OrderItem = typeof orderItems.$inferSelect
 export type NewOrderItem = typeof orderItems.$inferInsert
+export type Document = typeof documents.$inferSelect
+export type NewDocument = typeof documents.$inferInsert
+export type DocumentChunk = typeof documentChunks.$inferSelect
+export type NewDocumentChunk = typeof documentChunks.$inferInsert
 
 export type ContactMemory = typeof contactMemory.$inferSelect
 export type LeadInsight = typeof leadInsights.$inferSelect

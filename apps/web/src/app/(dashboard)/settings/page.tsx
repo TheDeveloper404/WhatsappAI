@@ -1,9 +1,9 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAuthStore } from '@/store/auth'
-import { api, type AiSettings, type WhatsappSession } from '@/lib/api'
+import { api, type AiSettings, type WhatsappSession, type KnowledgeDocument } from '@/lib/api'
 import { CURRENCIES, currencyLabel } from '@/lib/format'
-import { Loader2, Save, Plus, X, Bot, Clock, Shield, Terminal, Flame } from 'lucide-react'
+import { Loader2, Save, Plus, X, Bot, Clock, Shield, Terminal, Flame, FileText, Upload, Trash2 } from 'lucide-react'
 
 const inputCls = 'w-full rounded-xl border border-line px-3 py-2.5 text-[13px] text-ink bg-cardhi focus:outline-none focus:ring-2 focus:ring-acid/40 focus:border-acid transition-colors resize-y'
 
@@ -51,14 +51,21 @@ export default function SettingsPage() {
   const [addingPhone, setAddingPhone] = useState(false)
   const [phoneError, setPhoneError] = useState<string | null>(null)
 
+  const [documents, setDocuments] = useState<KnowledgeDocument[]>([])
+  const [uploadingDoc, setUploadingDoc] = useState(false)
+  const [deletingDocId, setDeletingDocId] = useState<string | null>(null)
+  const [docError, setDocError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   useEffect(() => {
     if (!accessToken) return
     Promise.all([
       api.ai.getSettings(accessToken),
       api.ai.getBlacklist(accessToken),
       api.whatsapp.getSession(accessToken).catch(() => ({ session: null })),
+      api.knowledge.list(accessToken).catch(() => ({ documents: [] })),
     ])
-      .then(([{ settings: s }, { phones }, { session }]) => {
+      .then(([{ settings: s }, { phones }, { session }, { documents: docs }]) => {
         setSettings(s)
         setSystemPrompt(s.systemPrompt)
         setKnowledgeBase(s.knowledgeBase ?? '')
@@ -69,6 +76,7 @@ export default function SettingsPage() {
         setTimerMinutes(s.timerMinutes)
         setBlacklist(phones)
         setWaSession(session)
+        setDocuments(docs)
       })
       .catch(() => setError('Nu s-au putut încărca setările.'))
       .finally(() => setLoading(false))
@@ -163,6 +171,33 @@ export default function SettingsPage() {
       setTimeout(() => setSavedLead(false), 3000)
     } catch { setError('Eroare la salvarea criteriilor.') }
     finally { setSavingLead(false) }
+  }
+
+  async function handleUploadDoc(file: File) {
+    if (!accessToken) return
+    setUploadingDoc(true); setDocError(null)
+    try {
+      const { document } = await api.knowledge.upload(accessToken, file)
+      setDocuments(prev => [document, ...prev])
+    } catch (err: unknown) {
+      setDocError((err as { message?: string })?.message ?? 'Eroare la încărcarea documentului.')
+    } finally {
+      setUploadingDoc(false)
+      if (fileInputRef.current) fileInputRef.current.value = '' // permite re-upload același fișier
+    }
+  }
+
+  async function handleDeleteDoc(id: string) {
+    if (!accessToken) return
+    setDeletingDocId(id); setDocError(null)
+    try {
+      await api.knowledge.remove(accessToken, id)
+      setDocuments(prev => prev.filter(d => d.id !== id))
+    } catch {
+      setDocError('Eroare la ștergerea documentului.')
+    } finally {
+      setDeletingDocId(null)
+    }
   }
 
   async function handleSaveIntake() {
@@ -465,6 +500,60 @@ export default function SettingsPage() {
               </button>
               {savedKB && <span className="font-mono-ui text-[12px] text-green-600 dark:text-green-400 font-medium">Salvat!</span>}
             </div>
+          </div>
+
+          {/* Documente (bază de cunoștințe RAG) */}
+          <div className="py-7">
+            <div className="flex items-center gap-2 mb-1">
+              <FileText className="h-4 w-4 text-dimmer" />
+              <p className="font-mono-ui text-[14px] text-ink font-medium">Documente (bază de cunoștințe)</p>
+            </div>
+            <p className="font-mono-ui text-[13px] text-dim mb-4">
+              Încarcă PDF, DOCX sau TXT (max 10 MB). Agentul caută automat în ele și răspunde clienților pe baza conținutului relevant.
+            </p>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+              className="hidden"
+              onChange={e => {
+                const file = e.target.files?.[0]
+                if (file) handleUploadDoc(file)
+              }}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadingDoc}
+              className="flex items-center gap-2 font-mono-ui text-[13px] px-4 py-2.5 rounded-lg border border-line text-ink hover:bg-cardhi disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {uploadingDoc ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+              {uploadingDoc ? 'Se procesează…' : 'Încarcă document'}
+            </button>
+
+            {docError && <p className="font-mono-ui text-[12px] text-red-500 mt-3">{docError}</p>}
+
+            {documents.length > 0 && (
+              <ul className="mt-4 space-y-2">
+                {documents.map(doc => (
+                  <li key={doc.id} className="flex items-center justify-between gap-3 border border-line rounded-xl px-3 py-2.5">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <FileText className="h-4 w-4 text-dimmer shrink-0" />
+                      <span className="font-mono-ui text-[13px] text-ink truncate">{doc.filename}</span>
+                      <span className="font-mono-ui text-[11px] text-dimmer shrink-0">{(doc.charCount / 1000).toFixed(1)}k caractere</span>
+                    </div>
+                    <button
+                      onClick={() => handleDeleteDoc(doc.id)}
+                      disabled={deletingDocId === doc.id}
+                      className="p-1.5 text-dimmer hover:text-red-500 disabled:opacity-50 transition-colors shrink-0"
+                      aria-label="Șterge documentul"
+                    >
+                      {deletingDocId === doc.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
           {/* Criterii lead-uri */}

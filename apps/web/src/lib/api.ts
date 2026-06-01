@@ -342,6 +342,33 @@ export const api = {
       }),
   },
 
+  knowledge: {
+    list: (accessToken: string) =>
+      request<{ documents: KnowledgeDocument[] }>('/api/v1/knowledge/documents', {
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        credentials: 'include',
+      }),
+
+    upload: (accessToken: string, file: File) => {
+      const form = new FormData()
+      form.append('file', file)
+      // Fără Content-Type: lăsăm browserul să pună multipart/form-data + boundary.
+      return request<{ document: KnowledgeDocument }>('/api/v1/knowledge/documents', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}` },
+        credentials: 'include',
+        body: form,
+      })
+    },
+
+    remove: (accessToken: string, id: string) =>
+      request<void>(`/api/v1/knowledge/documents/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        credentials: 'include',
+      }),
+  },
+
   admin: {
     getUsers: (accessToken: string) =>
       request<{ users: AdminUser[] }>('/api/v1/admin/users', {
@@ -549,6 +576,16 @@ export interface Order {
   createdAt: number
   updatedAt: number
   items: OrderItem[]
+}
+
+export interface KnowledgeDocument {
+  id: string
+  userId: string
+  filename: string
+  mime: string
+  charCount: number
+  status: string
+  createdAt: number
 }
 
 export interface Conversation {

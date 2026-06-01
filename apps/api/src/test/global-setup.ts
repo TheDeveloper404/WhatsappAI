@@ -134,6 +134,7 @@ export async function setup() {
     `CREATE TABLE IF NOT EXISTS orders (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      public_ref TEXT,
       contact_phone TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','confirmed','completed','cancelled')),
       total_bani INTEGER NOT NULL DEFAULT 0,
@@ -168,6 +169,7 @@ export async function setup() {
     `ALTER TABLE ai_settings ADD COLUMN IF NOT EXISTS order_intake_prompt TEXT NOT NULL DEFAULT ''`,
     `ALTER TABLE orders ADD COLUMN IF NOT EXISTS details TEXT NOT NULL DEFAULT ''`,
     `ALTER TABLE products ADD COLUMN IF NOT EXISTS stock INTEGER`,
+    `ALTER TABLE orders ADD COLUMN IF NOT EXISTS public_ref TEXT`,
   ]
 
   for (const sql of statements) {

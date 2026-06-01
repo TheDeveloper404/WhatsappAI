@@ -146,7 +146,12 @@ export default function OrdersPage() {
               <li key={order.id} className="border border-line rounded-xl p-5">
                 <div className="flex items-start justify-between gap-4 mb-3">
                   <div>
-                    <p className="font-mono-ui text-[14px] text-ink font-medium">+{order.contactPhone}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-mono-ui text-[14px] text-ink font-medium">+{order.contactPhone}</p>
+                      {order.publicRef && (
+                        <span className="font-mono-ui text-[11px] text-dim bg-cardhi rounded-md px-1.5 py-0.5">{order.publicRef}</span>
+                      )}
+                    </div>
                     <p className="font-mono-ui text-[11px] text-dimmer mt-0.5">{formatDate(order.createdAt)}</p>
                   </div>
                   <span className={`font-mono-ui text-[11px] px-3 py-1 rounded-full shrink-0 ${meta.color}`}>

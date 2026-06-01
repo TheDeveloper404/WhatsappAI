@@ -161,6 +161,9 @@ export const products = pgTable('products', {
 export const orders = pgTable('orders', {
   id: text('id').primaryKey(),
   userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  // Referință scurtă, prietenoasă, arătată clientului (ex. „ord_a1b2c3"). ID-ul intern (UUID)
+  // rămâne pentru sistem; public_ref e fața lizibilă pe care o vede omul în conversație/dashboard.
+  publicRef: text('public_ref').notNull(),
   contactPhone: text('contact_phone').notNull(),
   status: text('status').notNull().default('pending'),
   totalBani: integer('total_bani').notNull().default(0),

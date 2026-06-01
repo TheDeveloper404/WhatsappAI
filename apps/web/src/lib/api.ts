@@ -539,6 +539,7 @@ export interface OrderItem {
 
 export interface Order {
   id: string
+  publicRef: string
   userId: string
   contactPhone: string
   status: OrderStatus

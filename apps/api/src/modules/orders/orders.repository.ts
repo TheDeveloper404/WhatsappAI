@@ -11,6 +11,12 @@ export type OrderItemInput = {
   quantity: number
 }
 
+// Referință scurtă lizibilă pentru client (ex. „ord_a1b2c3"). Doar hex → fără caractere ambigue.
+// Suficient de unică la volumul nostru; coliziunea ar afecta doar afișarea, nu integritatea (id-ul rămâne UUID).
+function genPublicRef(): string {
+  return 'ord_' + randomUUID().replace(/-/g, '').slice(0, 6)
+}
+
 export const ordersRepository = {
   // Creează comanda + liniile ei. Totalul e calculat din prețurile primite
   // (care vin din DB, nu de la AI) — banii nu trec niciodată prin LLM.
@@ -19,6 +25,7 @@ export const ordersRepository = {
     const totalBani = items.reduce((sum, it) => sum + it.unitPriceBani * it.quantity, 0)
     const order = {
       id: randomUUID(),
+      publicRef: genPublicRef(),
       userId,
       contactPhone,
       status: 'pending' as const,

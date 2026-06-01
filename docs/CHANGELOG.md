@@ -6,11 +6,18 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
-### Added (2026-06-01) — Agent real: stoc numeric + scenarii comandă + onestitate
+### Added (2026-06-01) — Comenzi: referință scurtă `public_ref` (ord_xxx)
+
+- **Scop**: clientul și owner-ul nu pot folosi UUID-ul intern al comenzii într-o conversație. Fiecare comandă primește o referință scurtă lizibilă (ex. `ord_a1b2c3`) — un „număr de bon" prietenos. ID-ul UUID rămâne pentru sistem.
+- **Coloană `orders.public_ref`** (`schema.ts`). Migrare: `ADD COLUMN` nullable (ca să nu pice pe comenzile existente) + backfill imediat (`md5(random())`) pentru rândurile vechi; `genPublicRef()` în `orders.repository.create` setează mereu una pentru comenzile noi. Aceeași coloană adăugată și în setup-ul de test.
+- **Afișare**: în mesajul de confirmare către client (`✅ Comanda ta a fost înregistrată (ord_xxx)`), în notificarea către owner pe WhatsApp, și ca badge în pagina `/orders` din dashboard. Tip `Order.publicRef` extins în web.
+- `tsc --noEmit` verde pe API + web.
+
+### Added (2026-06-01) — Onestitate agent + conștientizare stoc: stoc numeric + scenarii comandă
 
 - **Problema**: agentul „vorbea" — promitea acțiuni neexecutate („am anunțat proprietarul") și nu putea gestiona stocul (catalogul avea doar `isAvailable` boolean, iar produsele indisponibile erau ascunse complet, deci agentul nici nu știa că există ca să spună „epuizat").
 - **Pilon A — stoc numeric real**: coloană `products.stock` (`NULL` = nelimitat pentru servicii; `N` = cantitate; `0` = epuizat). Migrat în 4 locuri. `decrementStock(userId, productId, qty)` — scădere **atomică** (`WHERE stock >= qty`, previne race-ul a 2 clienți pe ultimul produs). UI Catalog: input stoc (gol = nelimitat) + badge „stoc: N"/„epuizat". Tipuri web + payload create/update/import extinse.
-- **Pilon B — agent real**:
+- **Pilon B — comportament onest al agentului**:
   - **Catalog complet în prompt** — agentul vede acum și produsele epuizate/indisponibile, cu starea marcată (`[EPUIZAT]`, `[INDISPONIBIL]`, `[stoc: N]`), ca să spună onest „momentan nu mai avem X" și să propună alternativă, în loc să le ascundă.
   - **Verificare stoc în COD** (nu LLM) după extragere: produs indisponibil / epuizat / cerere > stoc → ramură nouă care **blochează propunerea** și instruiește agentul să explice onest problema. Repară scenariile cerute (nu există / nu e disponibil / stoc insuficient).
   - **Scădere atomică la confirmarea „da"**: dacă între propunere și confirmare s-a epuizat stocul, comanda se **anulează onest** cu mesaj (+ rollback la ce s-a apucat să scadă). Produsele `NULL` (nelimitat) nu sunt afectate.

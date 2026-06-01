@@ -308,7 +308,7 @@ async function sendAiResponse(userId: string, contactPhone: string, jid: string,
           logger.info(`[AI][${userId.slice(0, 8)}] comandă înregistrată`, { orderId: order.id, items: items.length, totalBani: order.totalBani })
 
           const detailsLine = intent.details.trim() ? `\n_${intent.details.trim()}_` : ''
-          const reply = `✅ Comanda ta a fost înregistrată:\n${lines}${detailsLine}\n\n*Total: ${totalLei} ${cur}*\n\nÎți confirmăm în scurt timp. Mulțumim!`
+          const reply = `✅ Comanda ta a fost înregistrată (*${order.publicRef}*):\n${lines}${detailsLine}\n\n*Total: ${totalLei} ${cur}*\n\nÎți confirmăm în scurt timp. Mulțumim!`
           await sock.sendMessage(jid, { text: reply })
           await aiRepository.saveMessage(userId, contactPhone, true, reply, Date.now(), true)
 
@@ -317,7 +317,7 @@ async function sendAiResponse(userId: string, contactPhone: string, jid: string,
             const note = intent.customerNote ? `\nNotă: ${intent.customerNote}` : ''
             const det = intent.details.trim() ? `\nDetalii: ${intent.details.trim()}` : ''
             sock.sendMessage(ownerJid, {
-              text: `🛒 Comandă nouă de la +${contactPhone}\n${lines}\n\nTotal: ${totalLei} ${cur}${det}${note}\n\nVezi în dashboard.`,
+              text: `🛒 Comandă nouă ${order.publicRef} de la +${contactPhone}\n${lines}\n\nTotal: ${totalLei} ${cur}${det}${note}\n\nVezi în dashboard.`,
             }).catch(() => {})
           }
           return

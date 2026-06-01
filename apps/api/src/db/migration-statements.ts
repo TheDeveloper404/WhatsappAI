@@ -172,6 +172,11 @@ export const migrationStatements = [
   `ALTER TABLE orders ADD COLUMN IF NOT EXISTS details TEXT NOT NULL DEFAULT ''`,
   // Stoc numeric per produs (NULL = nelimitat)
   `ALTER TABLE products ADD COLUMN IF NOT EXISTS stock INTEGER`,
+  // Referință scurtă, prietenoasă, per comandă (ex. „ord_a1b2c3"). Coloana intră nullable ca
+  // ALTER-ul să nu pice pe comenzile existente; backfill imediat le dă o referință, iar codul
+  // de creare setează mereu una pentru comenzile noi.
+  `ALTER TABLE orders ADD COLUMN IF NOT EXISTS public_ref TEXT`,
+  `UPDATE orders SET public_ref = 'ord_' || substr(md5(random()::text), 1, 6) WHERE public_ref IS NULL`,
   `CREATE TABLE IF NOT EXISTS lead_insights (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

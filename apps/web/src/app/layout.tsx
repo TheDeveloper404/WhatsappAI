@@ -1,19 +1,17 @@
 import type { Metadata, Viewport } from "next";
-import { Space_Grotesk, Geist_Mono } from "next/font/google";
+import { Space_Grotesk } from "next/font/google";
+import { GeistMono } from "geist/font/mono";
 import "./globals.css";
 import { CookieBanner } from "@/components/CookieBanner";
 import { Analytics } from "@vercel/analytics/next";
 
-// Fonturi self-hostate prin next/font (non-blocking) — înlocuiesc <link> sincron spre Google Fonts,
-// care bloca randarea (~2s pe mobil în Lighthouse). `latin-ext` = diacritice românești (ș/ț/ă/â/î).
+// Fonturi self-hostate (non-blocking) — înlocuiesc <link> sincron spre Google Fonts (~2s mobil în Lighthouse).
+// Space Grotesk prin next/font/google (`latin-ext` = diacritice RO ș/ț/ă/â/î).
+// Geist Mono prin pachetul oficial `geist`: în Next 14.2.x `next/font/google` NU expune subset-uri pentru
+// Geist Mono (array gol) → orice `subsets` aruncă la build. `geist` îl livrează ca next/font/local, cu glyph-urile complete.
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin", "latin-ext"],
   variable: "--font-space-grotesk",
-  display: "swap",
-});
-const geistMono = Geist_Mono({
-  subsets: ["latin", "latin-ext"],
-  variable: "--font-geist-mono",
   display: "swap",
 });
 
@@ -64,7 +62,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="ro" className={`${spaceGrotesk.variable} ${geistMono.variable}`} suppressHydrationWarning>
+    <html lang="ro" className={`${spaceGrotesk.variable} ${GeistMono.variable}`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>

@@ -652,6 +652,18 @@ async function processMessage(userId: string, sock: WASocket, msg: any): Promise
   logger.info(`[AI][${userId.slice(0, 8)}] msg-raw`, { jid, fromMe: msg.key?.fromMe, hasMsg: !!msg.message })
   if (!jid || !isIndividualChat(jid)) return
 
+  // DIAGNOSTIC TEMPORAR (fix LID, 2026-06-02 — DE ȘTERS după ce alegem fix-ul): pentru contactele
+  // care vin prin `@lid`, logăm tot `key`-ul + numele, ca să vedem dacă numărul real de telefon
+  // e disponibil undeva (ex. `senderPn` / `remoteJidAlt` / `participant` / `pushName`).
+  if (jid.endsWith('@lid')) {
+    // Doar identificatorii JID (acolo ar fi numărul real); FĂRĂ nume de contact (pushName/bizName) ca să
+    // minimizăm PII. De ȘTERS imediat ce avem datele.
+    logger.info(`[AI][${userId.slice(0, 8)}] DIAG-LID`, {
+      key: msg.key,
+      participant: msg.participant ?? null,
+    })
+  }
+
   const fromMe: boolean = msg.key?.fromMe ?? false
   const ownerPhone = sock.user?.id ? extractPhone(sock.user.id) : null
   const contactPhone = extractPhone(jid)

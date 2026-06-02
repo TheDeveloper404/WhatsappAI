@@ -51,8 +51,12 @@ export default function LeadsPage() {
     if (!accessToken) return
     setAnalyzingAll(true); setError(null)
     try {
-      await api.ai.analyzeLeads(accessToken)
+      const res = await api.ai.analyzeLeads(accessToken)
       await load()
+      // Nu mai pretindem succes total: dacă unele au eșuat (ex. limită AI atinsă), o spunem.
+      if ('analyzed' in res && res.failed > 0) {
+        setError(`${res.analyzed} lead-uri recalculate, ${res.failed} eșuate — probabil limita zilnică AI a fost atinsă. Reîncearcă mai târziu.`)
+      }
     } catch {
       setError('Eroare la recalcularea lead-urilor. Încearcă din nou într-un minut.')
     } finally {
@@ -67,7 +71,7 @@ export default function LeadsPage() {
       await api.ai.analyzeLeads(accessToken, phone)
       await load()
     } catch {
-      setError('Eroare la recalcularea acestui lead.')
+      setError('Nu s-a putut recalcula acest lead — serviciul AI e momentan indisponibil sau limita zilnică a fost atinsă. Încearcă mai târziu.')
     } finally {
       setAnalyzingPhone(null)
     }

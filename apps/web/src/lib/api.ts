@@ -272,7 +272,7 @@ export const api = {
 
     // Fără phone → recalculează lotul; cu phone → un singur contact.
     analyzeLeads: (accessToken: string, phone?: string) =>
-      request<{ analyzed: number } | { insight: LeadInsight }>('/api/v1/ai/leads/analyze', {
+      request<{ analyzed: number; failed: number } | { insight: LeadInsight }>('/api/v1/ai/leads/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
         credentials: 'include',

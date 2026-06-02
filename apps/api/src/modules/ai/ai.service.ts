@@ -75,10 +75,11 @@ export const aiService = {
   },
 
   // Recalculează scorurile pentru cele mai recente contacte (plafonat). Fail-soft per contact.
-  async analyzeAllLeads(userId: string): Promise<{ analyzed: number }> {
+  async analyzeAllLeads(userId: string): Promise<{ analyzed: number; failed: number }> {
     const settings = await aiRepository.getSettings(userId)
     const phones = await aiRepository.getRecentContactPhones(userId, LEAD_ANALYZE_BATCH_MAX)
     let analyzed = 0
+    let failed = 0
     for (const phone of phones) {
       try {
         const messages = await aiRepository.getMessagesForContact(userId, phone)
@@ -87,9 +88,11 @@ export const aiService = {
         await aiRepository.upsertLeadInsight(userId, phone, result)
         analyzed++
       } catch (err) {
+        // Nu mai înghițim tăcut: numărăm eșecurile ca să le raportăm în UI (ex. limită AI atinsă).
+        failed++
         logger.error(`[AI][${userId.slice(0, 8)}] eroare calificare lead`, { err: String(err) })
       }
     }
-    return { analyzed }
+    return { analyzed, failed }
   },
 }

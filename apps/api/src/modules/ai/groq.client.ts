@@ -1,4 +1,5 @@
 import { env } from '../../config/env.js'
+import { logger } from '../../utils/logger.js'
 
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions'
 const GROQ_WHISPER_URL = 'https://api.groq.com/openai/v1/audio/transcriptions'
@@ -161,13 +162,37 @@ export async function embedTexts(
   return out
 }
 
-// Dispatcher: alege furnizorul după LLM_PROVIDER. Transcrierea vocală NU trece pe aici
-// (rămâne pe Groq Whisper). Dacă Gemini e selectat dar n-are cheie, cădem pe Groq.
+// Heuristică: eroarea pare o limită temporară (rate limit / cotă / indisponibilitate)?
+// Folosită doar pentru context în log — failover-ul se face oricum pe orice eroare a primarului.
+function looksTransient(err: unknown): boolean {
+  return /\b(429|rate.?limit|quota|exhausted|resource_exhausted|503|overloaded|unavailable|timeout|ETIMEDOUT|ECONNRESET)\b/i.test(String(err))
+}
+
+// Dispatcher cu FAILOVER între furnizori. Încearcă furnizorul primar (după LLM_PROVIDER);
+// dacă pică (ex. Groq 429 / cotă zilnică atinsă), comută AUTOMAT pe celălalt furnizor — ca
+// un coleg care preia conversația fără ca clientul să observe întreruperea.
+// Transcrierea vocală NU trece pe aici (rămâne pe Groq Whisper).
+// Secundarul există doar dacă are cheie: Groq mereu (GROQ_API_KEY obligatoriu); Gemini doar cu GEMINI_API_KEY.
 async function callGroq(messages: GroqMessage[], options?: LLMOptions): Promise<string> {
-  if (env.LLM_PROVIDER === 'gemini' && env.GEMINI_API_KEY) {
-    return callGeminiApi(messages, options)
+  const preferGemini = env.LLM_PROVIDER === 'gemini' && Boolean(env.GEMINI_API_KEY)
+  const primary = preferGemini ? callGeminiApi : callGroqApi
+  const secondary = preferGemini ? callGroqApi : (env.GEMINI_API_KEY ? callGeminiApi : null)
+
+  try {
+    return await primary(messages, options)
+  } catch (err) {
+    if (!secondary) throw err
+    logger.warn('[LLM] furnizor primar a eșuat — failover pe secundar', {
+      primary: preferGemini ? 'gemini' : 'groq',
+      transient: looksTransient(err),
+    })
+    try {
+      return await secondary(messages, options)
+    } catch (err2) {
+      // Ambii furnizori au căzut — aruncăm o eroare clară (apelantul o poate trata ca „AI indisponibil").
+      throw new Error(`Ambii furnizori LLM au eșuat (primar: ${String(err)} | secundar: ${String(err2)})`)
+    }
   }
-  return callGroqApi(messages, options)
 }
 
 export async function askGroq(messages: GroqMessage[]): Promise<string> {

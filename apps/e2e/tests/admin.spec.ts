@@ -9,17 +9,14 @@ test.beforeEach(async ({ page }) => {
   await page.evaluate(() => localStorage.clear()).catch(() => {})
 })
 
-// Login-ul admin folosește 4 input-uri de o cifră (PIN), nu un singur câmp parolă.
-async function fillPin(page: any, pin: string) {
-  const inputs = page.locator('form input[inputmode="numeric"]')
-  for (let i = 0; i < pin.length; i++) {
-    await inputs.nth(i).fill(pin[i])
-  }
+// Login-ul admin folosește un singur câmp parolă pentru codul de acces.
+async function fillSecret(page: any, secret: string) {
+  await page.locator('form input[type="password"]').fill(secret)
 }
 
 async function loginAdmin(page: any) {
   await page.goto('/admin')
-  await fillPin(page, ADMIN_SECRET)
+  await fillSecret(page, ADMIN_SECRET)
   await page.getByRole('button', { name: /intră în admin|intră|login/i }).click()
   await expect(page).toHaveURL(/\/admin\/dashboard/)
 }
@@ -33,15 +30,15 @@ test.describe('Admin — Login', () => {
 
   test('secret greșit → eroare vizibilă', async ({ page }) => {
     await page.goto('/admin')
-    // PIN greșit de 4 cifre (cel corect e ADMIN_SECRET)
-    await fillPin(page, '0000')
+    // Cod de acces greșit (cel corect e ADMIN_SECRET)
+    await fillSecret(page, 'cod-gresit-de-acces')
     await page.getByRole('button', { name: /intră în admin|intră|login/i }).click()
     await expect(page.getByText(/incorect|greșit|invalid/i)).toBeVisible()
   })
 
   test('secret corect → redirect la /admin/dashboard', async ({ page }) => {
     await page.goto('/admin')
-    await fillPin(page, ADMIN_SECRET)
+    await fillSecret(page, ADMIN_SECRET)
     await page.getByRole('button', { name: /intră în admin|intră|login/i }).click()
     await expect(page).toHaveURL(/\/admin\/dashboard/)
   })

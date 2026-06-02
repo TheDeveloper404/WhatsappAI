@@ -5,6 +5,7 @@ import { Errors } from '../../utils/errors.js'
 import { sendCustomEmail } from '../../utils/email.js'
 import { logger } from '../../utils/logger.js'
 import { timingSafeEqual } from 'crypto'
+import { createAdminSession, verifyAdminSession } from '../../utils/tokens.js'
 
 // Comparație constant-time pentru secretul de admin — evită timing side-channel.
 function secretsMatch(provided: string, expected: string): boolean {
@@ -13,11 +14,16 @@ function secretsMatch(provided: string, expected: string): boolean {
   return a.length === b.length && timingSafeEqual(a, b)
 }
 
+// Bearer-ul este acum un token de sesiune semnat (emis de POST /auth), nu secretul brut.
+// Secretul nu mai circulă după login, iar sesiunea expiră în 2h.
 function verifyAdminToken(req: { headers: { authorization?: string } }) {
   const header = req.headers.authorization
   if (!header?.startsWith('Bearer ')) throw Errors.unauthorized('Token admin lipsă.')
-  const token = header.slice(7)
-  if (!env.ADMIN_SECRET || !secretsMatch(token, env.ADMIN_SECRET)) throw Errors.unauthorized('Token admin invalid.')
+  try {
+    verifyAdminSession(header.slice(7))
+  } catch {
+    throw Errors.unauthorized('Token admin invalid sau expirat.')
+  }
 }
 
 export async function adminRoutes(app: FastifyInstance) {
@@ -27,7 +33,7 @@ export async function adminRoutes(app: FastifyInstance) {
     if (!secret || !env.ADMIN_SECRET || !secretsMatch(secret, env.ADMIN_SECRET)) {
       throw Errors.unauthorized('Cod incorect.')
     }
-    return reply.send({ ok: true })
+    return reply.send({ ok: true, token: createAdminSession() })
   })
 
   // GET /admin/users

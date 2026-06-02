@@ -178,7 +178,9 @@ export default function ProfilePage() {
             Disponibili Luni–Vineri pentru orice întrebare sau problemă.
           </p>
           <p className="font-mono-ui text-[11px] text-dimmer mb-4">
-            Pentru ștergerea contului, contactează-ne pe email cu subiectul &quot;Ștergere cont&quot;.
+            Îți poți șterge contul oricând din pagina{' '}
+            <a href="/gdpr" className="text-acid hover:underline">Confidențialitate &amp; date</a>
+            {' '}(îți confirmăm cu parola). Pentru orice altceva, scrie-ne pe email.
           </p>
           <a
             href="mailto:support@waai.ro"

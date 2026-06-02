@@ -29,7 +29,7 @@ const envSchema = z.object({
 
   CORS_ORIGINS: z.string().optional(),
   ADMIN_EMAIL: z.string().email().optional(),
-  ADMIN_SECRET: z.string().min(4).optional(),
+  ADMIN_SECRET: z.string().min(32).optional(),
   E2E_MODE: z.enum(['true', 'false']).optional(),
   E2E_SECRET: z.string().min(16).optional(),
 })

@@ -75,3 +75,65 @@ describe('GET /users/me', () => {
     expect(res.statusCode).toBe(401)
   })
 })
+
+describe('DELETE /users/me', () => {
+  it('401 — no token rejected', async () => {
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/api/v1/users/me',
+      payload: { password: 'Password123!' },
+    })
+    expect(res.statusCode).toBe(401)
+  })
+
+  it('400 — missing password rejected', async () => {
+    const { accessToken } = await registerAndLogin('del-nopass@example.com')
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/api/v1/users/me',
+      headers: { authorization: `Bearer ${accessToken}` },
+      payload: {},
+    })
+    expect(res.statusCode).toBe(400)
+  })
+
+  it('401 — wrong password rejected', async () => {
+    const { accessToken } = await registerAndLogin('del-wrongpass@example.com')
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/api/v1/users/me',
+      headers: { authorization: `Bearer ${accessToken}` },
+      payload: { password: 'GreșităTotal1!' },
+    })
+    expect(res.statusCode).toBe(401)
+  })
+
+  it('200 — correct password schedules deletion', async () => {
+    const { accessToken } = await registerAndLogin('del-ok@example.com')
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/api/v1/users/me',
+      headers: { authorization: `Bearer ${accessToken}` },
+      payload: { password: 'Password123!' },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(res.json().ok).toBe(true)
+  })
+
+  it('400 — already scheduled rejected', async () => {
+    const { accessToken } = await registerAndLogin('del-twice@example.com')
+    await app.inject({
+      method: 'DELETE',
+      url: '/api/v1/users/me',
+      headers: { authorization: `Bearer ${accessToken}` },
+      payload: { password: 'Password123!' },
+    })
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/api/v1/users/me',
+      headers: { authorization: `Bearer ${accessToken}` },
+      payload: { password: 'Password123!' },
+    })
+    expect(res.statusCode).toBe(400)
+  })
+})

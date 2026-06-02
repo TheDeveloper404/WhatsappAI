@@ -65,6 +65,23 @@ export function verifyRefreshToken(token: string): TokenPayload {
   return verify(token, env.JWT_REFRESH_SECRET)
 }
 
+// Sesiune admin: token semnat, scurt, emis după validarea ADMIN_SECRET.
+// Cheie derivată DISTINCT din JWT_ACCESS_SECRET — un token de user nu poate trece
+// drept admin și invers, fără a introduce o variabilă de mediu nouă.
+const ADMIN_SESSION_SECRET = createHmac('sha256', env.JWT_ACCESS_SECRET).update('admin-session-v1').digest('hex')
+
+export function createAdminSession(): string {
+  const now = Math.floor(Date.now() / 1000)
+  const exp = now + 2 * 60 * 60 // 2h
+  const jti = randomBytes(8).toString('hex')
+  return sign({ scope: 'admin', iat: now, exp, jti }, ADMIN_SESSION_SECRET)
+}
+
+export function verifyAdminSession(token: string): void {
+  const payload = verify(token, ADMIN_SESSION_SECRET) as TokenPayload & { scope?: string }
+  if (payload.scope !== 'admin') throw new Error('Not an admin session token')
+}
+
 export function hashToken(token: string): string {
   return createHmac('sha256', env.JWT_REFRESH_SECRET).update(token).digest('hex')
 }

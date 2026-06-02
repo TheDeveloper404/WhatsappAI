@@ -3,7 +3,9 @@ import type { FastifyInstance } from 'fastify'
 import { buildApp } from '../../app.js'
 
 const ADMIN_SECRET = 'test_admin_secret_minimum_32_chars_here'
-const ADMIN_TOKEN = `Bearer ${ADMIN_SECRET}`
+// Bearer-ul e un token de sesiune semnat, emis de POST /admin/auth — nu secretul brut.
+// Se populează în beforeAll, după ce app e gata.
+let ADMIN_TOKEN = ''
 
 vi.mock('../../utils/email.js', () => ({
   sendVerificationEmail: vi.fn().mockResolvedValue(undefined),
@@ -33,6 +35,12 @@ let app: FastifyInstance
 beforeAll(async () => {
   app = await buildApp()
   await app.ready()
+  const authRes = await app.inject({
+    method: 'POST',
+    url: '/api/v1/admin/auth',
+    payload: { secret: ADMIN_SECRET },
+  })
+  ADMIN_TOKEN = `Bearer ${authRes.json().token}`
 })
 
 afterAll(async () => {
@@ -83,6 +91,7 @@ describe('POST /admin/auth', () => {
     })
     expect(res.statusCode).toBe(200)
     expect(res.json().ok).toBe(true)
+    expect(typeof res.json().token).toBe('string')
   })
 
   it('401 — secret greșit', async () => {

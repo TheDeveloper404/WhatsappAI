@@ -148,7 +148,7 @@ Variabilele obligatorii:
 | `EMAIL_FROM` | Adresa expeditor email |
 | `APP_URL` | URL frontend (ex: `https://app.example.com`) |
 | `CORS_ORIGINS` | Origini CORS extra, separate prin virgulă (opțional) |
-| `ADMIN_SECRET` | PIN acces panou admin (min 32 chars) |
+| `ADMIN_SECRET` | Cod acces panou admin (min 32 chars; login emite token de sesiune de 2h) |
 | `E2E_SECRET` | Header secret pentru rutele de test (opțional, min 16 chars) |
 
 ## Teste

@@ -161,7 +161,9 @@ export async function buildApp() {
   await app.register(appointmentsRoutes, { prefix: '/api/v1/appointments' })
   await app.register(knowledgeRoutes, { prefix: '/api/v1/knowledge' })
 
-  if (env.E2E_MODE === 'true' && env.NODE_ENV !== 'production') {
+  // Rutele de test (inclusiv /test/reset care șterge toată baza) se montează DOAR în afara
+  // producției și doar dacă există un E2E_SECRET. Handler-ele au în plus un guard hard pe prod.
+  if (env.E2E_MODE === 'true' && env.NODE_ENV !== 'production' && Boolean(env.E2E_SECRET)) {
     await app.register(testRoutes, { prefix: '/api/v1/test' })
   }
 

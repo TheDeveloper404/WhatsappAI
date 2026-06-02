@@ -16,6 +16,11 @@ import { env } from '../../config/env.js'
 
 export async function testRoutes(app: FastifyInstance) {
   app.addHook('preHandler', async (req, reply) => {
+    // Defense-in-depth: chiar dacă ruta ar fi montată greșit (ex. NODE_ENV nesetat pe prod),
+    // refuză categoric în producție. /test/reset șterge toată baza — nu trebuie să existe pe prod.
+    if (env.NODE_ENV === 'production') {
+      return reply.status(404).send({ error: 'Not found' })
+    }
     const secret = req.headers['x-e2e-secret']
     if (!env.E2E_SECRET || secret !== env.E2E_SECRET) {
       return reply.status(401).send({ error: 'Unauthorized' })

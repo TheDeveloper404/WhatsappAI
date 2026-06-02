@@ -100,7 +100,7 @@ function ContactRow({
             onClick={onToggleSkip}
             className={`p-1.5 rounded-lg transition-colors ${
               skipped
-                ? 'bg-acid/15 text-acid hover:bg-acid/25'
+                ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50'
                 : 'text-dimmer hover:text-ink hover:bg-cardhi'
             }`}
             title={skipped ? 'AI ignoră acest contact — apasă pentru a reactiva' : 'Ignoră AI pentru acest contact'}

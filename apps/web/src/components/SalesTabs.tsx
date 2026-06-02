@@ -15,7 +15,7 @@ const SALES_TABS = [
 export function SalesTabs() {
   const pathname = usePathname()
   return (
-    <div className="mb-6 flex items-center gap-1 border-b border-line overflow-x-auto">
+    <div className="mb-6 flex items-center gap-1 border-b border-line">
       {SALES_TABS.map(({ href, label, icon: Icon }) => {
         const active = pathname === href
         return (

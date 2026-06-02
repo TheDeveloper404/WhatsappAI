@@ -47,24 +47,6 @@ describe('parseCommand', () => {
     expect(parseCommand('/pauseAI invalid')).toEqual({ type: 'pauseAI', hours: 1 })
   })
 
-  it('/skipAI cu număr de telefon', () => {
-    expect(parseCommand('/skipAI +40758154490')).toEqual({ type: 'skipAI', phone: '40758154490' })
-    expect(parseCommand('/skipAI 40758154490')).toEqual({ type: 'skipAI', phone: '40758154490' })
-  })
-
-  it('/skipAI fără număr returnează null', () => {
-    expect(parseCommand('/skipAI')).toBeNull()
-  })
-
-  it('/unskipAI cu număr de telefon', () => {
-    expect(parseCommand('/unskipAI +40758154490')).toEqual({ type: 'unskipAI', phone: '40758154490' })
-    expect(parseCommand('/unskipAI 40758154490')).toEqual({ type: 'unskipAI', phone: '40758154490' })
-  })
-
-  it('/unskipAI fără număr returnează null', () => {
-    expect(parseCommand('/unskipAI')).toBeNull()
-  })
-
   it('/setTimer cu număr valid', () => {
     expect(parseCommand('/setTimer 5')).toEqual({ type: 'setTimer', minutes: 5 })
     expect(parseCommand('/setTimer 5min')).toEqual({ type: 'setTimer', minutes: 5 })

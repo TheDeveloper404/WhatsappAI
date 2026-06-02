@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAuthStore } from '@/store/auth'
 import { api, API_URL, type Conversation, type ConversationMessage } from '@/lib/api'
-import { Loader2, MessageSquare, ChevronDown, ChevronUp, Trash2, RefreshCw, Download } from 'lucide-react'
+import { Loader2, MessageSquare, ChevronDown, ChevronUp, Trash2, RefreshCw, Download, Ban } from 'lucide-react'
 import { ConversationsTabs } from '@/components/ConversationsTabs'
 
 type ExportRow = { contactPhone: string; fromMe: boolean; isAi: boolean; body: string; waTimestamp: number }
@@ -37,10 +37,14 @@ function ContactRow({
   conv,
   accessToken,
   onDeleted,
+  skipped,
+  onToggleSkip,
 }: {
   conv: Conversation
   accessToken: string
   onDeleted: (phone: string) => void
+  skipped: boolean
+  onToggleSkip: () => void
 }) {
   const [expanded, setExpanded] = useState(false)
   const [messages, setMessages] = useState<ConversationMessage[] | null>(null)
@@ -92,6 +96,17 @@ function ContactRow({
           <p className="font-mono-ui text-[11px] text-dimmer mt-0.5">{conv.count} mesaje</p>
         </div>
         <div className="flex items-center gap-1 ml-1">
+          <button
+            onClick={onToggleSkip}
+            className={`p-1.5 rounded-lg transition-colors ${
+              skipped
+                ? 'bg-acid/15 text-acid hover:bg-acid/25'
+                : 'text-dimmer hover:text-ink hover:bg-cardhi'
+            }`}
+            title={skipped ? 'AI ignoră acest contact — apasă pentru a reactiva' : 'Ignoră AI pentru acest contact'}
+          >
+            <Ban className="h-4 w-4" />
+          </button>
           <button
             onClick={handleDelete}
             disabled={deleting}
@@ -154,7 +169,30 @@ export default function ConversationsPage() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const [skipped, setSkipped] = useState<Set<string>>(new Set())
   const esRef = useRef<EventSource | null>(null)
+
+  // Ignoră / reactivează AI pentru un contact (= blacklist după contactPhone, care e LID-ul sau numărul —
+  // se potrivește mereu cu mesajele viitoare). Optimistic, cu revert la eroare.
+  async function toggleSkip(phone: string) {
+    if (!accessToken) return
+    const isSkipped = skipped.has(phone)
+    setSkipped(prev => {
+      const next = new Set(prev)
+      if (isSkipped) next.delete(phone); else next.add(phone)
+      return next
+    })
+    try {
+      if (isSkipped) await api.ai.removeBlacklist(accessToken, phone)
+      else await api.ai.addBlacklist(accessToken, phone)
+    } catch {
+      setSkipped(prev => {
+        const next = new Set(prev)
+        if (isSkipped) next.add(phone); else next.delete(phone)
+        return next
+      })
+    }
+  }
 
   async function handleExport() {
     if (!accessToken || exporting) return
@@ -183,8 +221,12 @@ export default function ConversationsPage() {
     if (!accessToken) return
     if (showRefresh) setRefreshing(true)
     try {
-      const { conversations: convs } = await api.ai.getConversations(accessToken)
+      const [{ conversations: convs }, bl] = await Promise.all([
+        api.ai.getConversations(accessToken),
+        api.ai.getBlacklist(accessToken).catch(() => ({ phones: [] as string[] })),
+      ])
       setConversations(convs)
+      setSkipped(new Set(bl.phones))
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -280,6 +322,8 @@ export default function ConversationsPage() {
               conv={conv}
               accessToken={accessToken!}
               onDeleted={handleDeleted}
+              skipped={skipped.has(conv.contactPhone)}
+              onToggleSkip={() => toggleSkip(conv.contactPhone)}
             />
           ))}
         </div>

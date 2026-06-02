@@ -2,8 +2,6 @@ export type ParsedCommand =
   | { type: 'activateAI' }
   | { type: 'deactivateAI' }
   | { type: 'pauseAI'; hours: number }
-  | { type: 'skipAI'; phone: string }
-  | { type: 'unskipAI'; phone: string }
   | { type: 'status' }
   | { type: 'help' }
   | { type: 'setTimer'; minutes: number }
@@ -29,18 +27,6 @@ export function parseCommand(body: string): ParsedCommand | null {
     return { type: 'pauseAI', hours }
   }
 
-  if (cmd === '/skipai') {
-    const phone = parts[1]?.replace(/[^0-9]/g, '') ?? ''
-    if (!phone) return null
-    return { type: 'skipAI', phone }
-  }
-
-  if (cmd === '/unskipai') {
-    const phone = parts[1]?.replace(/[^0-9]/g, '') ?? ''
-    if (!phone) return null
-    return { type: 'unskipAI', phone }
-  }
-
   if (cmd === '/clearhistory') {
     return { type: 'clearHistory' }
   }
@@ -62,7 +48,5 @@ export const HELP_TEXT = `*Comenzi WhatsApp AI:*
 /pauseAI 2h — pauză X ore
 /resumeAI — scoate din pauză
 /setTimer 5min — timer inactivitate (1-60 min)
-/skipAI +40758... — ignoră un contact
-/unskipAI +40758... — re-activează contact
 /clearHistory — șterge istoricul conversației curente
 /status — stare curentă agent`

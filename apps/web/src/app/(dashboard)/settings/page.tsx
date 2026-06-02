@@ -641,8 +641,6 @@ export default function SettingsPage() {
                 { cmd: '/resumeAI', desc: 'Scoate agentul din pauză' },
                 { cmd: '/setTimer 5min', desc: 'Setează timer-ul de inactivitate (1–60 min)' },
                 { cmd: '/status', desc: 'Verifică starea curentă a agentului' },
-                { cmd: '/skipAI +407...', desc: 'Ignoră un contact — agentul nu îi mai răspunde' },
-                { cmd: '/unskipAI +407...', desc: 'Re-activează un contact ignorat' },
                 { cmd: '/clearHistory', desc: 'Șterge istoricul conversației curente cu un contact' },
                 { cmd: '/help', desc: 'Afișează lista comenzilor direct în WhatsApp' },
               ] as { cmd: string; desc: string }[]).map(({ cmd, desc }) => (

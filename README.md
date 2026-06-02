@@ -51,8 +51,6 @@ Controlezi agentul direct din WhatsApp, trimițindu-ți ție însuți comenzi:
 /pauseAI 2h       — pauză temporară X ore
 /resumeAI         — scoate din pauză
 /setTimer 10min   — schimbă timerul de inactivitate (1-60 min)
-/skipAI +40758... — ignoră un contact
-/unskipAI +40758  — re-activează contact
 /clearHistory     — șterge istoricul conversației curente
 /status           — stare curentă agent
 /help             — lista tuturor comenzilor

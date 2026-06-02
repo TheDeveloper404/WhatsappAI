@@ -2,8 +2,28 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAuthStore } from '@/store/auth'
 import { api, API_URL, type Conversation, type ConversationMessage } from '@/lib/api'
-import { Loader2, MessageSquare, ChevronDown, ChevronUp, Trash2, RefreshCw } from 'lucide-react'
+import { Loader2, MessageSquare, ChevronDown, ChevronUp, Trash2, RefreshCw, Download } from 'lucide-react'
 import { ConversationsTabs } from '@/components/ConversationsTabs'
+
+type ExportRow = { contactPhone: string; fromMe: boolean; isAi: boolean; body: string; waTimestamp: number }
+
+// CSV propriu (zero deps, ca importul de catalog). Escaping RFC 4180: ghilimele/virgule/newline.
+function conversationsToCsv(rows: ExportRow[]): string {
+  const esc = (v: string) => {
+    let s = String(v ?? '')
+    // Anti CSV formula-injection: valorile care încep cu = + - @ tab CR pot fi executate ca formule
+    // în Excel/LibreOffice, iar mesajul clientului (m.body) e necontrolat. Neutralizăm cu un apostrof în față.
+    if (/^[=+\-@\t\r]/.test(s)) s = "'" + s
+    return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+  }
+  const out = ['Telefon,Data,Expeditor,Mesaj']
+  for (const m of rows) {
+    const sender = m.fromMe ? (m.isAi ? 'Agent AI' : 'Proprietar') : 'Client'
+    const date = new Date(m.waTimestamp).toLocaleString('ro-RO')
+    out.push([esc('+' + m.contactPhone), esc(date), esc(sender), esc(m.body)].join(','))
+  }
+  return out.join('\r\n')
+}
 
 function formatTime(ts: number) {
   const d = new Date(ts)
@@ -133,7 +153,31 @@ export default function ConversationsPage() {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const esRef = useRef<EventSource | null>(null)
+
+  async function handleExport() {
+    if (!accessToken || exporting) return
+    setExporting(true)
+    try {
+      const { messages } = await api.ai.exportConversations(accessToken)
+      // BOM (U+FEFF) ca Excel să afișeze corect diacriticele românești.
+      const csv = String.fromCharCode(0xFEFF) + conversationsToCsv(messages)
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `conversatii-${new Date().toISOString().slice(0, 10)}.csv`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    } catch {
+      // fail-soft: nu blocăm pagina; userul poate reîncerca
+    } finally {
+      setExporting(false)
+    }
+  }
 
   async function load(showRefresh = false) {
     if (!accessToken) return
@@ -199,14 +243,27 @@ export default function ConversationsPage() {
               : 'Nicio conversație salvată încă.'}
           </p>
         </div>
-        <button
-          onClick={() => load(true)}
-          disabled={refreshing}
-          className="p-2 text-dimmer hover:text-ink hover:bg-cardhi rounded-lg transition-colors disabled:opacity-50"
-          title="Reîncarcă"
-        >
-          <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          {conversations.length > 0 && (
+            <button
+              onClick={handleExport}
+              disabled={exporting}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-line text-dim hover:text-ink hover:bg-cardhi transition-colors disabled:opacity-50 font-mono-ui text-[12px]"
+              title="Exportă conversațiile (CSV)"
+            >
+              {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              <span className="hidden sm:inline">Exportă</span>
+            </button>
+          )}
+          <button
+            onClick={() => load(true)}
+            disabled={refreshing}
+            className="p-2 text-dimmer hover:text-ink hover:bg-cardhi rounded-lg transition-colors disabled:opacity-50"
+            title="Reîncarcă"
+          >
+            <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
       </div>
 
       {conversations.length === 0 ? (

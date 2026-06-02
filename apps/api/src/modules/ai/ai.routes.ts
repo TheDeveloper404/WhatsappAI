@@ -90,6 +90,12 @@ export async function aiRoutes(app: FastifyInstance) {
     return reply.send({ conversations })
   })
 
+  // Export tot istoricul de conversații al userului (rută statică — declarată ÎNAINTE de `:phone`).
+  app.get('/conversations/export', { preHandler: authenticate }, async (req, reply) => {
+    const messages = await aiService.exportConversations(req.user!.id)
+    return reply.send({ messages })
+  })
+
   app.get('/conversations/:phone', { preHandler: authenticate }, async (req, reply) => {
     const phone = (req.params as any).phone as string
     const messages = await aiService.getMessagesForContact(req.user!.id, phone)

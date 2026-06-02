@@ -192,6 +192,22 @@ export const aiRepository = {
     return [...rows].reverse()
   },
 
+  // Toate mesajele userului pentru export (grupate pe contact, cronologic). Scopate pe userId.
+  async getAllMessagesForExport(userId: string): Promise<Array<{
+    contactPhone: string; fromMe: boolean; isAi: boolean; body: string; waTimestamp: number
+  }>> {
+    return db.select({
+      contactPhone: conversationMessages.contactPhone,
+      fromMe: conversationMessages.fromMe,
+      isAi: conversationMessages.isAi,
+      body: conversationMessages.body,
+      waTimestamp: conversationMessages.waTimestamp,
+    })
+      .from(conversationMessages)
+      .where(eq(conversationMessages.userId, userId))
+      .orderBy(conversationMessages.contactPhone, conversationMessages.waTimestamp)
+  },
+
   async getOwnerMessages(userId: string, limit = 60): Promise<string[]> {
     const rows = await db.select({ body: conversationMessages.body })
       .from(conversationMessages)

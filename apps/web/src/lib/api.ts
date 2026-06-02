@@ -245,6 +245,12 @@ export const api = {
         credentials: 'include',
       }),
 
+    exportConversations: (accessToken: string) =>
+      request<{ messages: { contactPhone: string; fromMe: boolean; isAi: boolean; body: string; waTimestamp: number }[] }>('/api/v1/ai/conversations/export', {
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        credentials: 'include',
+      }),
+
     clearConversation: (accessToken: string, phone: string) =>
       request<void>(`/api/v1/ai/conversations/${phone}`, {
         method: 'DELETE',

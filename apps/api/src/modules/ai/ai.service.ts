@@ -46,6 +46,10 @@ export const aiService = {
     return aiRepository.getMessagesForContact(userId, contactPhone)
   },
 
+  async exportConversations(userId: string) {
+    return aiRepository.getAllMessagesForExport(userId)
+  },
+
   async clearConversation(userId: string, contactPhone: string) {
     return aiRepository.clearHistory(userId, contactPhone)
   },

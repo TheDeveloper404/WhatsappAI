@@ -17,6 +17,9 @@ export const Errors = {
     new AppError(401, 'UNAUTHORIZED', msg),
   forbidden: (msg = 'Access denied') =>
     new AppError(403, 'FORBIDDEN', msg),
+  // 402 distinct de 401/403: clientul îl mapează la „du-te la /subscribe", nu la „sesiune expirată".
+  subscriptionRequired: (msg = 'Active subscription required.') =>
+    new AppError(402, 'SUBSCRIPTION_REQUIRED', msg),
   notFound: (resource = 'Resource') =>
     new AppError(404, 'NOT_FOUND', `${resource} not found`),
   conflict: (msg: string) =>

@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { authenticate } from '../../middleware/authenticate.js'
+import { requireActiveSubscription } from '../../middleware/requireSubscription.js'
 import { productsRepository } from './products.repository.js'
 import { Errors } from '../../utils/errors.js'
 
@@ -51,12 +52,12 @@ const importSchema = z.object({
 })
 
 export async function productsRoutes(app: FastifyInstance) {
-  app.get('/', { preHandler: authenticate }, async (req, reply) => {
+  app.get('/', { preHandler: [authenticate, requireActiveSubscription] }, async (req, reply) => {
     const items = await productsRepository.list(req.user!.id)
     return reply.send({ products: items })
   })
 
-  app.post('/', { preHandler: authenticate }, async (req, reply) => {
+  app.post('/', { preHandler: [authenticate, requireActiveSubscription] }, async (req, reply) => {
     const result = createSchema.safeParse(req.body)
     if (!result.success) throw Errors.validation(result.error.errors.map(e => ({ field: String(e.path[0]), message: e.message })))
     const { name, description, priceLei, category, isAvailable, isEstimate, isBookable, stock } = result.data
@@ -66,7 +67,7 @@ export async function productsRoutes(app: FastifyInstance) {
     return reply.status(201).send({ product })
   })
 
-  app.patch('/:id', { preHandler: authenticate }, async (req, reply) => {
+  app.patch('/:id', { preHandler: [authenticate, requireActiveSubscription] }, async (req, reply) => {
     const id = (req.params as { id: string }).id
     const result = updateSchema.safeParse(req.body)
     if (!result.success) throw Errors.validation(result.error.errors.map(e => ({ field: String(e.path[0]), message: e.message })))
@@ -82,7 +83,7 @@ export async function productsRoutes(app: FastifyInstance) {
     return reply.send({ ok: true })
   })
 
-  app.post('/import', { preHandler: authenticate }, async (req, reply) => {
+  app.post('/import', { preHandler: [authenticate, requireActiveSubscription] }, async (req, reply) => {
     const result = importSchema.safeParse(req.body)
     if (!result.success) throw Errors.validation(result.error.errors.map(e => ({ field: e.path.join('.'), message: e.message })))
 
@@ -99,7 +100,7 @@ export async function productsRoutes(app: FastifyInstance) {
     return reply.status(201).send({ imported: count })
   })
 
-  app.delete('/:id', { preHandler: authenticate }, async (req, reply) => {
+  app.delete('/:id', { preHandler: [authenticate, requireActiveSubscription] }, async (req, reply) => {
     const id = (req.params as { id: string }).id
     await productsRepository.remove(req.user!.id, id)
     return reply.status(204).send()

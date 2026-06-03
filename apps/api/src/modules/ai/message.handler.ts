@@ -7,6 +7,7 @@ import { productsRepository } from '../orders/products.repository.js'
 import { ordersRepository } from '../orders/orders.repository.js'
 import { appointmentsRepository } from '../orders/appointments.repository.js'
 import { knowledgeService } from '../knowledge/knowledge.service.js'
+import { userHasEntitlement } from '../billing/entitlement.js'
 import { parseCommand, HELP_TEXT } from './command.parser.js'
 import { recordOwnerReply, isOwnerActive } from './inactivity.tracker.js'
 import { sendOrderConfirmationEmail } from '../../utils/email.js'
@@ -201,6 +202,16 @@ function schedulePending(userId: string, contactPhone: string, jid: string, sock
 }
 
 async function sendAiResponse(userId: string, contactPhone: string, jid: string, sock: WASocket, settings: AiSettings, sentiment: 'urgent' | 'frustrated' | 'normal' = 'normal'): Promise<void> {
+  // Gate de abonament (C2). Choke point unic pentru AMBELE căi care ajung aici: răspunsul imediat
+  // și cel programat de timer (`schedulePending`) — astfel acoperim și cazul în care abonamentul
+  // expiră ÎNTRE programare și declanșare. Fără abonament activ NU generăm răspuns (zero apeluri
+  // LLM). Sursa de adevăr e starea reală a abonamentului ACUM, nu flag-ul cache-uit `adminDisabled`
+  // (care se setează doar de webhook-ul Stripe, deci nu acoperă userii care nu s-au abonat NICIODATĂ).
+  if (!(await userHasEntitlement(userId))) {
+    logger.info(`[AI][${userId.slice(0, 8)}] răspuns AI blocat — fără abonament activ`)
+    return
+  }
+
   const [history, existingMemory, platformPrompt] = await Promise.all([
     aiRepository.getContext(userId, contactPhone, 20),
     aiRepository.getContactMemory(userId, contactPhone),
@@ -658,6 +669,15 @@ async function processMessage(userId: string, sock: WASocket, msg: any): Promise
   if (ownerPhone && contactPhone === ownerPhone) return
   const waTimestamp = (msg.messageTimestamp as number) * 1000
   logger.info(`[AI][${userId.slice(0, 8)}] procesez mesaj`, { fromMe, contactPhone })
+
+  // Gate de abonament (C2) pe mesajele PRIMITE, ÎNAINTE de orice operație costisitoare
+  // (transcriere audio / vision imagine / pipeline AI). Fără abonament activ ignorăm complet
+  // mesajul primit → zero cost LLM, închizând și vectorul de abuz pe media (H6). Owner-ul
+  // (`fromMe`) trece mereu — comenzile lui sunt locale (parseCommand), fără cost.
+  if (!fromMe && !(await userHasEntitlement(userId))) {
+    logger.info(`[AI][${userId.slice(0, 8)}] mesaj primit ignorat — fără abonament activ`)
+    return
+  }
 
   const m = msg.message
   const isAudio = !fromMe && (m?.audioMessage || m?.pttMessage)

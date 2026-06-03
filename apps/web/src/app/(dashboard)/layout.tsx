@@ -3,9 +3,27 @@ import { Suspense, useEffect, useRef, useState } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuthStore } from '@/store/auth'
-import { api } from '@/lib/api'
+import { api, type Subscription } from '@/lib/api'
 import { Loader2, LayoutDashboard, MessageSquare, Settings, User, LogOut, ShoppingCart, Menu, X } from 'lucide-react'
 import { ThemeToggle } from '@/components/ThemeToggle'
+
+// Oglindă pe client a lui `isEntitled` din API (apps/api/.../billing/entitlement.ts). Doar
+// defense-in-depth pe UI — granița reală e API-ul (C1/C2). Fail-closed: orice ambiguitate = fără acces.
+//  - `active`   → acces (mai puțin: programat la anulare ȘI perioada a trecut).
+//  - `trialing` → acces cât timp trial-ul nu a expirat.
+//  - `incomplete` / `past_due` / `canceled` / fără abonament → fără acces.
+function hasActiveEntitlement(sub: Subscription | null | undefined): boolean {
+  if (!sub) return false
+  const now = Date.now()
+  if (sub.status === 'active') {
+    if (sub.cancelAtPeriodEnd && sub.currentPeriodEndsAt != null && now > sub.currentPeriodEndsAt) return false
+    return true
+  }
+  if (sub.status === 'trialing') {
+    return sub.trialEndsAt == null || now <= sub.trialEndsAt
+  }
+  return false
+}
 
 function WaIcon({ size = 16 }: { size?: number }) {
   return (
@@ -259,8 +277,8 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
 
     setChecking(true)
     api.billing.getSubscription(accessToken!).then(({ subscription }) => {
-      const needsSubscription = !subscription || subscription.status === 'incomplete'
-      if (needsSubscription) {
+      // `past_due` și `canceled` NU mai trec (înainte doar null/incomplete redirecționau).
+      if (!hasActiveEntitlement(subscription)) {
         subVerified.current = false
         router.replace('/subscribe')
       } else {
@@ -268,8 +286,11 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
         setChecking(false)
       }
     }).catch(() => {
-      subVerified.current = true
-      setChecking(false)
+      // Fail-CLOSED: dacă verificarea eșuează, NU acordăm acces (înainte era fail-open → bypass
+      // de paywall pe orice eroare). Trimitem la /subscribe; pagina aceea iese devreme din acest
+      // effect (vezi `isSubscribePage`), deci nu se buclează.
+      subVerified.current = false
+      router.replace('/subscribe')
     })
   }, [isAuthenticated, accessToken, user, pathname, searchParams, router, _hasHydrated, setAuth, clearAuth])
 

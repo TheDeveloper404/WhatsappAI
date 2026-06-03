@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 import { authenticate } from '../../middleware/authenticate.js'
+import { requireActiveSubscription } from '../../middleware/requireSubscription.js'
 import { whatsappService } from './whatsapp.service.js'
 
 export async function whatsappRoutes(app: FastifyInstance) {
@@ -8,7 +9,7 @@ export async function whatsappRoutes(app: FastifyInstance) {
     return reply.send({ session })
   })
 
-  app.post('/connect', { config: { rateLimit: { max: 5, timeWindow: '1 minute' } }, preHandler: authenticate }, async (req, reply) => {
+  app.post('/connect', { config: { rateLimit: { max: 5, timeWindow: '1 minute' } }, preHandler: [authenticate, requireActiveSubscription] }, async (req, reply) => {
     const { qrCode } = await whatsappService.connect(req.user!.id)
     return reply.send({ qrCode })
   })

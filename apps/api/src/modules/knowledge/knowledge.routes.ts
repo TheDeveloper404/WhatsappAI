@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import multipart from '@fastify/multipart'
 import { authenticate } from '../../middleware/authenticate.js'
+import { requireActiveSubscription } from '../../middleware/requireSubscription.js'
 import { knowledgeService, SUPPORTED_MIMES, UnprocessableDocumentError } from './knowledge.service.js'
 import { knowledgeRepository } from './knowledge.repository.js'
 import { Errors } from '../../utils/errors.js'
@@ -23,7 +24,7 @@ export async function knowledgeRoutes(app: FastifyInstance) {
   // Upload + indexare document. Rate limit (în prod): embedding-urile costă, deci plafonăm.
   app.post('/documents', {
     ...uploadRateLimit,
-    preHandler: authenticate,
+    preHandler: [authenticate, requireActiveSubscription],
   }, async (req, reply) => {
     const data = await req.file()
     if (!data) throw Errors.unprocessable('Niciun fișier primit.')
@@ -58,12 +59,12 @@ export async function knowledgeRoutes(app: FastifyInstance) {
     }
   })
 
-  app.get('/documents', { preHandler: authenticate }, async (req, reply) => {
+  app.get('/documents', { preHandler: [authenticate, requireActiveSubscription] }, async (req, reply) => {
     const documents = await knowledgeRepository.list(req.user!.id)
     return reply.send({ documents })
   })
 
-  app.delete('/documents/:id', { preHandler: authenticate }, async (req, reply) => {
+  app.delete('/documents/:id', { preHandler: [authenticate, requireActiveSubscription] }, async (req, reply) => {
     const id = (req.params as { id: string }).id
     // Scoped pe userId: confirmăm proprietatea înainte de ștergere (anti-IDOR).
     const existing = await knowledgeRepository.findById(req.user!.id, id)

@@ -1,18 +1,20 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { authenticate } from '../../middleware/authenticate.js'
+import { requireActiveSubscription } from '../../middleware/requireSubscription.js'
+import { userHasEntitlement } from '../billing/entitlement.js'
 import { aiService } from './ai.service.js'
 import { Errors } from '../../utils/errors.js'
 import { appEvents } from '../../utils/events.js'
 import { verifyAccessToken } from '../../utils/tokens.js'
 
 export async function aiRoutes(app: FastifyInstance) {
-  app.get('/settings', { preHandler: authenticate }, async (req, reply) => {
+  app.get('/settings', { preHandler: [authenticate, requireActiveSubscription]}, async (req, reply) => {
     const settings = await aiService.getSettings(req.user!.id)
     return reply.send({ settings })
   })
 
-  app.patch('/settings', { preHandler: authenticate }, async (req, reply) => {
+  app.patch('/settings', { preHandler: [authenticate, requireActiveSubscription]}, async (req, reply) => {
     const schema = z.object({
       isActive: z.boolean().optional(),
       timerMinutes: z.number().int().min(1).max(60).optional(),
@@ -30,17 +32,17 @@ export async function aiRoutes(app: FastifyInstance) {
     return reply.send({ settings })
   })
 
-  app.post('/analyze-style', { config: { rateLimit: { max: 3, timeWindow: '1 minute' } }, preHandler: authenticate }, async (req, reply) => {
+  app.post('/analyze-style', { config: { rateLimit: { max: 3, timeWindow: '1 minute' } }, preHandler: [authenticate, requireActiveSubscription]}, async (req, reply) => {
     const writingStyle = await aiService.analyzeAndSaveWritingStyle(req.user!.id)
     return reply.send({ writingStyle })
   })
 
-  app.get('/blacklist', { preHandler: authenticate }, async (req, reply) => {
+  app.get('/blacklist', { preHandler: [authenticate, requireActiveSubscription]}, async (req, reply) => {
     const phones = await aiService.getBlacklist(req.user!.id)
     return reply.send({ phones })
   })
 
-  app.post('/blacklist', { preHandler: authenticate }, async (req, reply) => {
+  app.post('/blacklist', { preHandler: [authenticate, requireActiveSubscription]}, async (req, reply) => {
     const schema = z.object({ phoneNumber: z.string().min(7).max(20) })
     const result = schema.safeParse(req.body)
     if (!result.success) throw Errors.validation(result.error.errors.map(e => ({ field: String(e.path[0]), message: e.message })))
@@ -48,30 +50,30 @@ export async function aiRoutes(app: FastifyInstance) {
     return reply.status(201).send({ ok: true })
   })
 
-  app.delete('/blacklist/:phone', { preHandler: authenticate }, async (req, reply) => {
+  app.delete('/blacklist/:phone', { preHandler: [authenticate, requireActiveSubscription]}, async (req, reply) => {
     const phone = (req.params as any).phone as string
     await aiService.removeBlacklist(req.user!.id, phone)
     return reply.status(204).send()
   })
 
-  app.get('/stats', { preHandler: authenticate }, async (req, reply) => {
+  app.get('/stats', { preHandler: [authenticate, requireActiveSubscription]}, async (req, reply) => {
     const stats = await aiService.getStats(req.user!.id)
     return reply.send({ stats })
   })
 
-  app.get('/stats/advanced', { preHandler: authenticate }, async (req, reply) => {
+  app.get('/stats/advanced', { preHandler: [authenticate, requireActiveSubscription]}, async (req, reply) => {
     const stats = await aiService.getAdvancedStats(req.user!.id)
     return reply.send({ stats })
   })
 
-  app.get('/leads', { preHandler: authenticate }, async (req, reply) => {
+  app.get('/leads', { preHandler: [authenticate, requireActiveSubscription]}, async (req, reply) => {
     const leads = await aiService.getLeads(req.user!.id)
     return reply.send({ leads })
   })
 
   // Recalculare scor: tot lotul (fără body) sau un singur contact ({ phone }).
   // Rate limit strict — fiecare contact e un apel LLM (cost real).
-  app.post('/leads/analyze', { config: { rateLimit: { max: 5, timeWindow: '1 minute' } }, preHandler: authenticate }, async (req, reply) => {
+  app.post('/leads/analyze', { config: { rateLimit: { max: 5, timeWindow: '1 minute' } }, preHandler: [authenticate, requireActiveSubscription]}, async (req, reply) => {
     const schema = z.object({ phone: z.string().min(7).max(20).optional() })
     const result = schema.safeParse(req.body ?? {})
     if (!result.success) throw Errors.validation(result.error.errors.map(e => ({ field: String(e.path[0]), message: e.message })))
@@ -85,24 +87,24 @@ export async function aiRoutes(app: FastifyInstance) {
     return reply.send(summary)
   })
 
-  app.get('/conversations', { preHandler: authenticate }, async (req, reply) => {
+  app.get('/conversations', { preHandler: [authenticate, requireActiveSubscription]}, async (req, reply) => {
     const conversations = await aiService.getConversations(req.user!.id)
     return reply.send({ conversations })
   })
 
   // Export tot istoricul de conversații al userului (rută statică — declarată ÎNAINTE de `:phone`).
-  app.get('/conversations/export', { preHandler: authenticate }, async (req, reply) => {
+  app.get('/conversations/export', { preHandler: [authenticate, requireActiveSubscription]}, async (req, reply) => {
     const messages = await aiService.exportConversations(req.user!.id)
     return reply.send({ messages })
   })
 
-  app.get('/conversations/:phone', { preHandler: authenticate }, async (req, reply) => {
+  app.get('/conversations/:phone', { preHandler: [authenticate, requireActiveSubscription]}, async (req, reply) => {
     const phone = (req.params as any).phone as string
     const messages = await aiService.getMessagesForContact(req.user!.id, phone)
     return reply.send({ messages })
   })
 
-  app.delete('/conversations/:phone', { preHandler: authenticate }, async (req, reply) => {
+  app.delete('/conversations/:phone', { preHandler: [authenticate, requireActiveSubscription]}, async (req, reply) => {
     const phone = (req.params as any).phone as string
     await aiService.clearConversation(req.user!.id, phone)
     return reply.status(204).send()
@@ -118,6 +120,11 @@ export async function aiRoutes(app: FastifyInstance) {
       userId = payload.userId
     } catch {
       return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Token invalid sau expirat.' } })
+    }
+
+    // Gate de abonament și pe SSE (auth-ul e inline prin query token, deci preHandler-ul nu se aplică).
+    if (!(await userHasEntitlement(userId))) {
+      return reply.status(402).send({ error: { code: 'SUBSCRIPTION_REQUIRED', message: 'Abonament necesar.' } })
     }
 
     reply.header('Content-Type', 'text/event-stream')

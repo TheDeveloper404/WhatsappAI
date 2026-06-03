@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { authenticate } from '../../middleware/authenticate.js'
+import { requireActiveSubscription } from '../../middleware/requireSubscription.js'
 import { appointmentsRepository } from './appointments.repository.js'
 import { sendToContact } from '../whatsapp/whatsapp.session-manager.js'
 import { logger } from '../../utils/logger.js'
@@ -12,12 +13,12 @@ const statusSchema = z.object({
 
 export async function appointmentsRoutes(app: FastifyInstance) {
   // Listă programări (pentru dashboard)
-  app.get('/', { preHandler: authenticate }, async (req, reply) => {
+  app.get('/', { preHandler: [authenticate, requireActiveSubscription] }, async (req, reply) => {
     const list = await appointmentsRepository.list(req.user!.id)
     return reply.send({ appointments: list })
   })
 
-  app.patch('/:id/status', { preHandler: authenticate }, async (req, reply) => {
+  app.patch('/:id/status', { preHandler: [authenticate, requireActiveSubscription] }, async (req, reply) => {
     const id = (req.params as { id: string }).id
     const result = statusSchema.safeParse(req.body)
     if (!result.success) throw Errors.validation(result.error.errors.map(e => ({ field: String(e.path[0]), message: e.message })))
@@ -52,7 +53,7 @@ export async function appointmentsRoutes(app: FastifyInstance) {
     return reply.send({ ok: true, notified })
   })
 
-  app.delete('/:id', { preHandler: authenticate }, async (req, reply) => {
+  app.delete('/:id', { preHandler: [authenticate, requireActiveSubscription] }, async (req, reply) => {
     const id = (req.params as { id: string }).id
     const existing = await appointmentsRepository.findById(req.user!.id, id)
     if (!existing) throw Errors.notFound('Appointment')

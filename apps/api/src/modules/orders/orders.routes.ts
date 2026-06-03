@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { authenticate } from '../../middleware/authenticate.js'
+import { requireActiveSubscription } from '../../middleware/requireSubscription.js'
 import { ordersRepository } from './orders.repository.js'
 import { sendToContact } from '../whatsapp/whatsapp.session-manager.js'
 import { logger } from '../../utils/logger.js'
@@ -21,7 +22,7 @@ const STATUS_CLIENT_MESSAGE: Record<string, string | null> = {
 
 export async function ordersRoutes(app: FastifyInstance) {
   // Listă comenzi cu liniile lor (pentru dashboard)
-  app.get('/', { preHandler: authenticate }, async (req, reply) => {
+  app.get('/', { preHandler: [authenticate, requireActiveSubscription] }, async (req, reply) => {
     const list = await ordersRepository.list(req.user!.id)
     const withItems = await Promise.all(list.map(async order => ({
       ...order,
@@ -30,7 +31,7 @@ export async function ordersRoutes(app: FastifyInstance) {
     return reply.send({ orders: withItems })
   })
 
-  app.patch('/:id/status', { preHandler: authenticate }, async (req, reply) => {
+  app.patch('/:id/status', { preHandler: [authenticate, requireActiveSubscription] }, async (req, reply) => {
     const id = (req.params as { id: string }).id
     const result = statusSchema.safeParse(req.body)
     if (!result.success) throw Errors.validation(result.error.errors.map(e => ({ field: String(e.path[0]), message: e.message })))
@@ -58,7 +59,7 @@ export async function ordersRoutes(app: FastifyInstance) {
     return reply.send({ ok: true, notified })
   })
 
-  app.delete('/:id', { preHandler: authenticate }, async (req, reply) => {
+  app.delete('/:id', { preHandler: [authenticate, requireActiveSubscription] }, async (req, reply) => {
     const id = (req.params as { id: string }).id
     const existing = await ordersRepository.findById(req.user!.id, id)
     if (!existing) throw Errors.notFound('Order')

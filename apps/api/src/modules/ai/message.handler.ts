@@ -8,6 +8,7 @@ import { ordersRepository } from '../orders/orders.repository.js'
 import { appointmentsRepository } from '../orders/appointments.repository.js'
 import { knowledgeService } from '../knowledge/knowledge.service.js'
 import { userHasEntitlement } from '../billing/entitlement.js'
+import { allowIncomingMessage } from './incoming.rate-limiter.js'
 import { parseCommand, HELP_TEXT } from './command.parser.js'
 import { recordOwnerReply, isOwnerActive } from './inactivity.tracker.js'
 import { sendOrderConfirmationEmail } from '../../utils/email.js'
@@ -669,6 +670,16 @@ async function processMessage(userId: string, sock: WASocket, msg: any): Promise
   if (ownerPhone && contactPhone === ownerPhone) return
   const waTimestamp = (msg.messageTimestamp as number) * 1000
   logger.info(`[AI][${userId.slice(0, 8)}] procesez mesaj`, { fromMe, contactPhone })
+
+  // Cost-cap anti-DoS financiar (H6): plafonăm câte mesaje PRIMITE declanșează pipeline-ul AI
+  // (cost LLM pe chei partajate de platformă), per contact și per user. In-memory, ieftin — rulează
+  // ÎNAINTEA gate-ului de abonament ca un flood să fie oprit fără să atingă nici măcar DB-ul.
+  // Drop silențios (NU trimitem mesaj de fallback): a răspunde unui număr care inundă ne-ar face
+  // vector de spam/amplificare. Owner-ul (`fromMe`) e exclus.
+  if (!fromMe && !allowIncomingMessage(userId, contactPhone)) {
+    logger.warn(`[AI][${userId.slice(0, 8)}] mesaj primit limitat (anti-flood H6)`, { contactPhone })
+    return
+  }
 
   // Gate de abonament (C2) pe mesajele PRIMITE, ÎNAINTE de orice operație costisitoare
   // (transcriere audio / vision imagine / pipeline AI). Fără abonament activ ignorăm complet

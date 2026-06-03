@@ -70,6 +70,9 @@ export default defineConfig({
       reuseExistingServer: true,
       timeout: 30_000,
       env: {
+        // NODE_ENV explicit: default-ul API-ului e acum 'production' (fail-closed, H5). E2E are
+        // nevoie de un mediu non-producție ca să monteze rutele de test (/api/v1/test/*).
+        NODE_ENV: 'development',
         E2E_MODE: 'true',
         E2E_SECRET,
         DATABASE_URL: 'postgresql://localhost/whatsapp_ai_e2e',

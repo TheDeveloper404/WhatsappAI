@@ -82,6 +82,25 @@ export function verifyAdminSession(token: string): void {
   if (payload.scope !== 'admin') throw new Error('Not an admin session token')
 }
 
+// Token de stream SSE (H3): scurt (60s), scope dedicat 'sse', secret derivat DISTINCT.
+// EventSource nu permite headere custom, deci token-ul ajunge inevitabil în query-ul /ai/stream.
+// Folosind un token efemer, cu scope limitat, chiar dacă scapă în loguri/proxy/Referer expiră
+// repede și NU e valid pe rutele API (nu e access token). Se obține prin POST /ai/stream-token.
+const SSE_STREAM_SECRET = createHmac('sha256', env.JWT_ACCESS_SECRET).update('sse-stream-v1').digest('hex')
+
+export function createStreamToken(userId: string, role: string): string {
+  const now = Math.floor(Date.now() / 1000)
+  const exp = now + 60 // 60s — suficient ca să deschidă conexiunea SSE
+  const jti = randomBytes(8).toString('hex')
+  return sign({ userId, role, scope: 'sse', iat: now, exp, jti }, SSE_STREAM_SECRET)
+}
+
+export function verifyStreamToken(token: string): TokenPayload {
+  const payload = verify(token, SSE_STREAM_SECRET) as TokenPayload & { scope?: string }
+  if (payload.scope !== 'sse') throw new Error('Not a stream token')
+  return payload
+}
+
 export function hashToken(token: string): string {
   return createHmac('sha256', env.JWT_REFRESH_SECRET).update(token).digest('hex')
 }

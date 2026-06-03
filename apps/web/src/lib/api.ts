@@ -277,6 +277,15 @@ export const api = {
         credentials: 'include',
       }),
 
+    // Token efemer (60s, scope SSE) pentru EventSource — nu mai trimitem access token-ul în URL (H3).
+    getStreamToken: (accessToken: string) =>
+      request<{ token: string }>('/api/v1/ai/stream-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        credentials: 'include',
+        body: '{}',
+      }),
+
     // Fără phone → recalculează lotul; cu phone → un singur contact.
     analyzeLeads: (accessToken: string, phone?: string) =>
       request<{ analyzed: number; failed: number } | { insight: LeadInsight }>('/api/v1/ai/leads/analyze', {

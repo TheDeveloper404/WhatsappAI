@@ -6,7 +6,7 @@ import { userHasEntitlement } from '../billing/entitlement.js'
 import { aiService } from './ai.service.js'
 import { Errors } from '../../utils/errors.js'
 import { appEvents } from '../../utils/events.js'
-import { verifyAccessToken } from '../../utils/tokens.js'
+import { createStreamToken, verifyStreamToken } from '../../utils/tokens.js'
 
 export async function aiRoutes(app: FastifyInstance) {
   app.get('/settings', { preHandler: [authenticate, requireActiveSubscription]}, async (req, reply) => {
@@ -112,13 +112,21 @@ export async function aiRoutes(app: FastifyInstance) {
     return reply.status(204).send()
   })
 
+  // Emite un token de stream EFEMER (60s, scope 'sse') pentru SSE. Auth normală prin header Bearer
+  // (nu prin URL). Clientul cere acest token, apoi deschide EventSource cu el (H3).
+  app.post('/stream-token', { preHandler: [authenticate, requireActiveSubscription] }, async (req, reply) => {
+    return reply.send({ token: createStreamToken(req.user!.id, req.user!.role) })
+  })
+
   app.get('/stream', { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, async (req, reply) => {
     const token = (req.query as any).token as string | undefined
     if (!token) return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Token lipsă.' } })
 
+    // Acceptăm DOAR token de stream dedicat (efemer), nu access token-ul (care n-ar trebui să ajungă
+    // niciodată în URL/loguri). Vezi H3.
     let userId: string
     try {
-      const payload = verifyAccessToken(token)
+      const payload = verifyStreamToken(token)
       userId = payload.userId
     } catch {
       return reply.status(401).send({ error: { code: 'UNAUTHORIZED', message: 'Token invalid sau expirat.' } })

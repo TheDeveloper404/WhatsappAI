@@ -11,5 +11,7 @@
     "resolveJsonModule": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  // src/modules/test e exclus din build-ul de producție (H5): rutele de test (inclusiv /test/reset)
+  // nu trebuie să existe în dist. Sunt încărcate doar dinamic în dev/E2E (tsx), niciodată din artefact.
+  "exclude": ["node_modules", "dist", "src/modules/test"]
 }

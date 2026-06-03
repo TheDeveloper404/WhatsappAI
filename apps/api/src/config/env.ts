@@ -1,7 +1,9 @@
 import { z } from 'zod'
 
 const envSchema = z.object({
-  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  // Default FAIL-CLOSED: dacă NODE_ENV e nesetat (ex. uitat pe Railway), tratăm ca producție —
+  // nu mai montăm rute de test și nu slăbim guard-urile (H5). Dev/E2E/test setează explicit.
+  NODE_ENV: z.enum(['development', 'production', 'test']).default('production'),
   PORT: z.coerce.number().default(3001),
 
   JWT_ACCESS_SECRET: z.string().min(32),

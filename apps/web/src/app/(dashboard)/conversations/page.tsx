@@ -237,11 +237,10 @@ export default function ConversationsPage() {
 
   useEffect(() => {
     if (!accessToken) return
-    const url = `${API_URL}/api/v1/ai/stream?token=${encodeURIComponent(accessToken)}`
-    const es = new EventSource(url, { withCredentials: true })
-    esRef.current = es
+    let cancelled = false
+    let retryTimer: ReturnType<typeof setTimeout> | null = null
 
-    es.onmessage = (e) => {
+    const handleMessage = (e: MessageEvent) => {
       try {
         const data = JSON.parse(e.data) as { contactPhone: string; lastMessage: string; lastAt: number; fromMe: boolean }
         setConversations(prev => {
@@ -258,7 +257,35 @@ export default function ConversationsPage() {
       } catch {}
     }
 
-    return () => { es.close(); esRef.current = null }
+    // Token-ul de stream e efemer (60s), deci NU ne bazăm pe auto-reconnect-ul nativ al EventSource
+    // (ar refolosi un token expirat). La fiecare (re)conectare cerem un token proaspăt.
+    async function connect() {
+      if (cancelled) return
+      try {
+        const { token } = await api.ai.getStreamToken(accessToken!)
+        if (cancelled) return
+        const url = `${API_URL}/api/v1/ai/stream?token=${encodeURIComponent(token)}`
+        const es = new EventSource(url, { withCredentials: true })
+        esRef.current = es
+        es.onmessage = handleMessage
+        es.onerror = () => {
+          // Conexiune pierdută / token expirat: închidem și reconectăm cu un token nou.
+          es.close()
+          if (esRef.current === es) esRef.current = null
+          if (!cancelled) retryTimer = setTimeout(connect, 3000)
+        }
+      } catch {
+        if (!cancelled) retryTimer = setTimeout(connect, 5000)
+      }
+    }
+    connect()
+
+    return () => {
+      cancelled = true
+      if (retryTimer) clearTimeout(retryTimer)
+      esRef.current?.close()
+      esRef.current = null
+    }
   }, [accessToken])
 
   function handleDeleted(phone: string) {

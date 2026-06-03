@@ -16,7 +16,6 @@ import { productsRoutes } from './modules/orders/products.routes.js'
 import { ordersRoutes } from './modules/orders/orders.routes.js'
 import { appointmentsRoutes } from './modules/orders/appointments.routes.js'
 import { knowledgeRoutes } from './modules/knowledge/knowledge.routes.js'
-import { testRoutes } from './modules/test/test.routes.js'
 import { AppError } from './utils/errors.js'
 import { isEncryptionConfigured } from './utils/crypto.js'
 
@@ -179,10 +178,23 @@ export async function buildApp() {
   await app.register(appointmentsRoutes, { prefix: '/api/v1/appointments' })
   await app.register(knowledgeRoutes, { prefix: '/api/v1/knowledge' })
 
-  // Rutele de test (inclusiv /test/reset care șterge toată baza) se montează DOAR în afara
-  // producției și doar dacă există un E2E_SECRET. Handler-ele au în plus un guard hard pe prod.
-  if (env.E2E_MODE === 'true' && env.NODE_ENV !== 'production' && Boolean(env.E2E_SECRET)) {
-    await app.register(testRoutes, { prefix: '/api/v1/test' })
+  // Rutele de test (inclusiv /test/reset care șterge toată baza) sunt apărate pe MAI multe straturi:
+  //  1. EXCLUSE FIZIC din build-ul de producție (vezi `exclude` în tsconfig.json) → nici nu există
+  //     în `dist`, deci niciodată în artefactul deployat.
+  //  2. Import DINAMIC cu cale ne-literală (tsc nu o urmărește, deci nu o readuce în build); în prod
+  //     fișierul lipsește → importul ar eșua (prins mai jos), dar oricum nu ajungem aici.
+  //  3. Montare doar dacă NODE_ENV ≠ production (default-ul e acum 'production' — fail-closed) ȘI
+  //     E2E_MODE=true ȘI E2E_SECRET prezent.
+  //  4. preHandler hard-guard în test.routes.ts care dă 404 dacă NODE_ENV === 'production'.
+  if (env.NODE_ENV !== 'production' && env.E2E_MODE === 'true' && Boolean(env.E2E_SECRET)) {
+    try {
+      const testModulePath = `./modules/test/test.routes.${'js'}` // template ⇒ tsc nu rezolvă static
+      const { testRoutes } = await import(testModulePath)
+      await app.register(testRoutes, { prefix: '/api/v1/test' })
+      app.log.warn('⚠️  Rute de test E2E montate — NU trebuie să apară în producție.')
+    } catch (err) {
+      app.log.error({ err: String(err) }, 'Rutele de test nu au putut fi încărcate (normal în prod, unde sunt excluse din build).')
+    }
   }
 
   // Health check exceptat de la rate limit (monitorizare/uptime probes).

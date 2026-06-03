@@ -14,12 +14,35 @@ export const SUPPORTED_MIMES = new Set([
 const CHUNK_SIZE = 2000        // caractere per chunk (~500 tokens)
 const CHUNK_OVERLAP = 200      // suprapunere ca să nu tăiem o frază relevantă fix la graniță
 const MAX_CHUNKS = 400         // plafon per document (anti-abuz; ~800k caractere)
+const MAX_USER_CHUNKS = 2000   // plafon TOTAL per user (L17) — mărginește costul O(n) al RAG/mesaj
 const MIN_TEXT_LEN = 20        // sub atât = document fără conținut util → respins
 const RETRIEVE_TOP_K = 3
 const RETRIEVE_MIN_SCORE = 0.5 // prag cosine: sub atât considerăm irelevant și nu injectăm
 
+// Anti-DoS la parsing (M4). Un docx/pdf de 10 MB comprimat poate „exploda" la GB de text în RAM
+// (zip-bomb). Plafonăm textul extras (aliniat cu capacitatea de chunking — peste atât oricum n-am
+// indexa) și punem un timeout pe parsing ca să nu blocăm cererea la nesfârșit.
+const MAX_EXTRACTED_CHARS = MAX_CHUNKS * CHUNK_SIZE  // 800k — peste asta chunking-ul oricum ar tăia
+const EXTRACT_TIMEOUT_MS = 20_000
+
 // Eroare „de input" (text neextractibil / tip nesuportat) — ruta o mapează la 4xx, nu 500.
 export class UnprocessableDocumentError extends Error {}
+
+// Rulează un parsing cu timeout. NB: pe parsing pur-sincron (CPU-bound) timer-ul se declanșează doar
+// în pauzele async; mammoth (jszip) și pdf-parse au porțiuni async, deci timeout-ul prinde hang-urile.
+// Pentru protecție totală contra blocării event-loop-ului ar fi nevoie de worker thread (vezi M4 în audit).
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new UnprocessableDocumentError(`${label} a depășit timpul limită (${ms / 1000}s).`)),
+      ms,
+    )
+    promise.then(
+      v => { clearTimeout(timer); resolve(v) },
+      e => { clearTimeout(timer); reject(e) },
+    )
+  })
+}
 
 // Extrage text brut după tip. NU scrie nimic pe disc — totul în memorie.
 async function extractText(buffer: Buffer, mime: string): Promise<string> {
@@ -37,7 +60,8 @@ async function extractText(buffer: Buffer, mime: string): Promise<string> {
     return value
   }
   if (mime === 'text/plain') {
-    return buffer.toString('utf8')
+    // Plafon la nivel de bytes înainte de decodare (cheap; upload-ul e deja ≤10 MB).
+    return buffer.subarray(0, MAX_EXTRACTED_CHARS).toString('utf8')
   }
   throw new UnprocessableDocumentError(`Tip de fișier nesuportat: ${mime}`)
 }
@@ -94,10 +118,19 @@ export const knowledgeService = {
   async ingest(userId: string, filename: string, mime: string, buffer: Buffer): Promise<Document> {
     if (!SUPPORTED_MIMES.has(mime)) throw new UnprocessableDocumentError(`Tip de fișier nesuportat: ${mime}`)
 
-    const text = await extractText(buffer, mime)
+    // Parsing cu timeout (M4) + plafon pe textul extras înainte de chunking/embedding.
+    const extracted = await withTimeout(extractText(buffer, mime), EXTRACT_TIMEOUT_MS, 'Procesarea documentului')
+    const text = extracted.length > MAX_EXTRACTED_CHARS ? extracted.slice(0, MAX_EXTRACTED_CHARS) : extracted
     const chunks = chunkText(text)
     if (chunks.length === 0 || text.trim().length < MIN_TEXT_LEN) {
       throw new UnprocessableDocumentError('Nu am putut extrage text util din document (gol sau scanat?).')
+    }
+
+    // Plafon total per user (L17) — verificat ÎNAINTE de embedding (costul real), ca să nu lăsăm
+    // un user să umfle baza de cunoștințe și să încarce retrieval-ul pe fiecare mesaj.
+    const existingChunks = await knowledgeRepository.countChunksForUser(userId)
+    if (existingChunks + chunks.length > MAX_USER_CHUNKS) {
+      throw new UnprocessableDocumentError(`Ai atins limita bazei de cunoștințe (${MAX_USER_CHUNKS} fragmente). Șterge documente vechi înainte de a adăuga altele.`)
     }
 
     const vectors = await embedTexts(chunks, 'RETRIEVAL_DOCUMENT')

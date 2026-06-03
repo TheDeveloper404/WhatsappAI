@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto'
 import { eq, desc, isNull, and, count, sql } from 'drizzle-orm'
 import { db, pool } from '../../config/database.js'
-import { users, subscriptions, whatsappSessions, aiSettings, notifications, platformConfig } from '../../db/schema.js'
+import { users, subscriptions, whatsappSessions, aiSettings, notifications, platformConfig, adminAuditLog } from '../../db/schema.js'
 import type { Notification } from '../../db/schema.js'
 
 export const adminRepository = {
@@ -216,5 +216,16 @@ export const adminRepository = {
     await db.insert(platformConfig)
       .values({ key, value, updatedAt: Date.now() })
       .onConflictDoUpdate({ target: platformConfig.key, set: { value, updatedAt: Date.now() } })
+  },
+
+  // Audit log acțiuni admin (M5).
+  async logAdminAction(action: string, targetUserId: string | null, metadata: string | null, ip: string | null): Promise<void> {
+    await db.insert(adminAuditLog).values({
+      id: randomUUID(), action, targetUserId, metadata, ip, createdAt: Date.now(),
+    })
+  },
+
+  async getAuditLog(limit = 100) {
+    return db.select().from(adminAuditLog).orderBy(desc(adminAuditLog.createdAt)).limit(limit)
   },
 }

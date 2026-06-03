@@ -19,6 +19,20 @@ const COOKIE_OPTS = {
   maxAge: 7 * 24 * 60 * 60,
 }
 
+// CSRF defense (L1) pentru endpoint-urile cu efect pe cookie (refresh/logout). Cookie-ul e
+// SameSite=none, deci o pagină cross-site l-ar putea trimite. Cererile legitime vin fie server-to-server
+// prin proxy-ul Next (FĂRĂ header Origin), fie de pe originile permise. Respingem dacă Origin e prezent
+// și NU e în allowlist.
+function assertTrustedOrigin(req: FastifyRequest): void {
+  const origin = req.headers.origin
+  if (!origin) return
+  const allowed = new Set([
+    env.APP_URL.replace(/\/$/, ''),
+    ...(env.CORS_ORIGINS ? env.CORS_ORIGINS.split(',').map(o => o.trim().replace(/\/$/, '')) : []),
+  ])
+  if (!allowed.has(origin.replace(/\/$/, ''))) throw Errors.forbidden('Cross-site request blocked.')
+}
+
 function parseBody<T>(schema: { safeParse: (v: unknown) => { success: boolean; data?: T; error?: { errors: { path: (string | number)[]; message: string }[] } } }, body: unknown): T {
   const result = schema.safeParse(body)
   if (!result.success) {
@@ -32,8 +46,9 @@ function parseBody<T>(schema: { safeParse: (v: unknown) => { success: boolean; d
 export const authController = {
   async register(req: FastifyRequest, reply: FastifyReply) {
     const input = parseBody(registerSchema, req.body)
-    const user = await authService.register(input)
-    return reply.status(201).send({ user })
+    await authService.register(input)
+    // Răspuns generic IDENTIC indiferent dacă emailul are deja cont (anti-enumerare M8).
+    return reply.status(201).send({ message: 'Verifică-ți emailul pentru a confirma contul.' })
   },
 
   async login(req: FastifyRequest, reply: FastifyReply) {
@@ -46,6 +61,7 @@ export const authController = {
   },
 
   async logout(req: FastifyRequest, reply: FastifyReply) {
+    assertTrustedOrigin(req)
     const refreshToken = req.cookies[REFRESH_COOKIE]
     if (refreshToken) await authService.logout(refreshToken)
     reply.clearCookie(REFRESH_COOKIE, { path: '/', secure: true, sameSite: 'none' })
@@ -53,6 +69,7 @@ export const authController = {
   },
 
   async refresh(req: FastifyRequest, reply: FastifyReply) {
+    assertTrustedOrigin(req)
     const refreshToken = req.cookies[REFRESH_COOKIE]
     if (!refreshToken) throw Errors.unauthorized('No refresh token provided.')
 

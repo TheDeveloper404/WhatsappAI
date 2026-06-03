@@ -29,9 +29,20 @@ const envSchema = z.object({
   // Furnizor pentru generarea de text. Transcrierea vocală rămâne mereu pe Groq (Whisper).
   LLM_PROVIDER: z.enum(['groq', 'gemini']).default('groq'),
 
+  // Nr. de proxy-uri de încredere din fața app-ului (M1). `req.ip` se ia ca al (n+1)-lea din dreapta
+  // în X-Forwarded-For → clientul nu mai poate falsifica IP-ul prepend-uind valori. NU folosi `true`
+  // (ar avea încredere în orice → spoofing). Railway direct = 1 hop. Prin Cloudflare = 2 hops, DAR
+  // setează 2 doar dacă blochezi accesul direct la *.up.railway.app (altfel redevine spoofabil pe
+  // ruta directă). Default sigur: 1.
+  TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(10).default(1),
+
   CORS_ORIGINS: z.string().optional(),
   ADMIN_EMAIL: z.string().email().optional(),
   ADMIN_SECRET: z.string().min(32).optional(),
+  // Secret DEDICAT pentru semnarea sesiunii admin (M5). Dacă lipsește, se derivă din
+  // JWT_ACCESS_SECRET (compatibilitate) — dar atunci un compromis al acelui secret permite și
+  // forjarea sesiunilor admin. Setează-l separat în prod. Generează: openssl rand -hex 32.
+  ADMIN_SESSION_SECRET: z.string().min(32).optional(),
   E2E_MODE: z.enum(['true', 'false']).optional(),
   E2E_SECRET: z.string().min(16).optional(),
 

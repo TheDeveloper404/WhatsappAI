@@ -46,10 +46,11 @@ async function callGeminiApi(messages: GroqMessage[], options?: LLMOptions): Pro
     .filter(m => m.role !== 'system')
     .map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] }))
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${env.GEMINI_API_KEY}`
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    // Cheia în header (x-goog-api-key), nu în URL — evită scurgerea în loguri/proxy/Referer (L8).
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY },
     body: JSON.stringify({
       ...(systemParts ? { systemInstruction: { parts: [{ text: systemParts }] } } : {}),
       contents,
@@ -92,10 +93,11 @@ Reguli:
 - Răspunde scurt, ca o listă de perechi "câmp: valoare", în română.
 - Dacă imaginea nu conține date utile (e o poză irelevantă), răspunde exact: NIMIC_RELEVANT`
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${env.GEMINI_API_KEY}`
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    // Cheia în header (x-goog-api-key), nu în URL — evită scurgerea în loguri/proxy/Referer (L8).
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY },
     body: JSON.stringify({
       contents: [{
         role: 'user',
@@ -129,14 +131,15 @@ export async function embedTexts(
   if (!env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY not configured')
   if (texts.length === 0) return []
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_EMBED_MODEL}:batchEmbedContents?key=${env.GEMINI_API_KEY}`
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_EMBED_MODEL}:batchEmbedContents`
   const out: number[][] = []
 
   for (let i = 0; i < texts.length; i += EMBED_BATCH) {
     const slice = texts.slice(i, i + EMBED_BATCH)
     const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      // Cheia în header (x-goog-api-key), nu în URL (L8).
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY },
       body: JSON.stringify({
         requests: slice.map(text => ({
           model: `models/${GEMINI_EMBED_MODEL}`,

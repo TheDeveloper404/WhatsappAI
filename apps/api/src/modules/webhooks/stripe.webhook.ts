@@ -47,7 +47,15 @@ export async function stripeWebhookRoutes(app: FastifyInstance) {
   })
 }
 
+// Stripe NU garantează ordinea livrării (M7). Ignorăm evenimentele mai vechi decât starea curentă,
+// comparând `event.created` cu `last_event_at` salvat per abonament.
+function isStaleEvent(lastEventAt: number | null | undefined, eventAt: number): boolean {
+  return lastEventAt != null && eventAt < lastEventAt
+}
+
 async function handleEvent(event: Stripe.Event, app: FastifyInstance) {
+  const eventAt = event.created * 1000 // event.created e în secunde
+
   const getCurrentPeriodEnd = (stripeSub: Stripe.Subscription) => {
     const sub = stripeSub as Stripe.Subscription & { current_period_end?: number }
     return (sub.current_period_end ?? stripeSub.billing_cycle_anchor) * 1000
@@ -73,7 +81,7 @@ async function handleEvent(event: Stripe.Event, app: FastifyInstance) {
       const status = stripeSub.status === 'trialing' ? 'trialing' : 'active'
 
       const existing = await billingRepository.findByStripeCustomerId(customerId)
-      if (existing) {
+      if (existing && !isStaleEvent(existing.lastEventAt, eventAt)) {
         await billingRepository.update(existing.id, {
           stripeSubscriptionId,
           plan,
@@ -82,6 +90,7 @@ async function handleEvent(event: Stripe.Event, app: FastifyInstance) {
           currentPeriodEndsAt: periodEnd,
           cancelAtPeriodEnd: Boolean(stripeSub.cancel_at_period_end),
           cancelAt: getCancelAt(stripeSub),
+          lastEventAt: eventAt,
         })
       }
       break
@@ -91,6 +100,7 @@ async function handleEvent(event: Stripe.Event, app: FastifyInstance) {
       const stripeSub = event.data.object as Stripe.Subscription
       const existing = await billingRepository.findByStripeSubscriptionId(stripeSub.id)
       if (!existing) break
+      if (isStaleEvent(existing.lastEventAt, eventAt)) break // eveniment mai vechi → ignoră (M7)
 
       const statusMap: Record<string, 'trialing' | 'active' | 'past_due' | 'canceled' | 'incomplete'> = {
         trialing: 'trialing',
@@ -107,6 +117,7 @@ async function handleEvent(event: Stripe.Event, app: FastifyInstance) {
         currentPeriodEndsAt: getCurrentPeriodEnd(stripeSub),
         cancelAtPeriodEnd: Boolean(stripeSub.cancel_at_period_end),
         cancelAt: getCancelAt(stripeSub),
+        lastEventAt: eventAt,
       })
 
       if (status === 'past_due' || status === 'canceled') {
@@ -123,11 +134,12 @@ async function handleEvent(event: Stripe.Event, app: FastifyInstance) {
     case 'customer.subscription.deleted': {
       const stripeSub = event.data.object as Stripe.Subscription
       const existing = await billingRepository.findByStripeSubscriptionId(stripeSub.id)
-      if (existing) {
+      if (existing && !isStaleEvent(existing.lastEventAt, eventAt)) {
         await billingRepository.update(existing.id, {
           status: 'canceled',
           cancelAtPeriodEnd: false,
           cancelAt: Date.now(),
+          lastEventAt: eventAt,
         })
         await adminRepository.setAgentActive(existing.userId, false)
         await notifyAdmin(
@@ -143,8 +155,8 @@ async function handleEvent(event: Stripe.Event, app: FastifyInstance) {
       const invoice = event.data.object as Stripe.Invoice
       const customerId = invoice.customer as string
       const existing = await billingRepository.findByStripeCustomerId(customerId)
-      if (existing) {
-        await billingRepository.update(existing.id, { status: 'past_due' })
+      if (existing && !isStaleEvent(existing.lastEventAt, eventAt)) {
+        await billingRepository.update(existing.id, { status: 'past_due', lastEventAt: eventAt })
         await adminRepository.setAgentActive(existing.userId, false)
         await notifyAdmin(
           'payment_failed',

@@ -42,6 +42,9 @@ export const subscriptions = pgTable('subscriptions', {
   currentPeriodEndsAt: bigint('current_period_ends_at', { mode: 'number' }),
   cancelAtPeriodEnd: boolean('cancel_at_period_end').notNull().default(false),
   cancelAt: bigint('cancel_at', { mode: 'number' }),
+  // event.created (ms) al ultimului eveniment Stripe aplicat — ca să ignorăm evenimentele sosite
+  // în dezordine (Stripe nu garantează ordinea). Vezi M7.
+  lastEventAt: bigint('last_event_at', { mode: 'number' }),
   createdAt: bigint('created_at', { mode: 'number' }).notNull(),
   updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
 })
@@ -113,6 +116,17 @@ export const notifications = pgTable('notifications', {
   title: text('title').notNull(),
   body: text('body').notNull(),
   readAt: bigint('read_at', { mode: 'number' }),
+  createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+})
+
+// Jurnal de audit pentru acțiunile admin (M5). Admin-ul nu e legat de identitate (secret partajat),
+// deci reținem cel puțin acțiunea, ținta și IP-ul, pentru trasabilitate.
+export const adminAuditLog = pgTable('admin_audit_log', {
+  id: text('id').primaryKey(),
+  action: text('action').notNull(),
+  targetUserId: text('target_user_id'),
+  metadata: text('metadata'),
+  ip: text('ip'),
   createdAt: bigint('created_at', { mode: 'number' }).notNull(),
 })
 

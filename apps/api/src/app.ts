@@ -28,6 +28,7 @@ async function runStartupMigrations() {
     `ALTER TABLE users ADD COLUMN IF NOT EXISTS deletion_scheduled_at BIGINT`,
     `ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS cancel_at_period_end BOOLEAN NOT NULL DEFAULT FALSE`,
     `ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS cancel_at BIGINT`,
+    `ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS last_event_at BIGINT`,
     `ALTER TABLE conversation_messages ADD COLUMN IF NOT EXISTS is_ai BOOLEAN NOT NULL DEFAULT FALSE`,
     `CREATE TABLE IF NOT EXISTS contact_memory (
       id TEXT PRIMARY KEY,
@@ -49,6 +50,14 @@ async function runStartupMigrations() {
     `CREATE TABLE IF NOT EXISTS stripe_events (
       id TEXT PRIMARY KEY,
       type TEXT NOT NULL,
+      created_at BIGINT NOT NULL
+    )`,
+    `CREATE TABLE IF NOT EXISTS admin_audit_log (
+      id TEXT PRIMARY KEY,
+      action TEXT NOT NULL,
+      target_user_id TEXT,
+      metadata TEXT,
+      ip TEXT,
       created_at BIGINT NOT NULL
     )`,
     `CREATE TABLE IF NOT EXISTS products (
@@ -121,7 +130,10 @@ async function runStartupMigrations() {
 export async function buildApp() {
   await runStartupMigrations()
 
-  const app = Fastify({ logger: env.NODE_ENV !== 'test', trustProxy: true })
+  // trustProxy = nr. EXACT de proxy-uri de încredere (M1), nu `true`. Cu `true`, `req.ip` devine
+  // valoarea cea mai din stânga din X-Forwarded-For, controlabilă de client → bypass de rate-limit.
+  // Cu un număr, `req.ip` se ia la offset fix din dreapta (hop-urile reale de infra), nespoofabil.
+  const app = Fastify({ logger: env.NODE_ENV !== 'test', trustProxy: env.TRUST_PROXY_HOPS })
 
   // H2: fără cheie de criptare, creds-urile WhatsApp se stochează necriptat. Semnalăm zgomotos
   // (error în prod) ca să nu treacă neobservat la deploy.
@@ -129,6 +141,12 @@ export async function buildApp() {
     const msg = 'WHATSAPP_ENC_KEY nesetat — credențialele WhatsApp se stochează NECRIPTAT la rest (H2). Setează `openssl rand -hex 32` în env.'
     if (env.NODE_ENV === 'production') app.log.error(msg)
     else app.log.warn(msg)
+  }
+
+  // M5: dacă admin-ul e activat dar nu are secret de sesiune dedicat, sesiunea admin se derivă din
+  // JWT_ACCESS_SECRET (un compromis al acestuia ar permite și forjarea sesiunilor admin).
+  if (env.ADMIN_SECRET && !env.ADMIN_SESSION_SECRET) {
+    app.log.warn('ADMIN_SESSION_SECRET nesetat — sesiunea admin se derivă din JWT_ACCESS_SECRET (M5). Setează un secret dedicat în prod.')
   }
 
   await app.register(cookie)

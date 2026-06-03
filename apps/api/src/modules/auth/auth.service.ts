@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { createHmac } from 'crypto'
 import { logger } from '../../utils/logger.js'
 import { authRepository } from './auth.repository.js'
-import { hashPassword, verifyPassword } from '../../utils/password.js'
+import { hashPassword, verifyPassword, verifyPasswordDummy } from '../../utils/password.js'
 import {
   createAccessToken,
   createRefreshToken,
@@ -11,7 +11,7 @@ import {
   generateSecureToken,
   refreshTokenExpiresAt,
 } from '../../utils/tokens.js'
-import { sendVerificationEmail, sendPasswordResetEmail } from '../../utils/email.js'
+import { sendVerificationEmail, sendPasswordResetEmail, sendAlreadyRegisteredEmail } from '../../utils/email.js'
 import { notifyAdmin } from '../admin/notifications.service.js'
 import { Errors } from '../../utils/errors.js'
 import { env } from '../../config/env.js'
@@ -21,10 +21,18 @@ const MAX_LOGIN_ATTEMPTS = 10
 const LOGIN_WINDOW_MS = 15 * 60 * 1000
 
 export const authService = {
+  // Anti-enumerare (M8): răspunsul HTTP e IDENTIC indiferent dacă emailul are deja cont (controller-ul
+  // întoarce mereu 201 + mesaj generic). Aici aliniem și munca/timpul: pe ramura „email există" rulăm
+  // un bcrypt dummy (cât hashPassword) și trimitem un email „ai deja cont"; pe ambele ramuri emailul e
+  // fire-and-forget, deci durata lui nu trădează existența contului.
   async register(input: RegisterInput) {
     const existing = await authRepository.findUserByEmail(input.email)
     if (existing) {
-      throw Errors.conflict('Registration failed. Please try again or log in.')
+      await verifyPasswordDummy(input.password)
+      void sendAlreadyRegisteredEmail(existing.email, existing.name).catch(err =>
+        logger.error('[auth] already-registered email failed', { err: err.message })
+      )
+      return
     }
 
     const passwordHash = await hashPassword(input.password)
@@ -32,25 +40,34 @@ export const authService = {
     const verifyTokenHash = createHmac('sha256', env.JWT_ACCESS_SECRET).update(verifyToken).digest('hex')
     const now = Date.now()
 
-    const user = await authRepository.createUser({
-      id: uuidv4(),
-      name: input.name,
-      email: input.email,
-      passwordHash,
-      emailVerified: false,
-      emailVerifyToken: verifyTokenHash,
-      emailVerifyTokenExpiry: now + 24 * 60 * 60 * 1000,
-      role: 'user',
-      createdAt: now,
-      updatedAt: now,
-    })
+    let user
+    try {
+      user = await authRepository.createUser({
+        id: uuidv4(),
+        name: input.name,
+        email: input.email,
+        passwordHash,
+        emailVerified: false,
+        emailVerifyToken: verifyTokenHash,
+        emailVerifyTokenExpiry: now + 24 * 60 * 60 * 1000,
+        role: 'user',
+        createdAt: now,
+        updatedAt: now,
+      })
+    } catch (err: any) {
+      // Race (L14): alt request a creat între timp același email → violare de unicitate (PG 23505).
+      // Tratăm ca „deja există": răspuns generic identic (anti-enumerare), nu 500.
+      if (err?.code === '23505') {
+        void sendAlreadyRegisteredEmail(input.email, input.name).catch(() => {})
+        return
+      }
+      throw err
+    }
 
-    await sendVerificationEmail(user.email, user.name, verifyToken).catch(err =>
+    void sendVerificationEmail(user.email, user.name, verifyToken).catch(err =>
       logger.error('[auth] verification email failed', { err: err.message })
     )
     notifyAdmin('new_user', 'User nou înregistrat', `Nume: ${user.name}\nEmail: ${user.email}`).catch(() => {})
-
-    return { id: user.id, name: user.name, email: user.email, createdAt: new Date(user.createdAt) }
   },
 
   async login(input: LoginInput, ip: string) {
@@ -62,6 +79,9 @@ export const authService = {
 
     const user = await authRepository.findUserByEmail(input.email)
     if (!user) {
+      // Timp constant (M6): rulăm un bcrypt „dummy" de aceeași durată ca o verificare reală, ca
+      // diferența de timing să nu trădeze că emailul nu are cont.
+      await verifyPasswordDummy(input.password)
       await authRepository.logLoginAttempt(uuidv4(), input.email, ip)
       throw Errors.unauthorized('Email sau parolă incorectă.')
     }
@@ -102,10 +122,10 @@ export const authService = {
     }
 
     const tokenHash = hashToken(rawRefreshToken)
-    const stored = await authRepository.findRefreshToken(tokenHash)
-    if (!stored) throw Errors.unauthorized('Refresh token revoked or expired.')
-
-    await authRepository.deleteRefreshToken(tokenHash)
+    // Consum atomic (L13): dacă două cereri concurente folosesc același token, doar una șterge rândul
+    // și continuă; cealaltă primește 0 și e respinsă (fără două sesiuni valide din același token).
+    const consumed = await authRepository.consumeRefreshToken(tokenHash)
+    if (consumed === 0) throw Errors.unauthorized('Refresh token revoked or expired.')
 
     const user = await authRepository.findUserById(payload.userId)
     if (!user) throw Errors.unauthorized()
@@ -128,6 +148,8 @@ export const authService = {
     const tokenHash = createHmac('sha256', env.JWT_ACCESS_SECRET).update(token).digest('hex')
     const user = await authRepository.findUserByVerifyToken(tokenHash)
     if (!user) throw Errors.unprocessable('Link de verificare invalid sau expirat.')
+    // L18: cont programat la ștergere — nu reactivăm prin verificare în fereastra de 48h.
+    if (user.deletionScheduledAt) throw Errors.unprocessable('Acest cont este programat pentru ștergere.')
 
     await authRepository.updateUser(user.id, {
       emailVerified: true,
@@ -148,7 +170,9 @@ export const authService = {
       resetPasswordTokenExpiry: Date.now() + 60 * 60 * 1000,
     })
 
-    await sendPasswordResetEmail(user.email, rawToken).catch(err =>
+    // Fire-and-forget (M6): nu așteptăm trimiterea emailului în calea răspunsului, ca durata lui
+    // (componenta de timing dominantă) să nu trădeze că emailul are cont. Răspunsul e oricum generic.
+    void sendPasswordResetEmail(user.email, rawToken).catch(err =>
       logger.error('[auth] forgotPassword email failed', { err: err.message })
     )
   },
@@ -157,6 +181,8 @@ export const authService = {
     const tokenHash = createHmac('sha256', env.JWT_ACCESS_SECRET).update(rawToken).digest('hex')
     const user = await authRepository.findUserByResetToken(tokenHash)
     if (!user) throw Errors.unprocessable('This reset link is invalid or has expired.')
+    // L18: cont programat la ștergere — nu permitem resetarea parolei în fereastra de 48h.
+    if (user.deletionScheduledAt) throw Errors.unprocessable('Acest cont este programat pentru ștergere.')
 
     const passwordHash = await hashPassword(newPassword)
     await authRepository.updateUser(user.id, {

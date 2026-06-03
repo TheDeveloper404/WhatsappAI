@@ -88,6 +88,31 @@ export async function sendVerificationEmail(to: string, name: string, token: str
   if (error) throw new Error(`Resend error (verification): ${error.message}`)
 }
 
+// Trimis când cineva încearcă să se înregistreze cu un email care ARE deja cont (M8). Înlocuiește
+// răspunsul 409 (care trăda existența contului) — răspunsul HTTP devine identic cu o înregistrare nouă,
+// iar proprietarul real e informat aici (login / resetare parolă).
+export async function sendAlreadyRegisteredEmail(to: string, name: string) {
+  const loginLink = `${env.APP_URL}/login`
+  const resetLink = `${env.APP_URL}/forgot-password`
+  const { error } = await resend.emails.send({
+    from: env.EMAIL_FROM,
+    to,
+    subject: 'Ai deja un cont — waai.',
+    html: baseTemplate(`
+      <h1 style="margin:0 0 8px;font-size:24px;font-weight:700;color:#0A0F0C;">Salut, ${escapeHtml(name)}!</h1>
+      <p style="margin:0 0 4px;font-size:15px;color:#6B7280;line-height:1.6;">
+        Cineva (poate tu) a încercat să creeze un cont cu această adresă, dar ai deja unul. Nu am creat un cont nou.
+      </p>
+      ${ctaButton(loginLink, 'Intră în cont →')}
+      <p style="margin:0;font-size:13px;color:#9CA3AF;line-height:1.6;">
+        Ți-ai uitat parola? <a href="${resetLink}" style="color:#0A0F0C;">Resetează parola</a>.
+        Dacă nu ai încercat tu, poți ignora acest email.
+      </p>
+    `),
+  })
+  if (error) throw new Error(`Resend error (already registered): ${error.message}`)
+}
+
 export async function sendPasswordResetEmail(to: string, token: string) {
   const link = `${env.APP_URL}/reset-password?token=${token}`
   const { error } = await resend.emails.send({

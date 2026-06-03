@@ -66,9 +66,11 @@ export function verifyRefreshToken(token: string): TokenPayload {
 }
 
 // Sesiune admin: token semnat, scurt, emis după validarea ADMIN_SECRET.
-// Cheie derivată DISTINCT din JWT_ACCESS_SECRET — un token de user nu poate trece
-// drept admin și invers, fără a introduce o variabilă de mediu nouă.
-const ADMIN_SESSION_SECRET = createHmac('sha256', env.JWT_ACCESS_SECRET).update('admin-session-v1').digest('hex')
+// PREFERĂM un secret DEDICAT (`ADMIN_SESSION_SECRET`) — izolat de JWT root (M5). Dacă lipsește,
+// fallback la derivarea din JWT_ACCESS_SECRET (compatibilitate); vezi avertismentul de la pornire.
+export const adminSessionSecretDedicated = Boolean(env.ADMIN_SESSION_SECRET)
+const ADMIN_SESSION_SECRET = env.ADMIN_SESSION_SECRET
+  ?? createHmac('sha256', env.JWT_ACCESS_SECRET).update('admin-session-v1').digest('hex')
 
 export function createAdminSession(): string {
   const now = Math.floor(Date.now() / 1000)

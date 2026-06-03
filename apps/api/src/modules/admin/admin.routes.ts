@@ -26,6 +26,25 @@ function verifyAdminToken(req: { headers: { authorization?: string } }) {
   }
 }
 
+// Rate limit pe rutele admin distructive (L3), dezactivat în test/E2E (ca în auth.routes).
+const rl = (max: number, timeWindow: string) =>
+  process.env.NODE_ENV === 'test' || process.env.E2E_MODE === 'true'
+    ? {}
+    : { config: { rateLimit: { max, timeWindow } } }
+
+// Whitelist de chei la PATCH /config (M5/L4): doar cheile pe care le citește efectiv app-ul.
+// Blochează injectarea de chei arbitrare (poisoning / junk) în config-ul de platformă.
+const ALLOWED_CONFIG_KEYS = new Set(['default_system_prompt'])
+
+// Audit log acțiuni admin (M5). Fail-soft: o eroare de jurnalizare nu blochează acțiunea.
+async function audit(req: { ip?: string }, action: string, targetUserId: string | null = null, metadata?: Record<string, unknown>) {
+  try {
+    await adminRepository.logAdminAction(action, targetUserId, metadata ? JSON.stringify(metadata) : null, req.ip ?? null)
+  } catch (err) {
+    logger.error('[admin] audit log failed', { err: String(err) })
+  }
+}
+
 export async function adminRoutes(app: FastifyInstance) {
   // POST /admin/auth
   app.post('/auth', { config: { rateLimit: { max: 10, timeWindow: '15 minutes' } } }, async (req, reply) => {
@@ -56,16 +75,18 @@ export async function adminRoutes(app: FastifyInstance) {
     const { userId } = req.params as { userId: string }
     const { isActive } = req.body as { isActive: boolean }
     await adminRepository.setAgentActive(userId, isActive)
+    await audit(req, 'user.set_agent_active', userId, { isActive })
     return reply.send({ ok: true })
   })
 
   // POST /admin/users/:userId/extend-trial
-  app.post('/users/:userId/extend-trial', async (req, reply) => {
+  app.post('/users/:userId/extend-trial', rl(30, '5 minutes'), async (req, reply) => {
     verifyAdminToken(req)
     const { userId } = req.params as { userId: string }
     const { days } = req.body as { days: number }
     if (!days || days < 1 || days > 365) throw Errors.validation([{ field: 'days', message: 'Zile invalide (1-365).' }])
     await adminRepository.extendTrial(userId, days)
+    await audit(req, 'user.extend_trial', userId, { days })
     return reply.send({ ok: true })
   })
 
@@ -77,19 +98,21 @@ export async function adminRoutes(app: FastifyInstance) {
       const { disconnectSession } = await import('../whatsapp/whatsapp.session-manager.js')
       await disconnectSession(userId)
     } catch {}
+    await audit(req, 'user.disconnect_wa', userId)
     return reply.send({ ok: true })
   })
 
   // DELETE /admin/users/:userId
-  app.delete('/users/:userId', async (req, reply) => {
+  app.delete('/users/:userId', rl(20, '5 minutes'), async (req, reply) => {
     verifyAdminToken(req)
     const { userId } = req.params as { userId: string }
     await adminRepository.deleteUser(userId)
+    await audit(req, 'user.delete', userId)
     return reply.send({ ok: true })
   })
 
   // POST /admin/users/:userId/email
-  app.post('/users/:userId/email', async (req, reply) => {
+  app.post('/users/:userId/email', rl(20, '5 minutes'), async (req, reply) => {
     verifyAdminToken(req)
     const { userId } = req.params as { userId: string }
     const { subject, body } = req.body as { subject: string; body: string }
@@ -100,6 +123,7 @@ export async function adminRoutes(app: FastifyInstance) {
     await sendCustomEmail(user.email, subject, body).catch(err =>
       logger.error('[admin] email send failed', { err: err.message })
     )
+    await audit(req, 'user.email', userId, { subject })
     return reply.send({ ok: true })
   })
 
@@ -140,15 +164,29 @@ export async function adminRoutes(app: FastifyInstance) {
     return reply.send({ config })
   })
 
-  // PATCH /admin/config
-  app.patch('/config', async (req, reply) => {
+  // PATCH /admin/config — doar chei din whitelist (M5/L4).
+  app.patch('/config', rl(30, '5 minutes'), async (req, reply) => {
     verifyAdminToken(req)
-    const updates = req.body as Record<string, string>
+    const updates = req.body as Record<string, unknown>
+    const invalid = Object.keys(updates).filter(k => !ALLOWED_CONFIG_KEYS.has(k))
+    if (invalid.length) {
+      throw Errors.validation(invalid.map(k => ({ field: k, message: 'Cheie de configurare nepermisă.' })))
+    }
+    const applied: string[] = []
     for (const [key, value] of Object.entries(updates)) {
       if (typeof value === 'string') {
         await adminRepository.setPlatformConfig(key, value)
+        applied.push(key)
       }
     }
+    await audit(req, 'config.update', null, { keys: applied })
     return reply.send({ ok: true })
+  })
+
+  // GET /admin/audit — jurnalul de acțiuni admin (M5).
+  app.get('/audit', async (req, reply) => {
+    verifyAdminToken(req)
+    const entries = await adminRepository.getAuditLog(100)
+    return reply.send({ entries })
   })
 }

@@ -61,6 +61,15 @@ export const authRepository = {
     await db.delete(refreshTokens).where(eq(refreshTokens.tokenHash, tokenHash))
   },
 
+  // Consumă atomic un refresh token VALID (nereexpirat) și întoarce câte rânduri a șters.
+  // Două cereri /refresh concurente cu același token: doar PRIMA primește 1, restul 0 (L13).
+  async consumeRefreshToken(tokenHash: string): Promise<number> {
+    const deleted = await db.delete(refreshTokens)
+      .where(and(eq(refreshTokens.tokenHash, tokenHash), gt(refreshTokens.expiresAt, Date.now())))
+      .returning({ id: refreshTokens.id })
+    return deleted.length
+  },
+
   async deleteAllRefreshTokensForUser(userId: string): Promise<void> {
     await db.delete(refreshTokens).where(eq(refreshTokens.userId, userId))
   },

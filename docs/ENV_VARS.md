@@ -88,7 +88,9 @@ WHATSAPP_ENC_KEY=SCHIMBA_CU_openssl_rand_hex_32
 | `LLM_PROVIDER` | Nu | `groq` (default) sau `gemini` — furnizor pentru generarea de text. Vocea rămâne mereu pe Groq |
 | `ADMIN_EMAIL` | Nu | Email-ul contului de admin |
 | `ADMIN_SECRET` | Nu | Secret pentru autentificarea în panoul admin. Min 32 chars |
+| `ADMIN_SESSION_SECRET` | Recomandat (dacă folosești admin) | Secret DEDICAT pentru semnarea sesiunii admin (M5), izolat de `JWT_ACCESS_SECRET`. `openssl rand -hex 32`. Fără el, sesiunea admin se derivă din JWT root (avertisment la pornire) |
 | `WHATSAPP_ENC_KEY` | Recomandat | Cheie AES-256-GCM pentru criptarea la rest a credențialelor WhatsApp (H2). `openssl rand -hex 32`. Fără ea, creds-urile se stochează necriptat (avertisment la pornire) |
+| `TRUST_PROXY_HOPS` | Nu | Nr. proxy-uri de încredere în fața app-ului pentru `req.ip` (M1, anti-spoofing XFF la rate-limit). Railway direct=`1`, prin Cloudflare=`2` (doar dacă blochezi accesul direct la `*.up.railway.app`). Default: `1`. NICIODATĂ `true` |
 | `CORS_ORIGINS` | Nu | Origini CORS extra, separate prin virgulă. Util pentru Vercel preview URLs |
 | `E2E_MODE` | Nu | **Doar pentru teste E2E.** Activează endpoint-urile de test. NICIODATĂ în producție |
 | `E2E_SECRET` | Nu | Header secret pentru rutele de test (`x-e2e-secret`). Min 16 chars |

@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto'
-import { eq, and, desc } from 'drizzle-orm'
+import { eq, and, desc, count } from 'drizzle-orm'
 import { db } from '../../config/database.js'
 import { documents, documentChunks } from '../../db/schema.js'
 import type { Document, DocumentChunk } from '../../db/schema.js'
@@ -67,6 +67,12 @@ export const knowledgeRepository = {
   async delete(userId: string, documentId: string): Promise<void> {
     await db.delete(documents)
       .where(and(eq(documents.userId, userId), eq(documents.id, documentId)))
+  },
+
+  // Nr. total de chunks ale userului — pentru plafonul anti-DoS pe RAG (L17).
+  async countChunksForUser(userId: string): Promise<number> {
+    const rows = await db.select({ c: count() }).from(documentChunks).where(eq(documentChunks.userId, userId))
+    return Number(rows[0]?.c ?? 0)
   },
 
   // Toate chunk-urile userului — folosite la retrieval (cosine în cod, scoped pe userId).

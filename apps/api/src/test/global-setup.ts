@@ -97,6 +97,14 @@ export async function setup() {
       value TEXT NOT NULL,
       updated_at BIGINT NOT NULL
     )`,
+    `CREATE TABLE IF NOT EXISTS admin_audit_log (
+      id TEXT PRIMARY KEY,
+      action TEXT NOT NULL,
+      target_user_id TEXT,
+      metadata TEXT,
+      ip TEXT,
+      created_at BIGINT NOT NULL
+    )`,
     `CREATE TABLE IF NOT EXISTS notifications (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

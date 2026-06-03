@@ -9,6 +9,7 @@
     "dev:web": "pnpm --filter web dev",
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",
+    "audit": "pnpm audit --audit-level=high",
     "test:e2e": "pnpm --filter e2e test",
     "test:e2e:ui": "pnpm --filter e2e test:ui",
     "test:e2e:headed": "pnpm --filter e2e test:headed"

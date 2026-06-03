@@ -9,6 +9,7 @@ export const registerSchema = z.object({
   password: z
     .string()
     .min(8)
+    .max(128) // bcrypt trunchiază la 72 bytes; limită explicită (L2/L11) — evită input nelimitat
     .regex(/[A-Z]/, 'Must contain at least one uppercase letter')
     .regex(/[0-9]/, 'Must contain at least one number'),
   // Honeypot anti-bot: câmp ascuns pe care oamenii NU îl completează. Dacă vine cu conținut, e un bot
@@ -30,6 +31,7 @@ export const resetPasswordSchema = z.object({
   password: z
     .string()
     .min(8)
+    .max(128) // bcrypt trunchiază la 72 bytes; limită explicită (L2/L11) — evită input nelimitat
     .regex(/[A-Z]/, 'Must contain at least one uppercase letter')
     .regex(/[0-9]/, 'Must contain at least one number'),
 })

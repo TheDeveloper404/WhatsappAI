@@ -93,7 +93,9 @@ export async function aiRoutes(app: FastifyInstance) {
   })
 
   // Export tot istoricul de conversații al userului (rută statică — declarată ÎNAINTE de `:phone`).
-  app.get('/conversations/export', { preHandler: [authenticate, requireActiveSubscription]}, async (req, reply) => {
+  // Export = dump COMPLET de conversații (PII clienți) într-o singură cerere. Limită strictă
+  // dedicată (H1) ca să oprim exfiltrarea repetată/scraping, peste gate-ul de abonament.
+  app.get('/conversations/export', { config: { rateLimit: { max: 5, timeWindow: '1 hour' } }, preHandler: [authenticate, requireActiveSubscription]}, async (req, reply) => {
     const messages = await aiService.exportConversations(req.user!.id)
     return reply.send({ messages })
   })

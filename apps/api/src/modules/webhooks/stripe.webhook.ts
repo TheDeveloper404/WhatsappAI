@@ -13,7 +13,10 @@ export async function stripeWebhookRoutes(app: FastifyInstance) {
     done(null, body)
   })
 
-  app.post('/stripe', async (req, reply) => {
+  // Exceptat de la rate limit-ul global: Stripe livrează de pe multe IP-uri și retrimite agresiv;
+  // un limit per-IP ar putea pierde evenimente de plată. Protecția reală e verificarea semnăturii
+  // pe raw buffer + deduplicarea prin `stripe_events`.
+  app.post('/stripe', { config: { rateLimit: false } }, async (req, reply) => {
     const sig = req.headers['stripe-signature']
 
     if (!sig) return reply.status(400).send({ error: 'Missing stripe-signature header' })

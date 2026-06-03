@@ -49,6 +49,10 @@ GROQ_API_KEY=gsk_XXXXXXXXXXXXXXXXXXXXXXXXXXXX
 ADMIN_EMAIL=admin@domeniultau.com
 ADMIN_SECRET=SCHIMBA_CU_UN_STRING_RANDOM_MIN_32_CARACTERE
 
+# ─── CRIPTARE CREDENȚIALE WHATSAPP (H2) ──────────────
+# Generează: openssl rand -hex 32. Fără ea, sesiunile WhatsApp se stochează NECRIPTAT.
+WHATSAPP_ENC_KEY=SCHIMBA_CU_openssl_rand_hex_32
+
 # ─── CORS (opțional) ─────────────────────────────────
 # Origini extra permise, separate prin virgulă (ex: Vercel preview URLs)
 # CORS_ORIGINS=https://preview-xxx.vercel.app,https://alt-domeniu.com
@@ -84,6 +88,7 @@ ADMIN_SECRET=SCHIMBA_CU_UN_STRING_RANDOM_MIN_32_CARACTERE
 | `LLM_PROVIDER` | Nu | `groq` (default) sau `gemini` — furnizor pentru generarea de text. Vocea rămâne mereu pe Groq |
 | `ADMIN_EMAIL` | Nu | Email-ul contului de admin |
 | `ADMIN_SECRET` | Nu | Secret pentru autentificarea în panoul admin. Min 32 chars |
+| `WHATSAPP_ENC_KEY` | Recomandat | Cheie AES-256-GCM pentru criptarea la rest a credențialelor WhatsApp (H2). `openssl rand -hex 32`. Fără ea, creds-urile se stochează necriptat (avertisment la pornire) |
 | `CORS_ORIGINS` | Nu | Origini CORS extra, separate prin virgulă. Util pentru Vercel preview URLs |
 | `E2E_MODE` | Nu | **Doar pentru teste E2E.** Activează endpoint-urile de test. NICIODATĂ în producție |
 | `E2E_SECRET` | Nu | Header secret pentru rutele de test (`x-e2e-secret`). Min 16 chars |

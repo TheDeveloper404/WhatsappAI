@@ -1,5 +1,6 @@
 import { createRequire } from 'module'
 import { pool } from '../../config/database.js'
+import { encryptSecret, decryptSecret } from '../../utils/crypto.js'
 
 const _require = createRequire(import.meta.url)
 const { initAuthCreds, BufferJSON } = _require('@whiskeysockets/baileys') as any
@@ -10,7 +11,7 @@ export async function usePostgresAuthState(userId: string) {
     [userId]
   )
   const creds = credsRow.rows[0]
-    ? JSON.parse(credsRow.rows[0].data, BufferJSON.reviver)
+    ? JSON.parse(decryptSecret(credsRow.rows[0].data), BufferJSON.reviver)
     : initAuthCreds()
 
   const saveCreds = async () => {
@@ -18,7 +19,7 @@ export async function usePostgresAuthState(userId: string) {
       `INSERT INTO whatsapp_auth_state (user_id, key_type, key_id, data, updated_at)
        VALUES ($1, 'creds', 'main', $2, $3)
        ON CONFLICT (user_id, key_type, key_id) DO UPDATE SET data = $2, updated_at = $3`,
-      [userId, JSON.stringify(creds, BufferJSON.replacer), Date.now()]
+      [userId, encryptSecret(JSON.stringify(creds, BufferJSON.replacer)), Date.now()]
     )
   }
 
@@ -32,7 +33,7 @@ export async function usePostgresAuthState(userId: string) {
       )
       const out: Record<string, any> = {}
       for (const row of result.rows) {
-        out[row.key_id] = JSON.parse(row.data, BufferJSON.reviver)
+        out[row.key_id] = JSON.parse(decryptSecret(row.data), BufferJSON.reviver)
       }
       return out
     },
@@ -53,7 +54,7 @@ export async function usePostgresAuthState(userId: string) {
         if (toUpsert.length > 0) {
           const params: any[] = [userId, now]
           const rows = toUpsert.map(([id, value], i) => {
-            params.push(type, id, JSON.stringify(value, BufferJSON.replacer))
+            params.push(type, id, encryptSecret(JSON.stringify(value, BufferJSON.replacer)))
             const b = 3 + i * 3
             return `($1, $${b}, $${b + 1}, $${b + 2}, $2)`
           })

@@ -32,6 +32,11 @@ const envSchema = z.object({
   ADMIN_SECRET: z.string().min(32).optional(),
   E2E_MODE: z.enum(['true', 'false']).optional(),
   E2E_SECRET: z.string().min(16).optional(),
+
+  // Cheie pentru criptarea la rest a credențialelor de sesiune WhatsApp (H2). AES-256-GCM.
+  // Generează: `openssl rand -hex 32`. Opțională ca să nu blocheze boot-ul, DAR fără ea creds-urile
+  // WhatsApp se stochează necriptat (avertisment la pornire). Setează-o în Railway.
+  WHATSAPP_ENC_KEY: z.string().min(32).optional(),
 })
 
 const parsed = envSchema.safeParse(process.env)

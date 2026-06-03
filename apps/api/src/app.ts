@@ -18,6 +18,7 @@ import { appointmentsRoutes } from './modules/orders/appointments.routes.js'
 import { knowledgeRoutes } from './modules/knowledge/knowledge.routes.js'
 import { testRoutes } from './modules/test/test.routes.js'
 import { AppError } from './utils/errors.js'
+import { isEncryptionConfigured } from './utils/crypto.js'
 
 // Adaugă coloane/tabele noi fără a rupe schema existentă (idempotent)
 async function runStartupMigrations() {
@@ -123,6 +124,14 @@ export async function buildApp() {
 
   const app = Fastify({ logger: env.NODE_ENV !== 'test', trustProxy: true })
 
+  // H2: fără cheie de criptare, creds-urile WhatsApp se stochează necriptat. Semnalăm zgomotos
+  // (error în prod) ca să nu treacă neobservat la deploy.
+  if (!isEncryptionConfigured) {
+    const msg = 'WHATSAPP_ENC_KEY nesetat — credențialele WhatsApp se stochează NECRIPTAT la rest (H2). Setează `openssl rand -hex 32` în env.'
+    if (env.NODE_ENV === 'production') app.log.error(msg)
+    else app.log.warn(msg)
+  }
+
   await app.register(cookie)
   const allowedOrigins = new Set([
     env.APP_URL.replace(/\/$/, ''),
@@ -147,7 +156,16 @@ export async function buildApp() {
     },
     crossOriginEmbedderPolicy: false,
   })
-  await app.register(rateLimit, { global: false })
+  // Rate limit GLOBAL cu fallback rezonabil (H1). Rutele cu `config.rateLimit` propriu îl
+  // suprascriu; cele fără primesc acest default per-IP. Dezactivat în test/E2E ca să nu pice
+  // suitele care fac multe cereri de la același IP (același pattern ca `rl()` din auth.routes).
+  // NB: cheia e `req.ip`, spoofabilă sub `trustProxy: true` — vezi M1 (de strâns separat).
+  const rateLimitDisabled = env.NODE_ENV === 'test' || env.E2E_MODE === 'true'
+  await app.register(rateLimit, {
+    global: !rateLimitDisabled,
+    max: 300,
+    timeWindow: '1 minute',
+  })
 
   await app.register(authRoutes, { prefix: '/api/v1/auth' })
   await app.register(userRoutes, { prefix: '/api/v1/users' })
@@ -167,7 +185,8 @@ export async function buildApp() {
     await app.register(testRoutes, { prefix: '/api/v1/test' })
   }
 
-  app.get('/health', async () => ({ status: 'ok' }))
+  // Health check exceptat de la rate limit (monitorizare/uptime probes).
+  app.get('/health', { config: { rateLimit: false } }, async () => ({ status: 'ok' }))
 
   app.setErrorHandler((error, _req, reply) => {
     if (error instanceof AppError) {

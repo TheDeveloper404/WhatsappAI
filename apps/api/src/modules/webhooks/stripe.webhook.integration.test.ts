@@ -390,3 +390,73 @@ describe('invoice.payment_failed', () => {
     expect(res.statusCode).toBe(200)
   })
 })
+
+// ---------------------------------------------------------------------------
+// M7 — ordinea evenimentelor (anti out-of-order). Stripe livrează at-least-once, FĂRĂ
+// garanție de ordine. Un eveniment mai vechi sosit DUPĂ unul mai nou nu trebuie să
+// suprascrie starea. Comparăm `event.created` cu `last_event_at` salvat.
+// ---------------------------------------------------------------------------
+
+describe('M7 — ordinea evenimentelor Stripe', () => {
+  it('200 — eveniment mai VECHI sosit după unul mai nou este IGNORAT (rămâne canceled)', async () => {
+    const { user } = await registerAndLogin('webhook-m7-stale@test.com')
+    await createSubscription(user.id, {
+      stripeCustomerId: 'cus_m7_stale',
+      stripeSubscriptionId: 'sub_m7_stale',
+      status: 'active',
+    })
+
+    const tNew = Math.floor(Date.now() / 1000)
+    const tOld = tNew - 100 // 100s mai devreme
+
+    // Sosește întâi evenimentul NOU: canceled@tNew → starea devine canceled, last_event_at = tNew.
+    const resNew = await sendWebhook({
+      created: tNew,
+      type: 'customer.subscription.updated',
+      data: { object: { id: 'sub_m7_stale', status: 'canceled', trial_end: null, billing_cycle_anchor: tNew } },
+    })
+    expect(resNew.statusCode).toBe(200)
+    let rows = await db.select().from(subscriptions).where(eq(subscriptions.userId, user.id))
+    expect(rows[0].status).toBe('canceled')
+
+    // Sosește apoi evenimentul VECHI: active@tOld. Fiind mai vechi decât last_event_at → IGNORAT.
+    const resOld = await sendWebhook({
+      created: tOld,
+      type: 'customer.subscription.updated',
+      data: { object: { id: 'sub_m7_stale', status: 'active', trial_end: null, billing_cycle_anchor: tOld } },
+    })
+    expect(resOld.statusCode).toBe(200)
+
+    rows = await db.select().from(subscriptions).where(eq(subscriptions.userId, user.id))
+    expect(rows[0].status).toBe('canceled') // scenariul [active@t1, canceled@t2] inversat → rămâne canceled
+  })
+
+  it('200 — control pozitiv: un eveniment mai NOU sosit după aplică normal (guard-ul nu blochează progresul legit)', async () => {
+    const { user } = await registerAndLogin('webhook-m7-forward@test.com')
+    await createSubscription(user.id, {
+      stripeCustomerId: 'cus_m7_fwd',
+      stripeSubscriptionId: 'sub_m7_fwd',
+      status: 'active',
+    })
+
+    const tOld = Math.floor(Date.now() / 1000) - 100
+    const tNew = Math.floor(Date.now() / 1000)
+
+    await sendWebhook({
+      created: tOld,
+      type: 'customer.subscription.updated',
+      data: { object: { id: 'sub_m7_fwd', status: 'past_due', trial_end: null, billing_cycle_anchor: tOld } },
+    })
+    let rows = await db.select().from(subscriptions).where(eq(subscriptions.userId, user.id))
+    expect(rows[0].status).toBe('past_due')
+
+    // Eveniment mai nou → trebuie aplicat (NU blocat de last_event_at).
+    await sendWebhook({
+      created: tNew,
+      type: 'customer.subscription.updated',
+      data: { object: { id: 'sub_m7_fwd', status: 'active', trial_end: null, billing_cycle_anchor: tNew } },
+    })
+    rows = await db.select().from(subscriptions).where(eq(subscriptions.userId, user.id))
+    expect(rows[0].status).toBe('active')
+  })
+})

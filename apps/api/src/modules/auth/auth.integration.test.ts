@@ -14,6 +14,9 @@ vi.mock('../../utils/email.js', () => ({
 
 // Import after mock so the service uses the mocked version
 import { sendVerificationEmail, sendPasswordResetEmail, sendAlreadyRegisteredEmail } from '../../utils/email.js'
+import { db } from '../../config/database.js'
+import { refreshTokens } from '../../db/schema.js'
+import { and, eq, isNotNull } from 'drizzle-orm'
 
 let app: FastifyInstance
 
@@ -202,6 +205,58 @@ describe('POST /auth/refresh', () => {
     // second use of same token should fail
     const res2 = await app.inject({ method: 'POST', url: '/api/v1/auth/refresh', headers: { cookie } })
     expect(res2.statusCode).toBe(401)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// L10 — reuse detection + family revocation. Un refresh token rotat de MULT (peste fereastra
+// de grație) și refolosit = semn de furt → se revocă ÎNTREAGA familie (atacator + victimă).
+// Distinct de L13 (retry concurent în grație = doar 401, fără revocare).
+// ---------------------------------------------------------------------------
+
+describe('POST /auth/refresh — L10 family revocation', () => {
+  it('401 + revocă toată familia când un token rotat de >30s e refolosit (furt)', async () => {
+    const { email, password } = await registerAndVerify('l10-family@example.com')
+    const loginRes = await login(email, password)
+    const userId = loginRes.json().user.id as string
+    const cookie1 = loginRes.headers['set-cookie'] as string
+
+    // Rotație normală R1 → R2. Acum R1 e marcat rotatedAt=now, R2 e activ (rotatedAt null).
+    const refreshRes = await app.inject({ method: 'POST', url: '/api/v1/auth/refresh', headers: { cookie: cookie1 } })
+    expect(refreshRes.statusCode).toBe(200)
+    const cookie2 = refreshRes.headers['set-cookie'] as string
+
+    // Îmbătrânim rotația lui R1 dincolo de fereastra de grație (30s), ca reuse-ul să fie tratat ca
+    // FURT, nu retry concurent. (Singurul R1 are rotatedAt setat; R2 e exclus de isNotNull.)
+    await db.update(refreshTokens)
+      .set({ rotatedAt: Date.now() - 31_000 })
+      .where(and(eq(refreshTokens.userId, userId), isNotNull(refreshTokens.rotatedAt)))
+
+    // Reuse R1 (token vechi furat) → reuse detectat → revocare de familie.
+    const reuse = await app.inject({ method: 'POST', url: '/api/v1/auth/refresh', headers: { cookie: cookie1 } })
+    expect(reuse.statusCode).toBe(401)
+
+    // DOVADA L10: R2 — tokenul LEGITIM al victimei — e ACUM și el invalid (familia revocată).
+    const victim = await app.inject({ method: 'POST', url: '/api/v1/auth/refresh', headers: { cookie: cookie2 } })
+    expect(victim.statusCode).toBe(401)
+  })
+
+  it('401 FĂRĂ revocare de familie când reuse-ul e în fereastra de grație (retry concurent benign — L13)', async () => {
+    const { email, password } = await registerAndVerify('l10-grace@example.com')
+    const loginRes = await login(email, password)
+    const cookie1 = loginRes.headers['set-cookie'] as string
+
+    const refreshRes = await app.inject({ method: 'POST', url: '/api/v1/auth/refresh', headers: { cookie: cookie1 } })
+    expect(refreshRes.statusCode).toBe(200)
+    const cookie2 = refreshRes.headers['set-cookie'] as string
+
+    // Reuse IMEDIAT al lui R1 (în grație) → respins, dar familia NU se revocă.
+    const reuse = await app.inject({ method: 'POST', url: '/api/v1/auth/refresh', headers: { cookie: cookie1 } })
+    expect(reuse.statusCode).toBe(401)
+
+    // R2 rămâne valid — victima nu e pedepsită pentru un race benign.
+    const stillValid = await app.inject({ method: 'POST', url: '/api/v1/auth/refresh', headers: { cookie: cookie2 } })
+    expect(stillValid.statusCode).toBe(200)
   })
 })
 

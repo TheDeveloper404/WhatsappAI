@@ -103,8 +103,11 @@ async function activateAgent(userId: string) {
 }
 
 function sendWebhook(event: object) {
+  // Stripe trimite ÎNTOTDEAUNA `created` (secunde) pe orice eveniment; M7 îl folosește pentru ordonare.
+  // Default aici dacă fixtura nu-l setează (un `...event` ulterior permite suprascrierea explicită).
+  const full = { created: Math.floor(Date.now() / 1000), ...event }
   // constructEvent este mock-uit să returneze event-ul direct
-  vi.mocked(stripe.webhooks.constructEvent).mockReturnValue(event as any)
+  vi.mocked(stripe.webhooks.constructEvent).mockReturnValue(full as any)
   return app.inject({
     method: 'POST',
     url: '/webhooks/stripe',
@@ -112,7 +115,7 @@ function sendWebhook(event: object) {
       'content-type': 'application/json',
       'stripe-signature': 'test_sig',
     },
-    payload: Buffer.from(JSON.stringify(event)),
+    payload: Buffer.from(JSON.stringify(full)),
   })
 }
 

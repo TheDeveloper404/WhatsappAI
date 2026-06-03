@@ -2,7 +2,9 @@ import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
 import type { FastifyInstance } from 'fastify'
 import FormData from 'form-data'
 import { buildApp } from '../../app.js'
-import { pool } from '../../config/database.js'
+import { pool, db } from '../../config/database.js'
+import { subscriptions } from '../../db/schema.js'
+import { randomUUID } from 'crypto'
 
 vi.mock('../../utils/email.js', () => ({
   sendVerificationEmail: vi.fn().mockResolvedValue(undefined),
@@ -53,7 +55,27 @@ async function registerAndLogin(email: string) {
     url: '/api/v1/auth/login',
     payload: { email, password: 'Password123!' },
   })
-  return res.json().accessToken as string
+  const body = res.json()
+  // Gate de abonament (C1): rutele premium cer abonament activ. Seedăm unul ca testul să ajungă
+  // la logica testată, nu să fie oprit la 402.
+  await seedActiveSubscription(body.user.id)
+  return body.accessToken as string
+}
+
+async function seedActiveSubscription(userId: string) {
+  const now = Date.now()
+  await db.insert(subscriptions).values({
+    id: randomUUID(),
+    userId,
+    stripeCustomerId: `cus_${userId}`,
+    stripeSubscriptionId: `sub_${userId}`,
+    plan: 'monthly',
+    status: 'active',
+    trialEndsAt: now + 7 * 86_400_000,
+    currentPeriodEndsAt: now + 30 * 86_400_000,
+    createdAt: now,
+    updatedAt: now,
+  })
 }
 
 function uploadFile(token: string, content: string, filename: string, contentType: string) {

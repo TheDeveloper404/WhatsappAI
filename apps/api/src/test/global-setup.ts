@@ -210,6 +210,21 @@ export async function setup() {
       created_at BIGINT NOT NULL,
       updated_at BIGINT NOT NULL
     )`,
+    // whatsapp_auth_state: setup.ts face `DELETE FROM` el la fiecare beforeEach, deci TREBUIE să existe
+    // chiar și pe un DB de test proaspăt (altfel toată suita pică la primul beforeEach).
+    `CREATE TABLE IF NOT EXISTS whatsapp_auth_state (
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      key_type TEXT NOT NULL,
+      key_id TEXT NOT NULL,
+      data TEXT NOT NULL,
+      updated_at BIGINT NOT NULL,
+      PRIMARY KEY (user_id, key_type, key_id)
+    )`,
+    // M7 — coloana de ordonare a evenimentelor Stripe (folosită de webhook handler).
+    `ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS last_event_at BIGINT`,
+    // L10 — refresh token reuse detection / family revocation (folosite de claim/save/revoke).
+    `ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS family_id TEXT`,
+    `ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS rotated_at BIGINT`,
   ]
 
   for (const sql of statements) {

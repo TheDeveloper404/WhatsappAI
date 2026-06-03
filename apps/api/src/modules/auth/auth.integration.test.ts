@@ -7,10 +7,13 @@ vi.mock('../../utils/email.js', () => ({
   sendPasswordResetEmail: vi.fn().mockResolvedValue(undefined),
   sendAdminNotificationEmail: vi.fn().mockResolvedValue(undefined),
   sendCustomEmail: vi.fn().mockResolvedValue(undefined),
+  // M8: pe ramura „email deja înregistrat" serviciul trimite acest email în loc de cel de verificare.
+  // Fără el în mock, apelul pe modulul mock-uit ar fi `undefined()` → aruncă sincron → 500.
+  sendAlreadyRegisteredEmail: vi.fn().mockResolvedValue(undefined),
 }))
 
 // Import after mock so the service uses the mocked version
-import { sendVerificationEmail, sendPasswordResetEmail } from '../../utils/email.js'
+import { sendVerificationEmail, sendPasswordResetEmail, sendAlreadyRegisteredEmail } from '../../utils/email.js'
 
 let app: FastifyInstance
 
@@ -66,18 +69,33 @@ async function login(email: string, password: string) {
 
 describe('POST /auth/register', () => {
   it('201 — registers a new user and sends verification email', async () => {
+    vi.mocked(sendVerificationEmail).mockClear()
     const res = await register()
     expect(res.statusCode).toBe(201)
     const body = res.json()
-    expect(body.user.email).toBe('user@example.com')
-    expect(body.user).not.toHaveProperty('passwordHash')
+    // M8 (anti-enumerare): răspunsul e generic, NU expune obiectul user (nici email, nici hash).
+    expect(body).not.toHaveProperty('user')
+    expect(typeof body.message).toBe('string')
     expect(sendVerificationEmail).toHaveBeenCalledOnce()
   })
 
-  it('409 — duplicate email returns generic error (no user enumeration)', async () => {
-    await register()
+  it('201 — duplicate email returns identical generic response (no user enumeration)', async () => {
+    vi.mocked(sendVerificationEmail).mockClear()
+    vi.mocked(sendAlreadyRegisteredEmail).mockClear()
+
+    const res1 = await register()
     const res2 = await register()
-    expect(res2.statusCode).toBe(409)
+
+    // M8: ambele cereri întorc EXACT același 201 + corp generic, indiferent că al doilea email
+    // are deja cont — un atacator nu poate distinge un email existent de unul nou.
+    expect(res2.statusCode).toBe(res1.statusCode)
+    expect(res2.statusCode).toBe(201)
+    expect(res2.json()).toEqual(res1.json())
+
+    // Iar pe ramura duplicat NU se creează cont nou: un singur email de verificare (la prima cerere),
+    // a doua oară pleacă un email „ai deja cont".
+    expect(sendVerificationEmail).toHaveBeenCalledOnce()
+    expect(sendAlreadyRegisteredEmail).toHaveBeenCalledOnce()
   })
 
   it('400 — weak password rejected', async () => {

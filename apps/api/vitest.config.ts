@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitest/config'
+import { defineConfig, configDefaults } from 'vitest/config'
 
 export default defineConfig({
   test: {
@@ -7,6 +7,9 @@ export default defineConfig({
     globalSetup: ['./src/test/global-setup.ts'],
     setupFiles: ['./src/test/setup.ts'],
     fileParallelism: false,
+    // Rulează DOAR testele din src/. Excludem build-ul compilat din dist/ — altfel vitest prinde
+    // și `dist/**/*.test.js` (cod VECHI, dinainte de modificări) și raportează eșecuri fantomă.
+    exclude: [...configDefaults.exclude, 'dist/**'],
     env: {
       NODE_ENV: 'test',
       PORT: '3001',

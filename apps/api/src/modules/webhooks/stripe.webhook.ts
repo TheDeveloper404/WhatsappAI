@@ -54,7 +54,10 @@ function isStaleEvent(lastEventAt: number | null | undefined, eventAt: number): 
 }
 
 async function handleEvent(event: Stripe.Event, app: FastifyInstance) {
-  const eventAt = event.created * 1000 // event.created e în secunde
+  // event.created e în secunde. Stripe îl trimite mereu, dar ne apărăm defensiv: un `created` lipsă/
+  // nevalid ar produce NaN → eroare la scrierea în coloana BIGINT `last_event_at`. Fallback la „acum"
+  // (tratat ca cel mai nou eveniment, deci aplicat — comportament pre-M7), niciodată NaN.
+  const eventAt = Number.isFinite(event.created) ? event.created * 1000 : Date.now()
 
   const getCurrentPeriodEnd = (stripeSub: Stripe.Subscription) => {
     const sub = stripeSub as Stripe.Subscription & { current_period_end?: number }

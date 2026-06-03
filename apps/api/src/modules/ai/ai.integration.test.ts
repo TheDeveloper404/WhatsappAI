@@ -18,6 +18,9 @@ vi.mock('../../config/stripe.js', () => ({
 }))
 
 import { sendVerificationEmail } from '../../utils/email.js'
+import { db } from '../../config/database.js'
+import { subscriptions } from '../../db/schema.js'
+import { randomUUID } from 'crypto'
 
 let app: FastifyInstance
 
@@ -48,7 +51,27 @@ async function registerAndLogin(email = 'aiuser@test.com') {
     url: '/api/v1/auth/login',
     payload: { email, password: 'Password123!' },
   })
-  return res.json().accessToken as string
+  const body = res.json()
+  // Gate de abonament (C1): rutele premium cer abonament activ. Seedăm unul ca testul să ajungă
+  // la logica testată, nu să fie oprit la 402.
+  await seedActiveSubscription(body.user.id)
+  return body.accessToken as string
+}
+
+async function seedActiveSubscription(userId: string) {
+  const now = Date.now()
+  await db.insert(subscriptions).values({
+    id: randomUUID(),
+    userId,
+    stripeCustomerId: `cus_${userId}`,
+    stripeSubscriptionId: `sub_${userId}`,
+    plan: 'monthly',
+    status: 'active',
+    trialEndsAt: now + 7 * 86_400_000,
+    currentPeriodEndsAt: now + 30 * 86_400_000,
+    createdAt: now,
+    updatedAt: now,
+  })
 }
 
 // ---------------------------------------------------------------------------

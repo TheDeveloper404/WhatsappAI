@@ -603,7 +603,7 @@ describe('PATCH /admin/config', () => {
     const res = await app.inject({
       method: 'PATCH',
       url: '/api/v1/admin/config',
-      payload: { defaultPrompt: 'Prompt de test', anotherKey: 'valoare' },
+      payload: { default_system_prompt: 'Prompt de test' },
       headers: { authorization: ADMIN_TOKEN },
     })
     expect(res.statusCode).toBe(200)
@@ -615,21 +615,30 @@ describe('PATCH /admin/config', () => {
       headers: { authorization: ADMIN_TOKEN },
     })
     const { config } = getRes.json()
-    expect(config.defaultPrompt).toBe('Prompt de test')
-    expect(config.anotherKey).toBe('valoare')
+    expect(config.default_system_prompt).toBe('Prompt de test')
+  })
+
+  it('400 — cheie nepermisă (whitelist M5/L4)', async () => {
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/api/v1/admin/config',
+      payload: { default_system_prompt: 'ok', cheie_arbitrara: 'junk' },
+      headers: { authorization: ADMIN_TOKEN },
+    })
+    expect(res.statusCode).toBe(400)
   })
 
   it('200 — suprascrie o valoare existentă', async () => {
     await app.inject({
       method: 'PATCH',
       url: '/api/v1/admin/config',
-      payload: { key1: 'initial' },
+      payload: { default_system_prompt: 'initial' },
       headers: { authorization: ADMIN_TOKEN },
     })
     await app.inject({
       method: 'PATCH',
       url: '/api/v1/admin/config',
-      payload: { key1: 'updated' },
+      payload: { default_system_prompt: 'updated' },
       headers: { authorization: ADMIN_TOKEN },
     })
     const getRes = await app.inject({
@@ -637,6 +646,6 @@ describe('PATCH /admin/config', () => {
       url: '/api/v1/admin/config',
       headers: { authorization: ADMIN_TOKEN },
     })
-    expect(getRes.json().config.key1).toBe('updated')
+    expect(getRes.json().config.default_system_prompt).toBe('updated')
   })
 })

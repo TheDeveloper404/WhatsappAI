@@ -7,6 +7,7 @@ vi.mock('../../utils/email.js', () => ({
   sendPasswordResetEmail: vi.fn().mockResolvedValue(undefined),
   sendAdminNotificationEmail: vi.fn().mockResolvedValue(undefined),
   sendCustomEmail: vi.fn().mockResolvedValue(undefined),
+  sendAccountDeletionEmail: vi.fn().mockResolvedValue(undefined),
 }))
 
 import { sendVerificationEmail } from '../../utils/email.js'
@@ -120,7 +121,11 @@ describe('DELETE /users/me', () => {
     expect(res.json().ok).toBe(true)
   })
 
-  it('400 — already scheduled rejected', async () => {
+  // După prima ștergere, contul e marcat `deletionScheduledAt` iar middleware-ul
+  // `authenticate` invalidează tokenul (cont dezactivat) → al doilea DELETE primește
+  // 401 înainte de a ajunge la branch-ul „deja programat" (400). Securitatea (token
+  // mort la programarea ștergerii) e prioritară, deci 401 e răspunsul corect aici.
+  it('401 — token invalidat după programarea ștergerii', async () => {
     const { accessToken } = await registerAndLogin('del-twice@example.com')
     await app.inject({
       method: 'DELETE',
@@ -134,6 +139,6 @@ describe('DELETE /users/me', () => {
       headers: { authorization: `Bearer ${accessToken}` },
       payload: { password: 'Password123!' },
     })
-    expect(res.statusCode).toBe(400)
+    expect(res.statusCode).toBe(401)
   })
 })

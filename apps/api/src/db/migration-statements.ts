@@ -126,6 +126,12 @@ export const migrationStatements = [
   `ALTER TABLE conversation_messages ADD COLUMN IF NOT EXISTS is_ai BOOLEAN NOT NULL DEFAULT FALSE`,
   `ALTER TABLE ai_settings ADD COLUMN IF NOT EXISTS notify_on_ai_takeover BOOLEAN NOT NULL DEFAULT TRUE`,
   `CREATE INDEX IF NOT EXISTS idx_conversation_messages_ai ON conversation_messages(user_id, is_ai, created_at)`,
+  // Refresh token reuse detection / family revocation (L10): family_id = lanțul unei autentificări;
+  // rotated_at = momentul rotației (NULL = încă activ, păstrat după rotație pentru a detecta reuse).
+  `ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS family_id TEXT`,
+  `ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS rotated_at BIGINT`,
+  `UPDATE refresh_tokens SET family_id = id WHERE family_id IS NULL`,
+  `CREATE INDEX IF NOT EXISTS idx_refresh_tokens_family ON refresh_tokens(family_id)`,
   `CREATE TABLE IF NOT EXISTS stripe_events (
     id TEXT PRIMARY KEY,
     type TEXT NOT NULL,

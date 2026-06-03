@@ -7,6 +7,7 @@ import { aiService } from './ai.service.js'
 import { Errors } from '../../utils/errors.js'
 import { appEvents } from '../../utils/events.js'
 import { createStreamToken, verifyStreamToken } from '../../utils/tokens.js'
+import { acquireSseSlot, releaseSseSlot } from './sse.connection-limiter.js'
 
 export async function aiRoutes(app: FastifyInstance) {
   app.get('/settings', { preHandler: [authenticate, requireActiveSubscription]}, async (req, reply) => {
@@ -137,6 +138,12 @@ export async function aiRoutes(app: FastifyInstance) {
       return reply.status(402).send({ error: { code: 'SUBSCRIPTION_REQUIRED', message: 'Abonament necesar.' } })
     }
 
+    // Cap dur pe conexiuni SSE concurente per user (L7). TREBUIE verificat ÎNAINTE de flushHeaders,
+    // ca să putem încă răspunde cu un status de eroare dacă userul a atins capul.
+    if (!acquireSseSlot(userId)) {
+      return reply.status(429).send({ error: { code: 'TOO_MANY_STREAMS', message: 'Prea multe conexiuni active. Închide un tab și reîncearcă.' } })
+    }
+
     reply.header('Content-Type', 'text/event-stream')
     reply.header('Cache-Control', 'no-cache')
     reply.header('Connection', 'keep-alive')
@@ -150,9 +157,13 @@ export async function aiRoutes(app: FastifyInstance) {
     }
     appEvents.on(`conv:${userId}`, onMsg)
 
-    await new Promise<void>(resolve => req.raw.on('close', resolve))
-
-    clearInterval(heartbeat)
-    appEvents.off(`conv:${userId}`, onMsg)
+    try {
+      await new Promise<void>(resolve => req.raw.on('close', resolve))
+    } finally {
+      // Eliberează slotul indiferent cum se termină conexiunea (close normal sau eroare).
+      clearInterval(heartbeat)
+      appEvents.off(`conv:${userId}`, onMsg)
+      releaseSseSlot(userId)
+    }
   })
 }

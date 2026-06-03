@@ -22,6 +22,10 @@ export const refreshTokens = pgTable('refresh_tokens', {
   tokenHash: text('token_hash').notNull().unique(),
   expiresAt: bigint('expires_at', { mode: 'number' }).notNull(),
   createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+  // L10: lanțul unei autentificări (toate rotațiile succesive împart același familyId) +
+  // momentul rotației (NULL = token activ; setat = rotat, păstrat pentru detecția de reuse).
+  familyId: text('family_id'),
+  rotatedAt: bigint('rotated_at', { mode: 'number' }),
 })
 
 export const loginAttempts = pgTable('login_attempts', {

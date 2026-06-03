@@ -30,6 +30,11 @@ async function runStartupMigrations() {
     `ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS cancel_at BIGINT`,
     `ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS last_event_at BIGINT`,
     `ALTER TABLE conversation_messages ADD COLUMN IF NOT EXISTS is_ai BOOLEAN NOT NULL DEFAULT FALSE`,
+    // Refresh token reuse detection / family revocation (L10).
+    `ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS family_id TEXT`,
+    `ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS rotated_at BIGINT`,
+    `UPDATE refresh_tokens SET family_id = id WHERE family_id IS NULL`,
+    `CREATE INDEX IF NOT EXISTS idx_refresh_tokens_family ON refresh_tokens(family_id)`,
     `CREATE TABLE IF NOT EXISTS contact_memory (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

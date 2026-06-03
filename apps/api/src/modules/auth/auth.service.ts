@@ -19,6 +19,9 @@ import type { RegisterInput, LoginInput } from './auth.schemas.js'
 
 const MAX_LOGIN_ATTEMPTS = 10
 const LOGIN_WINDOW_MS = 15 * 60 * 1000
+// Fereastra în care reutilizarea unui token deja rotat e tratată ca retry concurent benign (L13),
+// nu ca furt. Peste ea, un token rotat reprezentat = reuse suspect → revocare de familie (L10).
+const REFRESH_REUSE_GRACE_MS = 30 * 1000
 
 export const authService = {
   // Anti-enumerare (M8): răspunsul HTTP e IDENTIC indiferent dacă emailul are deja cont (controller-ul
@@ -104,7 +107,9 @@ export const authService = {
     const refreshToken = createRefreshToken(user.id, user.role)
     const tokenHash = hashToken(refreshToken)
 
-    await authRepository.saveRefreshToken(uuidv4(), user.id, tokenHash, refreshTokenExpiresAt())
+    // Fiecare autentificare pornește o familie nouă de refresh tokens (L10). Rotațiile ulterioare
+    // moștenesc același familyId, ca un reuse detectat să poată revoca tot lanțul.
+    await authRepository.saveRefreshToken(uuidv4(), user.id, tokenHash, refreshTokenExpiresAt(), uuidv4())
 
     return {
       user: { id: user.id, name: user.name, email: user.email, role: user.role },
@@ -122,10 +127,22 @@ export const authService = {
     }
 
     const tokenHash = hashToken(rawRefreshToken)
-    // Consum atomic (L13): dacă două cereri concurente folosesc același token, doar una șterge rândul
-    // și continuă; cealaltă primește 0 și e respinsă (fără două sesiuni valide din același token).
-    const consumed = await authRepository.consumeRefreshToken(tokenHash)
-    if (consumed === 0) throw Errors.unauthorized('Refresh token revoked or expired.')
+    // Claim atomic (L13): din două cereri concurente cu același token, doar una îl revendică și
+    // continuă; cealaltă primește undefined (fără două sesiuni valide din același token).
+    const claimed = await authRepository.claimRefreshToken(tokenHash)
+    if (!claimed) {
+      // Nu am putut revendica. Inspectăm de ce: dacă tokenul EXISTĂ dar e deja rotat, e fie un
+      // retry concurent benign (rotat acum o clipă — L13), fie un REUSE al unui token vechi furat.
+      const existing = await authRepository.findRefreshTokenAny(tokenHash)
+      if (existing?.rotatedAt && Date.now() - existing.rotatedAt > REFRESH_REUSE_GRACE_MS) {
+        // Reuse al unui token deja rotat de mult → semn de furt → revocăm ÎNTREAGA familie (L10).
+        // Atacatorul ȘI victima sunt delogați; forțează re-login, atacatorul pierde accesul.
+        await authRepository.revokeFamily(existing.familyId ?? existing.id)
+        logger.warn('[auth] refresh token reuse detected — family revoked', { userId: existing.userId })
+      }
+      // Retry concurent în fereastra de grație: respingem doar această cerere, fără a revoca familia.
+      throw Errors.unauthorized('Refresh token revoked or expired.')
+    }
 
     const user = await authRepository.findUserById(payload.userId)
     if (!user) throw Errors.unauthorized()
@@ -134,14 +151,20 @@ export const authService = {
     const newRefreshToken = createRefreshToken(user.id, user.role)
     const newHash = hashToken(newRefreshToken)
 
-    await authRepository.saveRefreshToken(uuidv4(), user.id, newHash, refreshTokenExpiresAt())
+    // Tokenul nou moștenește familyId-ul lanțului (fallback la id-ul propriu pentru sesiuni legacy
+    // create înainte de migrare, unde familyId putea fi null deși backfill-ul îl setează).
+    await authRepository.saveRefreshToken(uuidv4(), user.id, newHash, refreshTokenExpiresAt(), claimed.familyId ?? uuidv4())
 
     return { accessToken: newAccessToken, refreshToken: newRefreshToken }
   },
 
   async logout(rawRefreshToken: string) {
     const tokenHash = hashToken(rawRefreshToken)
-    await authRepository.deleteRefreshToken(tokenHash)
+    // Revocăm întreaga familie, nu doar tokenul prezentat — logout-ul închide tot lanțul de rotații
+    // al acelei sesiuni (L10). Dacă nu găsim rândul (token deja șters/expirat), e no-op.
+    const existing = await authRepository.findRefreshTokenAny(tokenHash)
+    if (existing) await authRepository.revokeFamily(existing.familyId ?? existing.id)
+    else await authRepository.deleteRefreshToken(tokenHash)
   },
 
   async verifyEmail(token: string) {

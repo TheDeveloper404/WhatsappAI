@@ -1,0 +1,36 @@
+name: Dependency audit
+
+# L15 — scanare automată a vulnerabilităților de dependențe (docs/SECURITY_AUDIT.md).
+# Eșuează DOAR pe advisory-uri NOI de severitate high+; backlog-ul cunoscut (D1–D5) e în
+# baseline-ul din scripts/audit-check.mjs. Rulează și săptămânal, ca să prindă advisory-uri
+# nou-publicate chiar dacă dependențele nu s-au schimbat.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 6 * * 1" # luni 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4 # versiunea vine din `packageManager` în package.json
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # `pnpm audit` citește pnpm-lock.yaml direct; nu e nevoie de install complet.
+      - name: Run dependency audit gate
+        run: node scripts/audit-check.mjs

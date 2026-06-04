@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAuthStore } from '@/store/auth'
 import { api, API_URL, type Conversation, type ConversationMessage } from '@/lib/api'
 import { Loader2, MessageSquare, ChevronDown, ChevronUp, Trash2, RefreshCw, Download, Ban } from 'lucide-react'
@@ -217,7 +217,7 @@ export default function ConversationsPage() {
     }
   }
 
-  async function load(showRefresh = false) {
+  const load = useCallback(async (showRefresh = false) => {
     if (!accessToken) return
     if (showRefresh) setRefreshing(true)
     try {
@@ -231,9 +231,9 @@ export default function ConversationsPage() {
       setLoading(false)
       setRefreshing(false)
     }
-  }
+  }, [accessToken])
 
-  useEffect(() => { load() }, [accessToken])
+  useEffect(() => { load() }, [load])
 
   useEffect(() => {
     if (!accessToken) return

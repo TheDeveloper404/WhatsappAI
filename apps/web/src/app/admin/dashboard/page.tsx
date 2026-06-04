@@ -424,7 +424,7 @@ export default function AdminDashboard() {
     if (!t) { router.replace('/admin'); return }
     setToken(t)
     loadAll(t)
-  }, [loadAll])
+  }, [loadAll, router])
 
   async function toggleAgent(userId: string, current: boolean | null) {
     if (!token) return

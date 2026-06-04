@@ -24,6 +24,7 @@ export const viewport: Viewport = {
 }
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://waai.ro"),
   title: "waai. — răspunde ca tine. chiar când nu ești.",
   description: "AI-ul care preia automat conversațiile și păstrează experiența personală a brandului tău.",
   appleWebApp: {

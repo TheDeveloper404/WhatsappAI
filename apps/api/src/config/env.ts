@@ -55,6 +55,11 @@ const envSchema = z.object({
   // Generează: `openssl rand -hex 32`. Opțională ca să nu blocheze boot-ul, DAR fără ea creds-urile
   // WhatsApp se stochează necriptat (avertisment la pornire). Setează-o în Railway.
   WHATSAPP_ENC_KEY: z.string().min(32).optional(),
+
+  // Cloudflare Turnstile (captcha invizibil anti-bot la înregistrare). Secret Key din widget-ul
+  // Turnstile. Opțional ca să nu blocheze dev/test/E2E (unde nu trimitem token); când e SETAT,
+  // `/auth/register` verifică token-ul la Cloudflare și respinge dacă lipsește/e invalid. Setează în prod.
+  TURNSTILE_SECRET: z.string().optional(),
 })
 
 const parsed = envSchema.safeParse(process.env)

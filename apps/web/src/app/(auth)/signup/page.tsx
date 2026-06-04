@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { Alert } from '@/components/ui/Alert'
 import { api, ApiRequestError } from '@/lib/api'
+import { Turnstile } from '@/components/Turnstile'
 import { Check, X } from 'lucide-react'
 
 function PasswordRule({ met, label }: { met: boolean; label: string }) {
@@ -23,10 +24,19 @@ export default function SignupPage() {
   const [confirmPassword, setConfirmPassword] = useState('')
   // Honeypot anti-bot: rămâne mereu gol pentru oameni; boții care completează automat câmpurile îl umplu.
   const [website, setWebsite] = useState('')
+  // Token-ul captcha invizibil (Cloudflare Turnstile), completat automat de widget.
+  const [turnstileToken, setTurnstileToken] = useState('')
   const [error, setError] = useState('')
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
+  // Schimbarea cheii remontează widget-ul Turnstile → token nou (token-ul e consumat la verificare).
+  const [turnstileKey, setTurnstileKey] = useState(0)
+
+  function resetTurnstile() {
+    setTurnstileToken('')
+    setTurnstileKey(k => k + 1)
+  }
 
   const rules = {
     length: password.length >= 8,
@@ -44,15 +54,22 @@ export default function SignupPage() {
       return
     }
 
+    if (!turnstileToken) {
+      setError('Verificarea anti-bot nu s-a încărcat încă. Așteaptă o secundă sau reîncarcă pagina.')
+      return
+    }
+
     setLoading(true)
     try {
-      await api.auth.register({ name, email, password, website })
+      await api.auth.register({ name, email, password, website, turnstileToken })
       setSuccess(true)
     } catch (err) {
       if (err instanceof ApiRequestError) {
         if (err.details?.length) {
           const map: Record<string, string> = {}
           err.details.forEach(d => { map[d.field] = d.message })
+          // Token-ul nu are câmp vizibil — afișăm eroarea lui în alerta generală.
+          if (map.turnstileToken) { setError(map.turnstileToken); delete map.turnstileToken }
           setFieldErrors(map)
         } else {
           setError(err.message)
@@ -60,6 +77,8 @@ export default function SignupPage() {
       } else {
         setError('A apărut o eroare. Încearcă din nou.')
       }
+      // Token-ul a fost consumat la încercare → emitem unul nou pentru o eventuală reîncercare.
+      resetTurnstile()
     } finally {
       setLoading(false)
     }
@@ -147,6 +166,8 @@ export default function SignupPage() {
           autoComplete="new-password"
           required
         />
+
+        <Turnstile key={turnstileKey} onToken={setTurnstileToken} onExpire={() => setTurnstileToken('')} />
 
         {error && <Alert type="error" message={error} />}
 

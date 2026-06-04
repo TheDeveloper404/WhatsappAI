@@ -118,7 +118,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 export const api = {
   auth: {
-    register: (body: { name: string; email: string; password: string; website?: string }) =>
+    register: (body: { name: string; email: string; password: string; website?: string; turnstileToken?: string }) =>
       request('/api/v1/auth/register', { method: 'POST', body: JSON.stringify(body) }),
 
     login: (body: { email: string; password: string }) =>

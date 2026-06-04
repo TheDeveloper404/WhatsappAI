@@ -22,6 +22,7 @@
     "@hapi/boom": "^10.0.1",
     "@whiskeysockets/baileys": "6.17.16",
     "bcryptjs": "^2.4.3",
+    "disposable-email-domains": "^1.0.62",
     "dotenv": "^16.4.5",
     "drizzle-orm": "^0.30.10",
     "fastify": "^4.27.0",

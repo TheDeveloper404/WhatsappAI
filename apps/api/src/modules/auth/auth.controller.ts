@@ -9,6 +9,7 @@ import {
 } from './auth.schemas.js'
 import { Errors } from '../../utils/errors.js'
 import { env } from '../../config/env.js'
+import { verifyTurnstile } from '../../utils/turnstile.js'
 
 const REFRESH_COOKIE = 'refreshToken'
 const COOKIE_OPTS = {
@@ -45,6 +46,16 @@ function parseBody<T>(schema: { safeParse: (v: unknown) => { success: boolean; d
 
 export const authController = {
   async register(req: FastifyRequest, reply: FastifyReply) {
+    // Captcha invizibil (Turnstile): aplicat DOAR când secretul e configurat (prod). În dev/test/E2E
+    // unde nu e setat, sărim — ca testele de register să nu necesite token. Verificat înainte de a
+    // atinge baza de date / a trimite emailuri (oprește boții cât mai devreme).
+    if (env.TURNSTILE_SECRET) {
+      const token = (req.body as { turnstileToken?: string } | undefined)?.turnstileToken
+      const ok = await verifyTurnstile(env.TURNSTILE_SECRET, token, req.ip)
+      if (!ok) {
+        throw Errors.validation([{ field: 'turnstileToken', message: 'Verificarea anti-bot a eșuat. Reîncarcă pagina și reîncearcă.' }])
+      }
+    }
     const input = parseBody(registerSchema, req.body)
     await authService.register(input)
     // Răspuns generic IDENTIC indiferent dacă emailul are deja cont (anti-enumerare M8).

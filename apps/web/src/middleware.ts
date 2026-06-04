@@ -26,11 +26,15 @@ const PROTECTED_PREFIXES = [
 function buildCsp(nonce: string): string {
   return [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://va.vercel-scripts.com`,
+    // challenges.cloudflare.com = scriptul Turnstile (captcha). Cu strict-dynamic e oricum încărcat de
+    // bundle-ul nostru (de încredere prin nonce), dar îl listăm explicit ca fallback pt browsere fără
+    // strict-dynamic. `frame-src` e necesar pt iframe-ul widget-ului (altfel cade pe default-src 'self').
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://va.vercel-scripts.com https://challenges.cloudflare.com`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "img-src 'self' data: blob:",
     "connect-src 'self' https:",
     "font-src 'self' https://fonts.gstatic.com",
+    "frame-src https://challenges.cloudflare.com",
     "frame-ancestors 'none'",
   ].join('; ')
 }

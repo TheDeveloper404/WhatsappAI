@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Space_Grotesk } from "next/font/google";
 import { GeistMono } from "geist/font/mono";
+import { headers } from "next/headers";
 import "./globals.css";
 import { CookieBanner } from "@/components/CookieBanner";
 import { Analytics } from "@vercel/analytics/next";
@@ -61,10 +62,13 @@ const themeScript = `
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  // F3: nonce-ul generat în middleware, necesar pentru scriptul inline de temă sub noul CSP
+  // (fără `'unsafe-inline'`). Citirea header-elor optează randarea dinamică — compromis acceptat.
+  const nonce = headers().get("x-nonce") ?? undefined;
   return (
     <html lang="ro" className={`${spaceGrotesk.variable} ${GeistMono.variable}`} suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body className="antialiased font-sans bg-base text-ink">
         {children}

@@ -2,7 +2,7 @@
 
 SaaS platform care conectează WhatsApp-ul unui business cu un agent AI. Agentul răspunde automat în locul proprietarului când acesta este inactiv, folosind stilul lui de scriere.
 
-**Producție:** [whatsapp-ai-web-rho.vercel.app](https://whatsapp-ai-web-rho.vercel.app) · API: [api-production-2318d.up.railway.app](https://api-production-2318d.up.railway.app)
+**Producție:** [waai.ro](https://waai.ro) · API: [api.waai.ro](https://api.waai.ro) (Railway, fronted de Cloudflare)
 
 ## Funcționalități
 

@@ -36,6 +36,11 @@ const envSchema = z.object({
   // ruta directă). Default sigur: 1.
   TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(10).default(1),
 
+  // F1 (audit pentester): cheia de rate-limit pe `CF-Connecting-IP` în loc de `req.ip`. Activează
+  // ('true') DOAR după ce API-ul e fronted de Cloudflare ȘI accesul direct la *.up.railway.app e
+  // blocat — altfel header-ul e spoofabil pe ruta directă. Default off = comportament neschimbat.
+  TRUST_CF_CONNECTING_IP: z.string().optional(),
+
   CORS_ORIGINS: z.string().optional(),
   ADMIN_EMAIL: z.string().email().optional(),
   ADMIN_SECRET: z.string().min(32).optional(),

@@ -14,7 +14,11 @@ const nextConfig = {
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
           { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains; preload' },
-          { key: 'Content-Security-Policy', value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://va.vercel-scripts.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob:; connect-src 'self' https:; font-src 'self' https://fonts.gstatic.com; frame-ancestors 'none'" },
+          // F3: scos `'unsafe-eval'` din script-src (producția Next nu-l cere; era nevoie doar în dev
+          // pt React Refresh). `'unsafe-inline'` rămâne deocamdată — eliminarea lui cere CSP cu nonce
+          // prin middleware (App Router emite scripturi inline de streaming/hydration). Verifică pe
+          // un preview Vercel după build că nimic nu pică silențios în consolă.
+          { key: 'Content-Security-Policy', value: "default-src 'self'; script-src 'self' 'unsafe-inline' https://va.vercel-scripts.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob:; connect-src 'self' https:; font-src 'self' https://fonts.gstatic.com; frame-ancestors 'none'" },
         ],
       },
     ]

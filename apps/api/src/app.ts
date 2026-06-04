@@ -164,7 +164,9 @@ export async function buildApp() {
       if (!origin || allowedOrigins.has(origin.replace(/\/$/, ''))) {
         cb(null, true)
       } else {
-        cb(new Error('Not allowed by CORS'), false)
+        // F5: respingem cu 403 (nu 500). Un Error simplu ar cădea pe ramura generică din
+        // setErrorHandler → 500 zgomotos. AppError(403) e tratat ca refuz curat de acces.
+        cb(new AppError(403, 'CORS_REJECTED', 'Not allowed by CORS'), false)
       }
     },
     credentials: true,
@@ -181,12 +183,22 @@ export async function buildApp() {
   // Rate limit GLOBAL cu fallback rezonabil (H1). Rutele cu `config.rateLimit` propriu îl
   // suprascriu; cele fără primesc acest default per-IP. Dezactivat în test/E2E ca să nu pice
   // suitele care fac multe cereri de la același IP (același pattern ca `rl()` din auth.routes).
-  // NB: cheia e `req.ip`, spoofabilă sub `trustProxy: true` — vezi M1 (de strâns separat).
   const rateLimitDisabled = env.NODE_ENV === 'test' || env.E2E_MODE === 'true'
+  // F1: când API-ul e fronted de Cloudflare (și accesul direct la Railway e blocat), cheia de
+  // rate-limit devine `CF-Connecting-IP` — setat de edge-ul Cloudflare, nu de client → nespoofabil.
+  // Gated pe env (default off): fără Cloudflare în față, header-ul ar fi spoofabil pe ruta directă.
+  // keyGenerator-ul global e moștenit și de limitele per-rută (auth/admin etc.).
+  const trustCfIp = env.TRUST_CF_CONNECTING_IP === 'true'
   await app.register(rateLimit, {
     global: !rateLimitDisabled,
     max: 300,
     timeWindow: '1 minute',
+    ...(trustCfIp && {
+      keyGenerator: (req) => {
+        const cf = req.headers['cf-connecting-ip']
+        return (typeof cf === 'string' && cf.length > 0) ? cf : req.ip
+      },
+    }),
   })
 
   await app.register(authRoutes, { prefix: '/api/v1/auth' })

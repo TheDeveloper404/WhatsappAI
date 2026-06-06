@@ -73,9 +73,14 @@ export const productsRepository = {
       .where(and(eq(products.userId, userId), eq(products.id, id)))
   },
 
-  async remove(userId: string, id: string): Promise<void> {
-    await db.delete(products)
-      .where(and(eq(products.userId, userId), eq(products.id, id)))
+  // Returnează true dacă a șters efectiv un rând. WHERE include userId, deci ștergerea
+  // unui produs care nu-ți aparține (sau inexistent) nu afectează nimic → false (BOLA-safe).
+  async remove(userId: string, id: string): Promise<boolean> {
+    const res = await pool.query(
+      'DELETE FROM products WHERE user_id = $1 AND id = $2',
+      [userId, id],
+    )
+    return (res.rowCount ?? 0) > 0
   },
 
   // Scădere atomică de stoc la confirmarea comenzii. Condiția `stock >= qty` în WHERE

@@ -102,7 +102,10 @@ export async function productsRoutes(app: FastifyInstance) {
 
   app.delete('/:id', { preHandler: [authenticate, requireActiveSubscription] }, async (req, reply) => {
     const id = (req.params as { id: string }).id
-    await productsRepository.remove(req.user!.id, id)
+    // 404 când nu s-a șters nimic (inexistent / al altui user) — semantică REST corectă
+    // și împiedică un atacator să confirme existența resurselor altui owner prin 204.
+    const deleted = await productsRepository.remove(req.user!.id, id)
+    if (!deleted) throw Errors.notFound('Product')
     return reply.status(204).send()
   })
 }

@@ -139,7 +139,10 @@ export async function buildApp() {
   // trustProxy = nr. EXACT de proxy-uri de încredere (M1), nu `true`. Cu `true`, `req.ip` devine
   // valoarea cea mai din stânga din X-Forwarded-For, controlabilă de client → bypass de rate-limit.
   // Cu un număr, `req.ip` se ia la offset fix din dreapta (hop-urile reale de infra), nespoofabil.
-  const app = Fastify({ logger: env.NODE_ENV !== 'test', trustProxy: env.TRUST_PROXY_HOPS })
+  // bodyLimit explicit (1 MB): respinge payload-urile JSON abuzive cu 413 curat în loc să le lase
+  // să consume resurse. Acoperă cu marjă cea mai mare cerere legitimă (import 1000 produse ≈ 770KB).
+  // Upload-ul de documente folosește multipart, care are limita lui separată (vezi knowledge.routes).
+  const app = Fastify({ logger: env.NODE_ENV !== 'test', trustProxy: env.TRUST_PROXY_HOPS, bodyLimit: 1_048_576 })
 
   // H2: fără cheie de criptare, creds-urile WhatsApp se stochează necriptat. Semnalăm zgomotos
   // (error în prod) ca să nu treacă neobservat la deploy.

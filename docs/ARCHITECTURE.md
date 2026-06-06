@@ -83,14 +83,16 @@ fără extensie `.js` și fără `createRequire`.
 
 ---
 
-### 6. GDPR — ștergere cont în 48h
+### 6. GDPR — ștergere cont (confirmare pe email)
 
-**Flow:**
-1. User apelează `DELETE /api/v1/users/me`
-2. Se setează `deletion_scheduled_at = now() + 48h` pe user
-3. Toate refresh tokens sunt șterse (user delogat imediat)
-4. Email de confirmare trimis
-5. La startup și la fiecare oră: `deletePendingDeletionUsers()` șterge userii cu `deletion_scheduled_at < now()` — CASCADE șterge toate datele asociate (PostgreSQL FK constraints)
+**Flow (double opt-in pe email):**
+1. User apelează `POST /api/v1/users/me/deletion-request` cu parola (autentificat)
+2. Se generează un token de confirmare (hash HMAC-SHA256 în `deletion_token`, raw doar în email), expiry 1h
+3. Email cu link `/sterge-cont?token=…` trimis utilizatorului
+4. User apasă linkul → `POST /api/v1/users/me/deletion-confirm` (fără autentificare — token-ul *este* dovada)
+5. `disconnectSession(userId)` închide sesiunea WhatsApp live (socket Baileys din memorie + auth state), apoi se șterge userul — CASCADE șterge toate datele asociate (PostgreSQL FK constraints). **Ireversibil.**
+
+Confirmarea prin email împiedică ștergerea cu un access token furat: chiar știind parola, atacatorul nu poate finaliza fără acces la emailul victimei. Token single-use, mesaj generic la token invalid (fără enumerare).
 
 ---
 

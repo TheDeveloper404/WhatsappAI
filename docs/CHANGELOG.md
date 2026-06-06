@@ -6,6 +6,20 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed (2026-06-06) — Ștergere cont prin confirmare pe email + deconectare WhatsApp
+
+- **Flux nou (double opt-in)**: ștergerea contului nu mai e instant. `DELETE /users/me` a fost înlocuit cu doi pași: `POST /users/me/deletion-request` (autentificat, cere parola → generează token, trimite email cu link de confirmare) + `POST /users/me/deletion-confirm` (fără auth — token-ul e dovada → șterge definitiv). Token hash HMAC-SHA256 în `deletion_token`, raw doar în email, expiry 1h, single-use.
+- **De ce**: ștergerea imediată era periculoasă cu un access token furat (ireversibilă pe loc). Confirmarea prin email blochează scenariul — atacatorul nu finalizează fără acces la emailul victimei.
+- **Deconectare WhatsApp la ștergere**: `deletion-confirm` apelează `disconnectSession(userId)` înainte de ștergere → închide socket-ul Baileys din memorie + curăță auth state, evitând o sesiune orfană. Cascade-ul FK șterge restul (produse, comenzi, conversații, knowledge, leads, abonament, refresh tokens).
+- **Frontend**: buton „Șterge contul" mutat/expus în pagina de **Profil** (zonă periculoasă) → „verifică-ți emailul"; pagină nouă `/sterge-cont` confirmă cu token-ul → logout.
+- **Curățenie**: conceptul `deletion_scheduled_at` (vechiul soft-delete 48h) scos complet din cod (schema, middleware, `auth.service`, migrări, setup teste) + cron-ul orar de purge. Coloana rămâne orfană în DB prod (fără DROP).
+- **Email liber la re-înregistrare**: ștergerea radează și emailul → userul poate reveni; anti-trial-abuse mutat pe Stripe Radar (card), nu pe email.
+- **Teste**: `users.integration.test.ts` rescris (deletion-request + deletion-confirm, token single-use). Suită API verde **262/262**.
+
+### Fixed (2026-06-06) — BOLA `DELETE /products/:id` returna 204 silențios
+
+- `DELETE /api/v1/products/:id` returna mereu `204` chiar când nu ștergea nimic (produs inexistent / al altui owner) → un oracol de existență a resurselor altui user. Fix: `productsRepository.remove` întoarce `rowCount`; ruta dă **404** când nu s-a șters nimic. WHERE rămâne scopat pe `userId` (BOLA era deja închis). IDOR/BOLA verificat **LIVE pe prod** (`pentest/attack.py --idor`): 0 CRIT.
+
 ### Added (2026-06-01) — Anti-spam la înregistrare (blocare email temporar + honeypot)
 
 - **Problema**: pe `/register` (endpoint public) apăruseră conturi-spam create automat de un scanner/bot, cu emailuri de unică folosință (mailinator, guerrillamailblock, wshu.net) și nume „Pentest/Audit". Nu o breșă — abuz al formularului public; conturile erau neverificate/neplătite, dar zgomot.

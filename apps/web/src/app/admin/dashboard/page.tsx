@@ -571,7 +571,7 @@ export default function AdminDashboard() {
               )}
             </button>
             {bellOpen && (
-              <div className="absolute right-0 top-11 w-80 bg-base border border-line rounded-xl shadow-lg z-50 overflow-hidden">
+              <div className="fixed inset-x-3 top-16 w-auto sm:absolute sm:inset-x-auto sm:right-0 sm:top-11 sm:w-80 bg-base border border-line rounded-xl shadow-lg z-50 overflow-hidden">
                 <div className="px-4 py-3 border-b border-line flex items-center justify-between">
                   <p className="font-mono-ui text-xs font-semibold text-ink">Notificări</p>
                   {unreadCount === 0 && <span className="font-mono-ui text-xs text-dimmer">Toate citite</span>}

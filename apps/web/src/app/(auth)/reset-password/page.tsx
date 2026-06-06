@@ -32,7 +32,7 @@ function ResetPasswordContent() {
   if (!token) {
     return (
       <div className="text-center">
-        <h2 className="text-xl font-bold text-gray-900 mb-2">Link invalid</h2>
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Link invalid</h2>
         <p className="text-sm text-gray-500 mb-4">Acest link de resetare este invalid sau a expirat.</p>
         <Link href="/forgot-password" className="text-sm text-primary-600 hover:text-primary-700 font-medium">
           Solicită un link nou
@@ -61,7 +61,7 @@ function ResetPasswordContent() {
   return (
     <>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Parolă nouă</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Parolă nouă</h1>
         <p className="text-sm text-gray-500 mt-1">Alege o parolă sigură pentru contul tău</p>
       </div>
 

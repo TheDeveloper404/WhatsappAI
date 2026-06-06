@@ -20,7 +20,7 @@ function StergeContContent() {
   if (!token) {
     return (
       <div className="text-center">
-        <h2 className="text-xl font-bold text-gray-900 mb-2">Link invalid</h2>
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Link invalid</h2>
         <p className="text-sm text-gray-500">Acest link de ștergere este invalid sau a expirat.</p>
       </div>
     )
@@ -46,7 +46,7 @@ function StergeContContent() {
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
           <Check className="h-6 w-6 text-green-600" />
         </div>
-        <h2 className="text-xl font-bold text-gray-900 mb-2">Cont șters</h2>
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Cont șters</h2>
         <p className="text-sm text-gray-500 mb-4">
           Contul tău și toate datele asociate au fost șterse definitiv. Ne pare rău că pleci.
         </p>
@@ -60,7 +60,7 @@ function StergeContContent() {
   return (
     <>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Confirmă ștergerea contului</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Confirmă ștergerea contului</h1>
         <p className="text-sm text-gray-500 mt-1">
           Contul și toate datele tale (conversații, produse, comenzi, conexiunea WhatsApp) vor fi
           șterse <strong>definitiv și ireversibil</strong>.

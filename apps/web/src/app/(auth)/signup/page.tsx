@@ -90,7 +90,7 @@ export default function SignupPage() {
         <div className="w-14 h-14 bg-primary-50 rounded-full flex items-center justify-center mx-auto mb-4">
           <Check className="h-7 w-7 text-primary-600" />
         </div>
-        <h2 className="text-xl font-bold text-gray-900 mb-2">Verifică emailul</h2>
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Verifică emailul</h2>
         <p className="text-sm text-gray-500">
           Am trimis un link de verificare la <strong>{email}</strong>. Accesează-l pentru a activa contul.
         </p>

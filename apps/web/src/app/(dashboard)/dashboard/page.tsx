@@ -277,7 +277,7 @@ function DashboardContent() {
           <p className="font-mono-ui text-[13px] text-dim mt-1">Dashboard-ul agentului tău AI</p>
         </div>
         <div className="flex items-center gap-3">
-          {user?.role !== 'admin' && (
+          {user?.role !== 'admin' && initialLoaded && (
             <span className={`font-mono-ui text-[11px] tracking-wide px-3 py-1.5 rounded-full ${statusColor}`}>
               {statusText}
             </span>
@@ -330,7 +330,7 @@ function DashboardContent() {
           </button>
         </div>
       )}
-      {!showCheckoutSuccess && (!sub || sub.status === 'incomplete') && user?.role !== 'admin' && (
+      {initialLoaded && !showCheckoutSuccess && (!sub || sub.status === 'incomplete') && user?.role !== 'admin' && (
         <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 mb-8 flex items-center gap-3">
           <div className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
           <p className="font-mono-ui text-[13px] text-amber-800 dark:text-amber-300">
@@ -439,10 +439,10 @@ function DashboardContent() {
             </div>
             <div>
               <p className="font-display text-[22px] leading-none text-purple-600 dark:text-purple-400">
-                {trialPanel.value}
+                {!initialLoaded ? '—' : trialPanel.value}
               </p>
               <p className="font-mono-ui text-[12px] text-dimmer mt-1">
-                {trialPanel.label}
+                {!initialLoaded ? '—' : trialPanel.label}
               </p>
             </div>
             <div className="flex items-center gap-1.5 mt-auto">

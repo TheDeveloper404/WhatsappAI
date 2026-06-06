@@ -85,15 +85,19 @@
 
 ---
 
-## 6. Ștergere cont user programată (GDPR)
+## 6. Ștergere cont user (GDPR — confirmare pe email)
 
-**Când:** un user a cerut ștergerea contului și trebuie anulată în fereastra de 48h.
+**Cum funcționează:** userul cere ștergerea cu parola (`POST /users/me/deletion-request`) → primește email cu link → ștergerea devine definitivă **doar** la click pe link (`POST /users/me/deletion-confirm`). Nu mai există fereastră de 48h: dacă userul nu confirmă, linkul expiră în 1h și contul rămâne neatins.
+
+**Anulare manuală a unei cereri pending** (înainte de confirmare) — invalidează linkul ștergând token-ul:
 
 ```sql
-UPDATE users SET deletion_scheduled_at = NULL WHERE email = 'email@user.com';
+UPDATE users SET deletion_token = NULL, deletion_token_expiry = NULL WHERE email = 'email@user.com';
 ```
 
 Rulezi în Railway → Postgres → **Query** sau prin orice client PostgreSQL cu `DATABASE_URL`.
+
+> ⚠️ După confirmare (ștergere efectivă) **nu există recuperare** — datele sunt șterse definitiv (cascade pe FK).
 
 ---
 

@@ -38,7 +38,7 @@ function VerifyEmailContent() {
     return (
       <div className="text-center">
         <CheckCircle2 className="h-12 w-12 text-primary-600 mx-auto mb-4" />
-        <h2 className="text-xl font-bold text-gray-900 mb-2">Email verificat!</h2>
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Email verificat!</h2>
         <p className="text-sm text-gray-500 mb-6">Contul tău este activ. Poți intra acum.</p>
         <Link href="/login">
           <span className="inline-block bg-primary-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors">
@@ -52,7 +52,7 @@ function VerifyEmailContent() {
   return (
     <div className="text-center">
       <XCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-      <h2 className="text-xl font-bold text-gray-900 mb-2">Link invalid</h2>
+      <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Link invalid</h2>
       <p className="text-sm text-gray-500 mb-6">{message}</p>
       <Link href="/signup" className="text-sm text-primary-600 hover:text-primary-700 font-medium">
         Creează un cont nou

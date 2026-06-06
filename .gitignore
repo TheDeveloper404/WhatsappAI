@@ -15,7 +15,6 @@ dist/
 # WhatsApp session files (chei criptografice — date extrem de sensibile)
 apps/api/data/
 /pentest
-/images
 
 # Build cache
 *.tsbuildinfo

@@ -1,8 +1,12 @@
 import { Pool } from 'pg'
 
 export async function setup() {
+  const connectionString = process.env.DATABASE_URL ?? 'postgresql://localhost/whatsapp_ai_test'
   const pool = new Pool({
-    connectionString: process.env.DATABASE_URL ?? 'postgresql://localhost/whatsapp_ai_test',
+    connectionString,
+    // Fără asta, dacă Postgres e oprit sau blocat, suita ATÂRNĂ la infinit (Pool-ul așteaptă
+    // o conexiune care nu vine). Cu timeout, eșuează rapid și afișăm un mesaj acționabil.
+    connectionTimeoutMillis: 5000,
   })
 
   const statements = [
@@ -17,7 +21,8 @@ export async function setup() {
       reset_password_token TEXT,
       reset_password_token_expiry BIGINT,
       role TEXT NOT NULL DEFAULT 'user' CHECK(role IN ('user','admin')),
-      deletion_scheduled_at BIGINT,
+      deletion_token TEXT,
+      deletion_token_expiry BIGINT,
       created_at BIGINT NOT NULL,
       updated_at BIGINT NOT NULL
     )`,
@@ -227,9 +232,22 @@ export async function setup() {
     `ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS rotated_at BIGINT`,
   ]
 
-  for (const sql of statements) {
-    await pool.query(sql)
+  try {
+    for (const sql of statements) {
+      await pool.query(sql)
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    if (/timeout|ECONNREFUSED|ENOTFOUND|terminated/i.test(msg)) {
+      throw new Error(
+        `\n\n  ✗ Nu mă pot conecta la Postgres pentru teste (${connectionString}).\n` +
+        `    Motiv: ${msg}\n` +
+        `    Postgres pare oprit sau blocat. Repornește-l, apoi rulează din nou testele:\n` +
+        `      pg_ctl -D C:\\dev\\apps\\postgresql\\current\\data restart\n`,
+      )
+    }
+    throw err
+  } finally {
+    await pool.end()
   }
-
-  await pool.end()
 }

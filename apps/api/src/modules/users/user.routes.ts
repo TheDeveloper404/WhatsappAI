@@ -1,9 +1,12 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
+import { createHmac } from 'crypto'
 import { authenticate } from '../../middleware/authenticate.js'
 import { authRepository } from '../auth/auth.repository.js'
 import { verifyPassword } from '../../utils/password.js'
+import { generateSecureToken } from '../../utils/tokens.js'
 import { sendAccountDeletionEmail } from '../../utils/email.js'
+import { env } from '../../config/env.js'
 import { Errors } from '../../utils/errors.js'
 
 // Rate-limit dezactivat în test/E2E pentru a evita flakiness (ca în auth.routes).
@@ -27,21 +30,51 @@ export async function userRoutes(app: FastifyInstance) {
     })
   })
 
-  // Ștergerea contului cere reintroducerea parolei — nu se poate declanșa accidental
-  // sau cu un access token furat fără a cunoaște parola. Rate-limit strict pe încercări.
-  app.delete('/me', { ...rl(5, '15 minutes'), preHandler: authenticate }, async (req, reply) => {
+  // Ștergerea contului e în doi pași (double opt-in pe email) ca să nu poată fi declanșată
+  // ireversibil cu un access token furat: chiar știind parola, atacatorul nu poate FINALIZA
+  // ștergerea fără acces la emailul victimei. Pasul 1 cere parola și trimite un link cu token.
+  app.post('/me/deletion-request', { ...rl(5, '15 minutes'), preHandler: authenticate }, async (req, reply) => {
     const result = z.object({ password: z.string().min(1) }).safeParse(req.body)
     if (!result.success) throw Errors.validation([{ field: 'password', message: 'Parola este obligatorie pentru a șterge contul.' }])
 
     const user = await authRepository.findUserById(req.user!.id)
     if (!user) throw Errors.notFound('User')
-    if (user.deletionScheduledAt) throw Errors.validation([{ field: 'account', message: 'Contul este deja programat pentru ștergere.' }])
 
     const passwordOk = await verifyPassword(result.data.password, user.passwordHash)
     if (!passwordOk) throw Errors.unauthorized('Parolă incorectă.')
 
-    await authRepository.scheduleUserDeletion(user.id)
-    sendAccountDeletionEmail(user.email, user.name).catch(() => {})
+    // Token brut în email, doar hash-ul în DB (ca la reset parolă). Expiră în 1h.
+    const rawToken = generateSecureToken(32)
+    const tokenHash = createHmac('sha256', env.JWT_ACCESS_SECRET).update(rawToken).digest('hex')
+    await authRepository.updateUser(user.id, {
+      deletionToken: tokenHash,
+      deletionTokenExpiry: Date.now() + 60 * 60 * 1000,
+    })
+
+    // Fire-and-forget: trimiterea emailului nu blochează răspunsul.
+    void sendAccountDeletionEmail(user.email, user.name, rawToken).catch(() => {})
+    return reply.send({ ok: true })
+  })
+
+  // Pasul 2: confirmarea prin link. Fără autentificare — token-ul ESTE dovada (e secret,
+  // trimis pe email). Aici ștergerea devine definitivă: închidem sesiunea WhatsApp live,
+  // apoi ștergem contul (cascade pe toate datele). Token single-use (dispare cu userul).
+  app.post('/me/deletion-confirm', rl(10, '15 minutes'), async (req, reply) => {
+    const result = z.object({ token: z.string().min(1) }).safeParse(req.body)
+    if (!result.success) throw Errors.validation([{ field: 'token', message: 'Token de confirmare lipsă.' }])
+
+    const tokenHash = createHmac('sha256', env.JWT_ACCESS_SECRET).update(result.data.token).digest('hex')
+    const user = await authRepository.findUserByDeletionToken(tokenHash)
+    if (!user) throw Errors.unprocessable('Link de ștergere invalid sau expirat.')
+
+    // Închide socket-ul WhatsApp din memorie + curăță starea de auth înainte de ștergere,
+    // ca să nu rămână o sesiune orfană activă. Eșecul aici nu blochează ștergerea.
+    try {
+      const { disconnectSession } = await import('../whatsapp/whatsapp.session-manager.js')
+      await disconnectSession(user.id)
+    } catch {}
+
+    await authRepository.deleteAccount(user.id)
     return reply.send({ ok: true })
   })
 }

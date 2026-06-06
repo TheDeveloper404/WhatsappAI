@@ -99,10 +99,6 @@ export const authService = {
       throw Errors.forbidden('Trebuie să îți verifici emailul înainte de a te loga. Verifică inbox-ul.')
     }
 
-    if (user.deletionScheduledAt) {
-      throw Errors.forbidden('Acest cont este programat pentru ștergere și nu mai poate fi accesat.')
-    }
-
     const accessToken = createAccessToken(user.id, user.role)
     const refreshToken = createRefreshToken(user.id, user.role)
     const tokenHash = hashToken(refreshToken)
@@ -171,8 +167,6 @@ export const authService = {
     const tokenHash = createHmac('sha256', env.JWT_ACCESS_SECRET).update(token).digest('hex')
     const user = await authRepository.findUserByVerifyToken(tokenHash)
     if (!user) throw Errors.unprocessable('Link de verificare invalid sau expirat.')
-    // L18: cont programat la ștergere — nu reactivăm prin verificare în fereastra de 48h.
-    if (user.deletionScheduledAt) throw Errors.unprocessable('Acest cont este programat pentru ștergere.')
 
     await authRepository.updateUser(user.id, {
       emailVerified: true,
@@ -204,8 +198,6 @@ export const authService = {
     const tokenHash = createHmac('sha256', env.JWT_ACCESS_SECRET).update(rawToken).digest('hex')
     const user = await authRepository.findUserByResetToken(tokenHash)
     if (!user) throw Errors.unprocessable('This reset link is invalid or has expired.')
-    // L18: cont programat la ștergere — nu permitem resetarea parolei în fereastra de 48h.
-    if (user.deletionScheduledAt) throw Errors.unprocessable('Acest cont este programat pentru ștergere.')
 
     const passwordHash = await hashPassword(newPassword)
     await authRepository.updateUser(user.id, {

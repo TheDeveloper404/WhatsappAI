@@ -10,7 +10,7 @@ vi.mock('../../utils/email.js', () => ({
   sendAccountDeletionEmail: vi.fn().mockResolvedValue(undefined),
 }))
 
-import { sendVerificationEmail } from '../../utils/email.js'
+import { sendVerificationEmail, sendAccountDeletionEmail } from '../../utils/email.js'
 
 let app: FastifyInstance
 
@@ -77,11 +77,13 @@ describe('GET /users/me', () => {
   })
 })
 
-describe('DELETE /users/me', () => {
+// Ștergerea contului e în doi pași (double opt-in pe email): deletion-request (autentificat,
+// cere parola, trimite linkul) + deletion-confirm (token din email, șterge definitiv).
+describe('POST /users/me/deletion-request', () => {
   it('401 — no token rejected', async () => {
     const res = await app.inject({
-      method: 'DELETE',
-      url: '/api/v1/users/me',
+      method: 'POST',
+      url: '/api/v1/users/me/deletion-request',
       payload: { password: 'Password123!' },
     })
     expect(res.statusCode).toBe(401)
@@ -90,8 +92,8 @@ describe('DELETE /users/me', () => {
   it('400 — missing password rejected', async () => {
     const { accessToken } = await registerAndLogin('del-nopass@example.com')
     const res = await app.inject({
-      method: 'DELETE',
-      url: '/api/v1/users/me',
+      method: 'POST',
+      url: '/api/v1/users/me/deletion-request',
       headers: { authorization: `Bearer ${accessToken}` },
       payload: {},
     })
@@ -101,44 +103,91 @@ describe('DELETE /users/me', () => {
   it('401 — wrong password rejected', async () => {
     const { accessToken } = await registerAndLogin('del-wrongpass@example.com')
     const res = await app.inject({
-      method: 'DELETE',
-      url: '/api/v1/users/me',
+      method: 'POST',
+      url: '/api/v1/users/me/deletion-request',
       headers: { authorization: `Bearer ${accessToken}` },
       payload: { password: 'GreșităTotal1!' },
     })
     expect(res.statusCode).toBe(401)
   })
 
-  it('200 — correct password schedules deletion', async () => {
-    const { accessToken } = await registerAndLogin('del-ok@example.com')
+  it('200 — parola corectă trimite linkul, dar NU șterge încă contul', async () => {
+    vi.mocked(sendAccountDeletionEmail).mockClear()
+    const { accessToken } = await registerAndLogin('del-request@example.com')
     const res = await app.inject({
-      method: 'DELETE',
-      url: '/api/v1/users/me',
+      method: 'POST',
+      url: '/api/v1/users/me/deletion-request',
       headers: { authorization: `Bearer ${accessToken}` },
       payload: { password: 'Password123!' },
     })
     expect(res.statusCode).toBe(200)
     expect(res.json().ok).toBe(true)
+    // Emailul de confirmare a fost trimis cu un token.
+    expect(sendAccountDeletionEmail).toHaveBeenCalledOnce()
+    const [, , token] = vi.mocked(sendAccountDeletionEmail).mock.calls[0] as [string, string, string]
+    expect(token).toBeTruthy()
+    // Contul ÎNCĂ există — ștergerea nu e finalizată până la confirmare.
+    const after = await app.inject({
+      method: 'GET',
+      url: '/api/v1/users/me',
+      headers: { authorization: `Bearer ${accessToken}` },
+    })
+    expect(after.statusCode).toBe(200)
+  })
+})
+
+describe('POST /users/me/deletion-confirm', () => {
+  it('400 — missing token rejected', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/users/me/deletion-confirm',
+      payload: {},
+    })
+    expect(res.statusCode).toBe(400)
   })
 
-  // După prima ștergere, contul e marcat `deletionScheduledAt` iar middleware-ul
-  // `authenticate` invalidează tokenul (cont dezactivat) → al doilea DELETE primește
-  // 401 înainte de a ajunge la branch-ul „deja programat" (400). Securitatea (token
-  // mort la programarea ștergerii) e prioritară, deci 401 e răspunsul corect aici.
-  it('401 — token invalidat după programarea ștergerii', async () => {
-    const { accessToken } = await registerAndLogin('del-twice@example.com')
-    await app.inject({
-      method: 'DELETE',
-      url: '/api/v1/users/me',
-      headers: { authorization: `Bearer ${accessToken}` },
-      payload: { password: 'Password123!' },
-    })
+  it('422 — invalid token rejected', async () => {
     const res = await app.inject({
-      method: 'DELETE',
-      url: '/api/v1/users/me',
+      method: 'POST',
+      url: '/api/v1/users/me/deletion-confirm',
+      payload: { token: 'token-care-nu-exista' },
+    })
+    expect(res.statusCode).toBe(422)
+  })
+
+  it('200 — token valid șterge contul definitiv', async () => {
+    vi.mocked(sendAccountDeletionEmail).mockClear()
+    const { accessToken } = await registerAndLogin('del-confirm@example.com')
+    await app.inject({
+      method: 'POST',
+      url: '/api/v1/users/me/deletion-request',
       headers: { authorization: `Bearer ${accessToken}` },
       payload: { password: 'Password123!' },
     })
-    expect(res.statusCode).toBe(401)
+    const [, , token] = vi.mocked(sendAccountDeletionEmail).mock.calls[0] as [string, string, string]
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/users/me/deletion-confirm',
+      payload: { token },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(res.json().ok).toBe(true)
+
+    // Contul a dispărut: vechiul access token nu mai e valid (cont inexistent → 401).
+    const after = await app.inject({
+      method: 'GET',
+      url: '/api/v1/users/me',
+      headers: { authorization: `Bearer ${accessToken}` },
+    })
+    expect(after.statusCode).toBe(401)
+
+    // Token single-use: a doua confirmare cu același token e respinsă.
+    const reuse = await app.inject({
+      method: 'POST',
+      url: '/api/v1/users/me/deletion-confirm',
+      payload: { token },
+    })
+    expect(reuse.statusCode).toBe(422)
   })
 })

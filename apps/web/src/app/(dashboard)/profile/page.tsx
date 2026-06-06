@@ -2,7 +2,8 @@
 import { useEffect, useState } from 'react'
 import { useAuthStore } from '@/store/auth'
 import { api, type Subscription } from '@/lib/api'
-import { Loader2, Mail, Shield, CreditCard, HeadphonesIcon } from 'lucide-react'
+import { Loader2, Mail, Shield, CreditCard, HeadphonesIcon, AlertTriangle } from 'lucide-react'
+import { DeleteAccountButton } from '@/components/DeleteAccountButton'
 
 function formatDate(ts: number) {
   return new Date(ts).toLocaleDateString('ro-RO')
@@ -174,13 +175,8 @@ export default function ProfilePage() {
             <HeadphonesIcon className="h-3.5 w-3.5 text-dimmer" />
             <p className="font-mono-ui text-[10px] text-dimmer uppercase tracking-widest">Suport</p>
           </div>
-          <p className="font-mono-ui text-[12px] text-dim mb-1">
+          <p className="font-mono-ui text-[12px] text-dim mb-4">
             Disponibili Luni–Vineri pentru orice întrebare sau problemă.
-          </p>
-          <p className="font-mono-ui text-[11px] text-dimmer mb-4">
-            Îți poți șterge contul oricând din pagina{' '}
-            <a href="/gdpr" className="text-acid hover:underline">Confidențialitate &amp; date</a>
-            {' '}(îți confirmăm cu parola). Pentru orice altceva, scrie-ne pe email.
           </p>
           <a
             href="mailto:support@waai.ro"
@@ -189,6 +185,20 @@ export default function ProfilePage() {
             <Mail className="h-3.5 w-3.5" />
             support@waai.ro
           </a>
+        </div>
+
+        {/* Zonă periculoasă — ștergere cont */}
+        <div className="py-6">
+          <div className="flex items-center gap-2 mb-4">
+            <AlertTriangle className="h-3.5 w-3.5 text-red-500/70" />
+            <p className="font-mono-ui text-[10px] text-red-500/70 uppercase tracking-widest">Zonă periculoasă</p>
+          </div>
+          <p className="font-mono-ui text-[13px] text-ink font-medium">Șterge contul</p>
+          <p className="font-mono-ui text-[11px] text-dimmer mt-0.5 mb-4">
+            Contul și toate datele tale vor fi șterse. Ai la dispoziție 48 de ore în care contul
+            poate fi recuperat; după aceea ștergerea e definitivă. Îți confirmăm cu parola.
+          </p>
+          <DeleteAccountButton />
         </div>
 
       </div>

@@ -39,6 +39,14 @@ export const authRepository = {
     return rows[0]
   },
 
+  async findUserByDeletionToken(tokenHash: string): Promise<User | undefined> {
+    const rows = await db
+      .select()
+      .from(users)
+      .where(and(eq(users.deletionToken, tokenHash), gt(users.deletionTokenExpiry!, Date.now())))
+    return rows[0]
+  },
+
   async saveRefreshToken(id: string, userId: string, tokenHash: string, expiresAt: Date, familyId: string): Promise<void> {
     await db.insert(refreshTokens).values({
       id,
@@ -110,13 +118,10 @@ export const authRepository = {
     await db.delete(loginAttempts).where(lt(loginAttempts.createdAt, cutoff))
   },
 
-  async scheduleUserDeletion(userId: string): Promise<void> {
-    const deletionAt = Date.now() + 48 * 60 * 60 * 1000
-    await db.update(users).set({ deletionScheduledAt: deletionAt }).where(eq(users.id, userId))
-    await db.delete(refreshTokens).where(eq(refreshTokens.userId, userId))
-  },
-
-  async deletePendingDeletionUsers(): Promise<void> {
-    await db.delete(users).where(lt(users.deletionScheduledAt!, Date.now()))
+  // Ștergere imediată și definitivă a contului. FK-urile cu ON DELETE CASCADE curăță
+  // automat toate datele asociate (produse, comenzi, conversații, sesiuni WhatsApp,
+  // knowledge, leads, abonament, refresh tokens). Fără fereastră de grație — ireversibil.
+  async deleteAccount(userId: string): Promise<void> {
+    await db.delete(users).where(eq(users.id, userId))
   },
 }

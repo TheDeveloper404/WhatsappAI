@@ -199,20 +199,23 @@ export async function sendAdminNotificationEmail(to: string, title: string, body
   if (error) logger.error('[email] admin notification failed', { err: error.message })
 }
 
-export async function sendAccountDeletionEmail(to: string, name: string) {
+export async function sendAccountDeletionEmail(to: string, name: string, token: string) {
+  const link = `${env.APP_URL}/sterge-cont?token=${token}`
   const { error } = await resend.emails.send({
     from: env.EMAIL_FROM,
     to,
-    subject: 'Contul tău va fi șters în 48 de ore — waai.',
+    subject: 'Confirmă ștergerea contului — waai.',
     html: baseTemplate(`
-      <h1 style="margin:0 0 8px;font-size:24px;font-weight:700;color:#DC2626;">Cerere de ștergere cont</h1>
+      <h1 style="margin:0 0 8px;font-size:24px;font-weight:700;color:#DC2626;">Confirmă ștergerea contului</h1>
       <p style="margin:0 0 12px;font-size:15px;color:#374151;line-height:1.6;">Salut ${escapeHtml(name)},</p>
       <p style="margin:0 0 12px;font-size:15px;color:#374151;line-height:1.6;">
-        Am primit cererea ta de ștergere a contului. Contul și toate datele asociate vor fi șterse definitiv în <strong>48 de ore</strong>.
+        Am primit o cerere de ștergere a contului tău waai. Pentru a o confirma, apasă butonul de mai jos.
+        <strong>Contul și toate datele asociate vor fi șterse definitiv și ireversibil.</strong>
       </p>
+      ${ctaButton(link, 'Confirmă ștergerea →')}
       <p style="margin:0;font-size:13px;color:#9CA3AF;line-height:1.6;">
-        Dacă nu ai solicitat această acțiune sau ai schimbat decizia, contactează-ne la
-        <a href="mailto:support@waai.ro" style="color:#0A0F0C;">support@waai.ro</a> înainte de expirarea termenului.
+        Link-ul expiră în <strong>1 oră</strong>. Dacă nu ai solicitat ștergerea, ignoră acest email —
+        contul tău rămâne neatins.
       </p>
     `),
   })

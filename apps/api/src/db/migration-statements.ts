@@ -10,7 +10,8 @@ export const migrationStatements = [
     reset_password_token TEXT,
     reset_password_token_expiry BIGINT,
     role TEXT NOT NULL DEFAULT 'user' CHECK(role IN ('user','admin')),
-    deletion_scheduled_at BIGINT,
+    deletion_token TEXT,
+    deletion_token_expiry BIGINT,
     created_at BIGINT NOT NULL,
     updated_at BIGINT NOT NULL
   )`,
@@ -122,7 +123,6 @@ export const migrationStatements = [
   `CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id, read_at)`,
   `ALTER TABLE ai_settings ADD COLUMN IF NOT EXISTS knowledge_base TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE ai_settings ADD COLUMN IF NOT EXISTS writing_style TEXT NOT NULL DEFAULT ''`,
-  `ALTER TABLE users ADD COLUMN IF NOT EXISTS deletion_scheduled_at BIGINT`,
   `ALTER TABLE conversation_messages ADD COLUMN IF NOT EXISTS is_ai BOOLEAN NOT NULL DEFAULT FALSE`,
   `ALTER TABLE ai_settings ADD COLUMN IF NOT EXISTS notify_on_ai_takeover BOOLEAN NOT NULL DEFAULT TRUE`,
   `CREATE INDEX IF NOT EXISTS idx_conversation_messages_ai ON conversation_messages(user_id, is_ai, created_at)`,
@@ -130,6 +130,8 @@ export const migrationStatements = [
   // rotated_at = momentul rotației (NULL = încă activ, păstrat după rotație pentru a detecta reuse).
   `ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS family_id TEXT`,
   `ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS rotated_at BIGINT`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS deletion_token TEXT`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS deletion_token_expiry BIGINT`,
   `UPDATE refresh_tokens SET family_id = id WHERE family_id IS NULL`,
   `CREATE INDEX IF NOT EXISTS idx_refresh_tokens_family ON refresh_tokens(family_id)`,
   `CREATE TABLE IF NOT EXISTS stripe_events (

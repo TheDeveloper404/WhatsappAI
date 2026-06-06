@@ -16,15 +16,15 @@ export async function authenticate(req: FastifyRequest, reply: FastifyReply) {
     throw Errors.unauthorized('Invalid or expired access token.')
   }
 
-  // H4: JWT e stateless, dar verificăm per-request statusul contului ca să INVALIDĂM IMEDIAT
-  // token-urile unui cont șters sau programat pentru ștergere (altfel ar rămâne valide până la exp,
-  // ~15 min). O singură citire indexată după PK. Dimensiunea „abonament" e acoperită separat de
+  // H4: JWT e stateless, dar verificăm per-request că userul încă există, ca să INVALIDĂM
+  // IMEDIAT token-urile unui cont șters (altfel ar rămâne valide până la exp, ~15 min).
+  // O singură citire indexată după PK. Dimensiunea „abonament" e acoperită separat de
   // `requireActiveSubscription` (C1/C2) pe rutele premium.
   const rows = await db
-    .select({ deletionScheduledAt: users.deletionScheduledAt })
+    .select({ id: users.id })
     .from(users)
     .where(eq(users.id, payload.userId))
-  if (rows.length === 0 || rows[0].deletionScheduledAt != null) {
+  if (rows.length === 0) {
     throw Errors.unauthorized('Account no longer active.')
   }
 

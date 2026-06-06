@@ -1,6 +1,5 @@
 'use client'
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/store/auth'
 
@@ -9,24 +8,35 @@ export function DeleteAccountButton() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [sent, setSent] = useState(false)
   const accessToken = useAuthStore(s => s.accessToken)
-  const logout = useAuthStore(s => s.clearAuth)
-  const router = useRouter()
 
   if (!accessToken) return null
 
-  async function handleDelete() {
+  async function handleRequest() {
     if (!password) { setError('Introdu parola pentru a confirma.'); return }
     setLoading(true)
     setError('')
     try {
-      await api.users.deleteAccount(accessToken!, password)
-      logout()
-      router.push('/')
+      await api.users.requestAccountDeletion(accessToken!, password)
+      setSent(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'A apărut o eroare.')
       setLoading(false)
     }
+  }
+
+  // După cerere: contul NU e șters încă. Userul trebuie să confirme din emailul primit.
+  if (sent) {
+    return (
+      <div className="border border-line rounded-xl p-5 bg-cardhi">
+        <p className="font-mono-ui text-[13px] text-ink mb-1">Verifică-ți emailul</p>
+        <p className="font-mono-ui text-[12px] text-dim">
+          Ți-am trimis un link de confirmare. Contul se șterge definitiv doar după ce apeși pe el.
+          Link-ul expiră în 1 oră. Dacă te-ai răzgândit, ignoră emailul — contul rămâne neatins.
+        </p>
+      </div>
+    )
   }
 
   if (!confirm) {
@@ -44,7 +54,8 @@ export function DeleteAccountButton() {
     <div className="border border-red-500/30 rounded-xl p-5 bg-red-500/5">
       <p className="font-mono-ui text-[13px] text-ink mb-1">ești sigur?</p>
       <p className="font-mono-ui text-[12px] text-dim mb-4">
-        Contul și toate datele tale vor fi șterse definitiv în <strong className="text-ink">48 de ore</strong>. Această acțiune nu poate fi anulată.
+        Îți trimitem un email de confirmare. Contul și toate datele tale vor fi șterse definitiv
+        doar după ce apeși pe linkul din email. Această acțiune nu poate fi anulată.
       </p>
       <label className="block font-mono-ui text-[12px] text-dim mb-2">
         Confirmă cu parola ta:
@@ -60,11 +71,11 @@ export function DeleteAccountButton() {
       {error && <p className="font-mono-ui text-[12px] text-red-500 mb-3">{error}</p>}
       <div className="flex gap-3">
         <button
-          onClick={handleDelete}
+          onClick={handleRequest}
           disabled={loading || !password}
           className="font-mono-ui text-[12px] bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
         >
-          {loading ? 'se procesează...' : 'da, șterge contul'}
+          {loading ? 'se trimite...' : 'trimite linkul de ștergere'}
         </button>
         <button
           onClick={() => { setConfirm(false); setError(''); setPassword('') }}

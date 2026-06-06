@@ -154,15 +154,23 @@ export const api = {
         },
         credentials: 'include',
       }),
-    deleteAccount: (accessToken: string, password: string) =>
-      request<{ ok: boolean }>('/api/v1/users/me', {
-        method: 'DELETE',
+    // Pasul 1: cere ștergerea (parolă) → backend trimite email cu link de confirmare.
+    requestAccountDeletion: (accessToken: string, password: string) =>
+      request<{ ok: boolean }>('/api/v1/users/me/deletion-request', {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${accessToken}`,
         },
         credentials: 'include',
         body: JSON.stringify({ password }),
+      }),
+    // Pasul 2: confirmă ștergerea cu token-ul din email (fără autentificare — tokenul e dovada).
+    confirmAccountDeletion: (token: string) =>
+      request<{ ok: boolean }>('/api/v1/users/me/deletion-confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token }),
       }),
   },
 

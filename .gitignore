@@ -38,9 +38,9 @@ Thumbs.db
 *.log
 npm-debug.log*
 
-# Reminder-uri și documente locale
-BAILEYS_UPDATE.md
-docs/
+# Documente locale (conținutul docs/ e ignorat, cu excepții urmărite explicit mai jos)
+docs/*
+!docs/FLUX_APLICATIE.md
 
 # Backup valori producție (referință locală, nu se commitează)
 .env.production

@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState, useCallback, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import {
   Loader2, Users, Bot, CreditCard, RefreshCw, Bell, LogOut, Phone,
@@ -305,15 +306,45 @@ function ActionsDropdown({ user, token: _token, onModal, onDisconnect, onToggle,
   toggling: string | null
 }) {
   const [open, setOpen] = useState(false)
+  const [coords, setCoords] = useState<{ left: number; top?: number; bottom?: number } | null>(null)
   const ref = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  // Deschide meniul ca portal poziționat `fixed` față de buton → scapă din containerul
+  // cu `overflow-x-auto` al tabelului (altfel ar fi clipuit + ar genera scroll vertical fantomă).
+  const openMenu = () => {
+    const r = triggerRef.current?.getBoundingClientRect()
+    if (!r) return
+    const MENU_W = 176 // w-44
+    const EST_H = 240  // înălțime aproximativă a meniului (5 acțiuni + separatoare)
+    const left = Math.max(8, r.right - MENU_W)
+    const openUp = r.bottom + EST_H > window.innerHeight && r.top > EST_H
+    setCoords(openUp ? { left, bottom: window.innerHeight - r.top + 4 } : { left, top: r.bottom + 4 })
+    setOpen(true)
+  }
 
   useEffect(() => {
     function close(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+      const t = e.target as Node
+      if (ref.current?.contains(t) || menuRef.current?.contains(t)) return
+      setOpen(false)
     }
     document.addEventListener('mousedown', close)
     return () => document.removeEventListener('mousedown', close)
   }, [])
+
+  // Meniul e `fixed` → nu urmărește scroll-ul; îl închidem la scroll/resize ca să nu „plutească" detașat.
+  useEffect(() => {
+    if (!open) return
+    const dismiss = () => setOpen(false)
+    window.addEventListener('scroll', dismiss, true)
+    window.addEventListener('resize', dismiss)
+    return () => {
+      window.removeEventListener('scroll', dismiss, true)
+      window.removeEventListener('resize', dismiss)
+    }
+  }, [open])
 
   const act = (fn: () => void) => { setOpen(false); fn() }
 
@@ -342,13 +373,17 @@ function ActionsDropdown({ user, token: _token, onModal, onDisconnect, onToggle,
 
       <div className="relative">
         <button
-          onClick={() => setOpen(v => !v)}
+          ref={triggerRef}
+          onClick={() => (open ? setOpen(false) : openMenu())}
           className="inline-flex items-center gap-0.5 text-xs font-mono-ui px-2 py-1.5 rounded-lg border border-line text-dim bg-cardhi hover:bg-card hover:text-ink transition-colors"
         >
           <ChevronDown className="h-3.5 w-3.5" />
         </button>
-        {open && (
-          <div className="absolute right-0 top-8 w-44 bg-base border border-line rounded-xl shadow-lg z-20 overflow-hidden">
+        {open && coords && createPortal(
+          <div
+            ref={menuRef}
+            style={{ position: 'fixed', left: coords.left, top: coords.top, bottom: coords.bottom }}
+            className="w-44 bg-base border border-line rounded-xl shadow-lg z-50 overflow-hidden">
             <button onClick={() => act(() => onModal({ type: 'details', user }))} className="w-full flex items-center gap-2 px-3 py-2.5 font-mono-ui text-xs text-dim hover:bg-cardhi hover:text-ink transition-colors">
               <Eye className="h-3.5 w-3.5 text-acid" />Detalii user
             </button>
@@ -368,7 +403,8 @@ function ActionsDropdown({ user, token: _token, onModal, onDisconnect, onToggle,
             <button onClick={() => act(() => onModal({ type: 'delete', user }))} className="w-full flex items-center gap-2 px-3 py-2.5 font-mono-ui text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
               <Trash2 className="h-3.5 w-3.5" />Șterge cont
             </button>
-          </div>
+          </div>,
+          document.body
         )}
       </div>
     </div>

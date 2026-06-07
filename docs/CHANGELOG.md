@@ -6,6 +6,17 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added (2026-06-07) — 2FA (TOTP) pe login-ul admin
+
+- **De ce**: panoul `/admin` era protejat cu un singur factor (`ADMIN_SECRET`). Filtrele de rețea (IP allowlist, Cloudflare Zero Trust) au fost respinse — Zero Trust cere plan plătit, iar IP allowlist e inutil pentru un operator mobil care se loghează din locuri diferite. Soluția corectă = autentificare care „călătorește cu operatorul": 2FA cu TOTP.
+- **Backend**: `POST /admin/auth` acceptă acum `{ secret, totp }`. 2FA e activă **doar dacă** `ADMIN_TOTP_SECRET` (base32) e setat — altfel sărită (dev/test/back-compat, ca pattern-ul Turnstile). Verificare cu `otplib` (`verify`, toleranță `epochTolerance: 30s` la decalaj de ceas). Secretul greșit e respins **înainte** de verificarea TOTP. Rate-limit existent (10/15min) acoperă și brute-force pe codul de 6 cifre.
+- **Script nou** `apps/api/src/scripts/gen-admin-totp.ts`: generează secretul TOTP + `otpauth://` URI (rulat o dată local; secretul ajunge în Railway). Zero dependențe în plus pentru rendering (introducere manuală în authenticator sau scanare URI).
+- **Frontend** (`apps/web/.../admin/page.tsx`): câmp „cod 2FA (dacă e activat)", `inputMode="numeric"`, trimis doar dacă e completat.
+- **Fără terț / fără cost**: TOTP e standard deschis (RFC 6238); `otplib` rulează local, aplicația authenticator (Google Authenticator/Authy) e gratuită. Fără SMS, fără serviciu extern.
+- **Recovery**: prin design fără cod de recuperare (decizie operator) — regenerezi secretul cu scriptul + actualizezi în Railway; lockout imposibil. Vezi `RUNBOOK.md §9`.
+- **Teste**: +4 teste integration 2FA în `admin.integration.test.ts` (fără cod→401, cod greșit→401, cod valid→200, secret greșit→401 înainte de 2FA). **44/44 verde** pe modulul admin. `tsc` + `next lint` curate.
+- **Dependență nouă**: `otplib ^13.4.1` (API funcțional). Doc: `ENV_VARS.md` (`ADMIN_TOTP_SECRET`), `SECURITY.md`, `RUNBOOK.md §9`.
+
 ### Changed (2026-06-06) — Ștergere cont prin confirmare pe email + deconectare WhatsApp
 
 - **Flux nou (double opt-in)**: ștergerea contului nu mai e instant. `DELETE /users/me` a fost înlocuit cu doi pași: `POST /users/me/deletion-request` (autentificat, cere parola → generează token, trimite email cu link de confirmare) + `POST /users/me/deletion-confirm` (fără auth — token-ul e dovada → șterge definitiv). Token hash HMAC-SHA256 în `deletion_token`, raw doar în email, expiry 1h, single-use.

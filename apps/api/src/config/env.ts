@@ -48,6 +48,10 @@ const envSchema = z.object({
   // JWT_ACCESS_SECRET (compatibilitate) — dar atunci un compromis al acelui secret permite și
   // forjarea sesiunilor admin. Setează-l separat în prod. Generează: openssl rand -hex 32.
   ADMIN_SESSION_SECRET: z.string().min(32).optional(),
+  // Secret TOTP (base32) pentru 2FA la login-ul admin. Generează cu: tsx src/scripts/gen-admin-totp.ts.
+  // OPȚIONAL: dacă lipsește, 2FA e sărit (dev/test/back-compat). Dacă e setat, POST /admin/auth cere
+  // și un cod de 6 cifre dintr-o aplicație authenticator pe lângă ADMIN_SECRET. Setează-l în Railway.
+  ADMIN_TOTP_SECRET: z.string().optional(),
   E2E_MODE: z.enum(['true', 'false']).optional(),
   E2E_SECRET: z.string().min(16).optional(),
 

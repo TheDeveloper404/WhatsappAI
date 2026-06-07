@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
 import type { FastifyInstance } from 'fastify'
+import { generate as generateTotp, generateSecret } from 'otplib'
 import { buildApp } from '../../app.js'
+import { env } from '../../config/env.js'
 
 const ADMIN_SECRET = 'test_admin_secret_minimum_32_chars_here'
 // Bearer-ul e un token de sesiune semnat, emis de POST /admin/auth — nu secretul brut.
@@ -108,6 +110,58 @@ describe('POST /admin/auth', () => {
       method: 'POST',
       url: '/api/v1/admin/auth',
       payload: {},
+    })
+    expect(res.statusCode).toBe(401)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// POST /admin/auth — 2FA (TOTP)
+// Activă DOAR când env.ADMIN_TOTP_SECRET e setat. Aici îl setăm la runtime ca să exersăm calea 2FA,
+// apoi îl resetăm ca celelalte teste să rămână pe fluxul fără 2FA (back-compat).
+// ---------------------------------------------------------------------------
+
+describe('POST /admin/auth — 2FA (TOTP)', () => {
+  const TOTP_SECRET = generateSecret()
+
+  beforeAll(() => { env.ADMIN_TOTP_SECRET = TOTP_SECRET })
+  afterAll(() => { env.ADMIN_TOTP_SECRET = undefined })
+
+  it('401 — secret corect dar fără cod 2FA când TOTP e activ', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/admin/auth',
+      payload: { secret: ADMIN_SECRET },
+    })
+    expect(res.statusCode).toBe(401)
+  })
+
+  it('401 — cod 2FA greșit', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/admin/auth',
+      payload: { secret: ADMIN_SECRET, totp: '000000' },
+    })
+    expect(res.statusCode).toBe(401)
+  })
+
+  it('200 — secret corect + cod 2FA valid returnează token', async () => {
+    const code = await generateTotp({ secret: TOTP_SECRET })
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/admin/auth',
+      payload: { secret: ADMIN_SECRET, totp: code },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(typeof res.json().token).toBe('string')
+  })
+
+  it('401 — secret greșit este respins înainte de 2FA', async () => {
+    const code = await generateTotp({ secret: TOTP_SECRET })
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/admin/auth',
+      payload: { secret: 'wrong_secret', totp: code },
     })
     expect(res.statusCode).toBe(401)
   })

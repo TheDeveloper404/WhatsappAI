@@ -124,4 +124,30 @@ UPDATE users SET role = 'admin' WHERE email = 'email@admin.com';
 | `GROQ_API_KEY` | AI (Groq LLM) |
 | `APP_URL` | URL frontend (ex: `https://waai.ro`) |
 | `ADMIN_SECRET` | PIN acces panou admin |
+| `ADMIN_TOTP_SECRET` | Secret 2FA (TOTP) login admin — opțional (vezi §9) |
 | `E2E_MODE` | **NU** seta `true` în producție |
+
+---
+
+## 9. 2FA (TOTP) pe login admin
+
+**Când:** vrei un al doilea factor la `/admin` care funcționează din orice IP/dispozitiv (alternativă
+la filtrele de IP, inutile pentru un operator mobil).
+
+**Activare (o singură dată):**
+
+```powershell
+cd apps/api
+npx tsx src/scripts/gen-admin-totp.ts
+```
+
+1. Scriptul afișează un secret **base32** + un `otpauth://` URI.
+2. Introdu secretul în Google Authenticator / Authy („Enter a setup key", tip *Time-based*) **sau**
+   deschide URI-ul într-un generator de QR și scanează-l.
+3. Pune **același secret** în Railway ca `ADMIN_TOTP_SECRET` → redeploy.
+4. De acum, `/admin` cere și un cod de 6 cifre pe lângă secret.
+
+> Nesetat = 2FA sărit (dev/test/back-compat). Cod 2FA acceptat cu toleranță ±30s la decalaj de ceas.
+
+**Recovery (telefon pierdut / cod care nu mai merge):** nu există lockout posibil. Rulează din nou
+scriptul, pune noul secret în Railway, re-scanează în aplicația authenticator. ~2 minute.

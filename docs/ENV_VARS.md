@@ -48,6 +48,9 @@ GROQ_API_KEY=gsk_XXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # ─── ADMIN ────────────────────────────────────────────
 ADMIN_EMAIL=admin@domeniultau.com
 ADMIN_SECRET=SCHIMBA_CU_UN_STRING_RANDOM_MIN_32_CARACTERE
+# 2FA (TOTP) la login admin — OPȚIONAL. Generează cu: tsx src/scripts/gen-admin-totp.ts
+# Setat → /admin/auth cere și cod de 6 cifre; nesetat → 2FA sărit (dev/test). Setează în Railway.
+# ADMIN_TOTP_SECRET=base32_generat_de_script
 
 # ─── CRIPTARE CREDENȚIALE WHATSAPP (H2) ──────────────
 # Generează: openssl rand -hex 32. Fără ea, sesiunile WhatsApp se stochează NECRIPTAT.
@@ -89,6 +92,7 @@ WHATSAPP_ENC_KEY=SCHIMBA_CU_openssl_rand_hex_32
 | `ADMIN_EMAIL` | Nu | Email-ul contului de admin |
 | `ADMIN_SECRET` | Nu | Secret pentru autentificarea în panoul admin. Min 32 chars |
 | `ADMIN_SESSION_SECRET` | Recomandat (dacă folosești admin) | Secret DEDICAT pentru semnarea sesiunii admin (M5), izolat de `JWT_ACCESS_SECRET`. `openssl rand -hex 32`. Fără el, sesiunea admin se derivă din JWT root (avertisment la pornire) |
+| `ADMIN_TOTP_SECRET` | Recomandat (prod) | Secret TOTP (base32) pentru **2FA la login admin**. Generează cu `tsx src/scripts/gen-admin-totp.ts`. Setat → `/admin/auth` cere și cod de 6 cifre dintr-o aplicație authenticator; nesetat → 2FA sărit (dev/test/back-compat). Recovery: regenerează + actualizează în Railway |
 | `WHATSAPP_ENC_KEY` | Recomandat | Cheie AES-256-GCM pentru criptarea la rest a credențialelor WhatsApp (H2). `openssl rand -hex 32`. Fără ea, creds-urile se stochează necriptat (avertisment la pornire) |
 | `TRUST_PROXY_HOPS` | Nu | Nr. proxy-uri de încredere în fața app-ului pentru `req.ip` (M1, anti-spoofing XFF la rate-limit). Railway direct=`1`, prin Cloudflare=`2` (doar dacă blochezi accesul direct la `*.up.railway.app`). Default: `1`. NICIODATĂ `true` |
 | `TRUST_CF_CONNECTING_IP` | Nu | `true` dacă API-ul e în spatele Cloudflare ȘI accesul direct la Railway e blocat → folosește `CF-Connecting-IP` pentru `req.ip` real. Doar împreună cu domeniul direct `*.up.railway.app` șters/blocat |

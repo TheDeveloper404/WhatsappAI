@@ -5,6 +5,7 @@ import { Errors } from '../../utils/errors.js'
 import { sendCustomEmail } from '../../utils/email.js'
 import { logger } from '../../utils/logger.js'
 import { timingSafeEqual } from 'crypto'
+import { verify as verifyTotp } from 'otplib'
 import { createAdminSession, verifyAdminSession } from '../../utils/tokens.js'
 
 // Comparație constant-time pentru secretul de admin — evită timing side-channel.
@@ -48,9 +49,17 @@ async function audit(req: { ip?: string }, action: string, targetUserId: string 
 export async function adminRoutes(app: FastifyInstance) {
   // POST /admin/auth
   app.post('/auth', { config: { rateLimit: { max: 10, timeWindow: '15 minutes' } } }, async (req, reply) => {
-    const { secret } = req.body as { secret?: string }
+    const { secret, totp } = req.body as { secret?: string; totp?: string }
     if (!secret || !env.ADMIN_SECRET || !secretsMatch(secret, env.ADMIN_SECRET)) {
       throw Errors.unauthorized('Cod incorect.')
+    }
+    // 2FA (TOTP): activă DOAR dacă ADMIN_TOTP_SECRET e setat (altfel sărit — dev/test/back-compat).
+    // epochTolerance 30s = iartă un pas de decalaj de ceas între telefon și server.
+    if (env.ADMIN_TOTP_SECRET) {
+      const code = totp?.trim()
+      if (!code) throw Errors.unauthorized('Cod 2FA lipsă.')
+      const result = await verifyTotp({ secret: env.ADMIN_TOTP_SECRET, token: code, epochTolerance: 30 })
+      if (!result.valid) throw Errors.unauthorized('Cod 2FA incorect.')
     }
     return reply.send({ ok: true, token: createAdminSession() })
   })

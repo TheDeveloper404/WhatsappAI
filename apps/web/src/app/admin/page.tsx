@@ -11,6 +11,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 export default function AdminLoginPage() {
   const router = useRouter()
   const [secret, setSecret] = useState('')
+  const [totp, setTotp] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -26,11 +27,12 @@ export default function AdminLoginPage() {
       const res = await fetch(`${API_URL}/api/v1/admin/auth`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ secret }),
+        body: JSON.stringify(totp.trim() ? { secret, totp: totp.trim() } : { secret }),
       })
       if (!res.ok) {
         setError('Cod incorect. Încearcă din nou.')
         setSecret('')
+        setTotp('')
         inputRef.current?.focus()
         return
       }
@@ -77,6 +79,17 @@ export default function AdminLoginPage() {
               value={secret}
               onChange={e => setSecret(e.target.value)}
               placeholder="cod de acces"
+              className="w-full h-12 px-4 text-center text-ink bg-cardhi border border-line rounded-xl font-mono-ui tracking-widest placeholder:tracking-normal placeholder:text-dimmer focus:outline-none focus:ring-2 focus:ring-acid/40 focus:border-acid transition-colors"
+            />
+
+            <input
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              value={totp}
+              onChange={e => setTotp(e.target.value.replace(/\D/g, ''))}
+              placeholder="cod 2FA (dacă e activat)"
               className="w-full h-12 px-4 text-center text-ink bg-cardhi border border-line rounded-xl font-mono-ui tracking-widest placeholder:tracking-normal placeholder:text-dimmer focus:outline-none focus:ring-2 focus:ring-acid/40 focus:border-acid transition-colors"
             />
 

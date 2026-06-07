@@ -716,7 +716,18 @@ async function processMessage(userId: string, sock: WASocket, msg: any): Promise
   const fromMe: boolean = msg.key?.fromMe ?? false
   const ownerPhone = sock.user?.id ? extractPhone(sock.user.id) : null
   const contactPhone = extractPhone(jid)
-  if (ownerPhone && contactPhone === ownerPhone) return
+  if (ownerPhone && contactPhone === ownerPhone) {
+    // Self-chat (note-to-self): aici ajung notificările trimise owner-ului. NU îl tratăm ca pe o
+    // conversație cu client (fără istoric/AI/cost), DAR permitem comenzile owner (ex. /confirma
+    // prg_xxx) ca să poată gestiona programările chiar din locul unde primește notificarea.
+    // Doar comenzi text de la owner (fromMe); notificările bot (nu încep cu „/") și orice altceva
+    // se ignoră ca înainte. Niciun actor extern nu poate ajunge aici (doar fromMe = contul owner-ului).
+    if (fromMe) {
+      const selfCmd = parseCommand(extractText(msg) ?? '')
+      if (selfCmd) await executeCommand(userId, sock, jid, contactPhone, selfCmd)
+    }
+    return
+  }
   const waTimestamp = (msg.messageTimestamp as number) * 1000
   logger.info(`[AI][${userId.slice(0, 8)}] procesez mesaj`, { fromMe, contactPhone })
 

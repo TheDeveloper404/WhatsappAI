@@ -3,8 +3,7 @@ import { z } from 'zod'
 import { authenticate } from '../../middleware/authenticate.js'
 import { requireActiveSubscription } from '../../middleware/requireSubscription.js'
 import { appointmentsRepository } from './appointments.repository.js'
-import { sendToContact } from '../whatsapp/whatsapp.session-manager.js'
-import { logger } from '../../utils/logger.js'
+import { setAppointmentStatus } from './appointments.service.js'
 import { Errors } from '../../utils/errors.js'
 
 const statusSchema = z.object({
@@ -26,30 +25,9 @@ export async function appointmentsRoutes(app: FastifyInstance) {
     const existing = await appointmentsRepository.findById(req.user!.id, id)
     if (!existing) throw Errors.notFound('Appointment')
 
-    const newStatus = result.data.status
-    await appointmentsRepository.updateStatus(req.user!.id, id, newStatus)
-
-    // Notifică clientul DOAR la tranziție reală de status (nu la re-setarea aceluiași). Text fix, în cod.
-    // Fail-soft: dacă WhatsApp nu e conectat, statusul tot se salvează în dashboard.
-    let notified = false
-    if (newStatus !== existing.status) {
-      const slot = existing.requestedSlot.trim() ? ` (${existing.requestedSlot.trim()})` : ''
-      const messages: Record<string, string | null> = {
-        pending: null,
-        confirmed: `✅ Programarea ta pentru „${existing.serviceName}"${slot} a fost confirmată! Te așteptăm.`,
-        completed: `🎉 Mulțumim că ai trecut pe la noi! Te mai așteptăm.`,
-        cancelled: `ℹ️ Programarea ta pentru „${existing.serviceName}"${slot} a fost anulată. Scrie-ne dacă vrei altă dată.`,
-      }
-      const message = messages[newStatus]
-      if (message) {
-        try {
-          notified = await sendToContact(req.user!.id, existing.contactPhone, message)
-        } catch (err) {
-          logger.error(`[appointments] notificare status eșuată`, { err: String(err) })
-        }
-      }
-    }
-
+    // Sursă unică (service): schimbă statusul + notifică clientul la tranziție reală. Folosit și de
+    // comenzile owner pe WhatsApp (#6).
+    const { notified } = await setAppointmentStatus(req.user!.id, existing, result.data.status)
     return reply.send({ ok: true, notified })
   })
 

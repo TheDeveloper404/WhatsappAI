@@ -15,6 +15,7 @@ dist/
 # WhatsApp session files (chei criptografice — date extrem de sensibile)
 apps/api/data/
 /pentest
+catalog-barber-test.csv
 
 # Build cache
 *.tsbuildinfo

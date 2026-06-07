@@ -50,6 +50,14 @@ export const appointmentsRepository = {
     return rows[0] ?? null
   },
 
+  // Caută după referința publică (prg_xxxx) — folosită de comenzile owner pe WhatsApp (#6).
+  async findByPublicRef(userId: string, publicRef: string): Promise<Appointment | null> {
+    const rows = await db.select()
+      .from(appointments)
+      .where(and(eq(appointments.userId, userId), eq(appointments.publicRef, publicRef)))
+    return rows[0] ?? null
+  },
+
   async updateStatus(userId: string, id: string, status: 'pending' | 'confirmed' | 'completed' | 'cancelled'): Promise<void> {
     await db.update(appointments)
       .set({ status, updatedAt: Date.now() })

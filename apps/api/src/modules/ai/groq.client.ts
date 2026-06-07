@@ -499,6 +499,32 @@ Răspunde DOAR cu un cuvânt: DA sau NU.`
   return parseConfirmation(out)
 }
 
+// Confirmare PROGRAMARE: decide dacă ultimul mesaj al clientului confirmă explicit serviciul +
+// intervalul pe care asistentul tocmai le-a propus. Poartă înainte de a CREA programarea — așa
+// clientul prinde din timp dacă agentul a înțeles alt serviciu (ex. „Tuns" în loc de „Pachet tuns +
+// barbă"). Fail-safe: la orice ambiguitate → false (nu creăm).
+export async function classifyBookingConfirmation(
+  messages: Array<{ fromMe: boolean; body: string }>,
+): Promise<boolean> {
+  const convoText = messages
+    .slice(-8)
+    .map(m => `${m.fromMe ? 'Asistent' : 'Client'}: ${m.body}`)
+    .join('\n')
+
+  const prompt = `Într-o conversație WhatsApp de business, asistentul a propus o PROGRAMARE (serviciu, preț și interval dorit) și a cerut confirmarea.
+
+CONVERSAȚIE:
+${convoText}
+
+Întrebare: ULTIMUL mesaj al CLIENTULUI confirmă explicit serviciul și intervalul propuse (ex: „da", „confirm", „da, e bine", „perfect, programează-mă")?
+NU este confirmare dacă: clientul cere alt serviciu sau altă oră, pune întrebări, dă detalii noi, negociază, sau mesajul e ambiguu.
+
+Răspunde DOAR cu un cuvânt: DA sau NU.`
+
+  const out = await callGroq([{ role: 'user', content: prompt }], { max_tokens: 5, temperature: 0 })
+  return parseConfirmation(out)
+}
+
 // Calificare lead: clasifică un contact pe baza conversației + criteriilor businessului.
 // Returnează status (hot/warm/cold), scor 0-100 și o justificare scurtă.
 // Doar clasifică — nu pune întrebări clientului. Codul validează strict output-ul.

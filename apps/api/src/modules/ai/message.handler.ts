@@ -2,10 +2,11 @@ import type { WASocket } from '@whiskeysockets/baileys'
 import { downloadMediaMessage } from '@whiskeysockets/baileys'
 import { z } from 'zod'
 import { aiRepository } from './ai.repository.js'
-import { askGroq, extractContactMemory, transcribeAudio, classifyScopeLLM, analyzeOrderIntent, analyzeBookingIntent, classifyOrderConfirmation, extractFromImage, type GroqMessage } from './groq.client.js'
+import { askGroq, extractContactMemory, transcribeAudio, classifyScopeLLM, analyzeOrderIntent, analyzeBookingIntent, classifyOrderConfirmation, classifyBookingConfirmation, extractFromImage, type GroqMessage } from './groq.client.js'
 import { productsRepository } from '../orders/products.repository.js'
 import { ordersRepository } from '../orders/orders.repository.js'
 import { appointmentsRepository } from '../orders/appointments.repository.js'
+import { setAppointmentStatus } from '../orders/appointments.service.js'
 import { knowledgeService } from '../knowledge/knowledge.service.js'
 import { userHasEntitlement } from '../billing/entitlement.js'
 import { allowIncomingMessage } from './incoming.rate-limiter.js'
@@ -65,6 +66,9 @@ export function formatCatalogLine(
 // Marker (emoji rar) pus în mesajul de propunere a comenzii. Ne spune dacă AM propus deja
 // rezumatul, ca să nu-l retrimitem și să detectăm confirmarea în pasul următor.
 const ORDER_CONFIRM_MARKER = '🧾 *Vrei să confirm comanda?*'
+// Marker analog pentru PROGRAMĂRI: asistentul propune serviciul + intervalul și cere confirmarea
+// înainte de a crea programarea (fix bug serviciu greșit — clientul prinde dacă s-a înțeles altceva).
+const BOOKING_CONFIRM_MARKER = '📅 *Confirmi programarea?*'
 
 function isIndividualChat(jid: string): boolean {
   return jid.endsWith('@s.whatsapp.net') || jid.endsWith('@lid')
@@ -255,6 +259,24 @@ async function sendAiResponse(userId: string, contactPhone: string, jid: string,
   let activeBookingNote = ''
   if (bookableServices.length > 0) {
     try {
+      // Programările recente ale contactului — folosite ȘI la anti-dublură, ȘI la nota de status real.
+      const recent = await appointmentsRepository.listRecentForContact(userId, contactPhone)
+
+      // Status REAL al ultimei programări → injectat mereu în prompt, ca agentul să răspundă corect la
+      // „e confirmată?" indiferent de faza intenției (fix auto-contrazicere: nu mai spune „urmează să
+      // confirme" după ce owner-ul a confirmat din dashboard, și nici invers).
+      const latestAppt = recent.find(a => a.status !== 'cancelled') ?? recent[0]
+      if (latestAppt) {
+        const slot = latestAppt.requestedSlot.trim() ? ` (${latestAppt.requestedSlot.trim()})` : ''
+        const statusText: Record<string, string> = {
+          pending: 'ÎN AȘTEPTARE — proprietarul NU a confirmat încă intervalul',
+          confirmed: 'CONFIRMATĂ de proprietar',
+          completed: 'finalizată',
+          cancelled: 'anulată',
+        }
+        activeBookingNote = `Programarea curentă a acestui client: „${latestAppt.serviceName}"${slot} [${latestAppt.publicRef}] — status REAL: ${statusText[latestAppt.status] ?? latestAppt.status}. Dacă te întreabă dacă e confirmată sau care e statusul, răspunde EXACT conform acestui status: nu spune „urmează să confirme" dacă e deja CONFIRMATĂ, și nu spune „confirmată" dacă e în așteptare.`
+      }
+
       const booking = await analyzeBookingIntent(
         bookableServices.map(p => ({ id: p.id, name: p.name, priceBani: p.priceBani, category: p.category })),
         settings.orderIntakePrompt ?? '',
@@ -266,42 +288,69 @@ async function sendAiResponse(userId: string, contactPhone: string, jid: string,
         // Anti-dublură: programare recentă (12h) același contact + serviciu + interval → nu recrea.
         const RECENT_MS = 12 * 60 * 60 * 1000
         const since = Date.now() - RECENT_MS
-        const recent = await appointmentsRepository.listRecentForContact(userId, contactPhone)
         const slotKey = booking.requestedSlot.trim().toLowerCase()
         const dup = recent.find(a => a.status !== 'cancelled' && a.createdAt >= since
           && a.serviceName === svc.name && a.requestedSlot.trim().toLowerCase() === slotKey)
 
         if (dup) {
-          activeBookingNote = `Clientul are deja o programare înregistrată pentru „${svc.name}"${booking.requestedSlot.trim() ? ` (${booking.requestedSlot.trim()})` : ''}, în așteptare de confirmare. NU crea alta și NU repeta confirmarea. Răspunde firesc; dacă nu știi un detaliu exact, spune-i că proprietarul confirmă intervalul în scurt timp.`
+          activeBookingNote += ` Are deja această programare înregistrată — NU crea alta și NU repeta confirmarea.`
           logger.info(`[AI][${userId.slice(0, 8)}] programare duplicată ignorată`, { apptId: dup.id })
         } else {
-          const appt = await appointmentsRepository.create(userId, contactPhone, {
-            serviceName: svc.name,
-            requestedSlot: booking.requestedSlot,
-            details: booking.details,
-          })
-          logger.info(`[AI][${userId.slice(0, 8)}] programare înregistrată`, { apptId: appt.id })
+          // Poartă de confirmare (fix bug serviciu greșit): propunem serviciul + preț + interval și
+          // creăm DOAR după confirmarea explicită a clientului. Așa prinde din timp dacă agentul a
+          // înțeles alt serviciu (ex. „Tuns" în loc de „Pachet tuns + barbă").
+          const lastAssistant = [...ordered].reverse().find(m => m.fromMe)?.body ?? ''
+          const alreadyProposed = lastAssistant.includes(BOOKING_CONFIRM_MARKER)
+          const confirmed = await classifyBookingConfirmation(ordered)
 
-          const slotLine = booking.requestedSlot.trim() ? `\n🗓️ Interval dorit: ${booking.requestedSlot.trim()}` : ''
-          const reply = `Am notat cererea ta de programare (*${appt.publicRef}*):\n• ${svc.name}${slotLine}\n\nProprietarul îți confirmă intervalul în scurt timp. Mulțumim!`
-          await sock.sendMessage(jid, { text: reply })
-          await aiRepository.saveMessage(userId, contactPhone, true, reply, Date.now(), true)
+          if (confirmed) {
+            const appt = await appointmentsRepository.create(userId, contactPhone, {
+              serviceName: svc.name,
+              requestedSlot: booking.requestedSlot,
+              details: booking.details,
+            })
+            logger.info(`[AI][${userId.slice(0, 8)}] programare înregistrată`, { apptId: appt.id })
 
-          const ownerJid = sock.user?.id
-          if (ownerJid) {
-            const name = booking.customerNote.trim() ? `\nClient: ${booking.customerNote.trim()}` : ''
-            const det = booking.details.trim() ? `\nDetalii: ${booking.details.trim()}` : ''
-            sock.sendMessage(ownerJid, {
-              text: `📅 Programare nouă ${appt.publicRef} de la +${contactPhone}\nServiciu: ${svc.name}\nInterval dorit: ${booking.requestedSlot.trim() || '(nespecificat)'}${name}${det}\n\nConfirmă intervalul. Vezi în dashboard.`,
-            }).catch(() => {})
+            const slotLine = booking.requestedSlot.trim() ? `\n🗓️ Interval dorit: ${booking.requestedSlot.trim()}` : ''
+            const reply = `Am notat cererea ta de programare (*${appt.publicRef}*):\n• ${svc.name}${slotLine}\n\nProprietarul îți confirmă intervalul în scurt timp. Mulțumim!`
+            await sock.sendMessage(jid, { text: reply })
+            await aiRepository.saveMessage(userId, contactPhone, true, reply, Date.now(), true)
+
+            const ownerJid = sock.user?.id
+            if (ownerJid) {
+              const name = booking.customerNote.trim() ? `\nClient: ${booking.customerNote.trim()}` : ''
+              const det = booking.details.trim() ? `\nDetalii: ${booking.details.trim()}` : ''
+              sock.sendMessage(ownerJid, {
+                text: `📅 Programare nouă ${appt.publicRef} de la +${contactPhone}\nServiciu: ${svc.name}\nInterval dorit: ${booking.requestedSlot.trim() || '(nespecificat)'}${name}${det}\n\nConfirmă cu: /confirma ${appt.publicRef}\nAnulează cu: /anuleaza ${appt.publicRef}\nSau din dashboard.`,
+              }).catch(() => {})
+            }
+            return
           }
-          return
+
+          if (!alreadyProposed) {
+            // Propunem serviciul exact + preț + interval și cerem confirmarea. NU creăm încă.
+            const cur = curLabel(settings.currency)
+            const priceText = svc.isEstimate
+              ? `de la ${(svc.priceBani / 100).toFixed(2)} ${cur}`
+              : `${(svc.priceBani / 100).toFixed(2)} ${cur}`
+            const slotLine = booking.requestedSlot.trim() ? `\n🗓️ ${booking.requestedSlot.trim()}` : ''
+            const reply = `${BOOKING_CONFIRM_MARKER}\n\n• ${svc.name} — ${priceText}${slotLine}\n\nRăspunde cu *da* ca să trimit cererea de programare (proprietarul confirmă apoi ora), sau spune-mi ce vrei să schimbi.`
+            await sock.sendMessage(jid, { text: reply })
+            await aiRepository.saveMessage(userId, contactPhone, true, reply, Date.now(), true)
+            return
+          }
+
+          // Am propus deja, dar clientul n-a confirmat — nu spamăm propunerea.
+          const slotInfo = booking.requestedSlot.trim() ? ` (${booking.requestedSlot.trim()})` : ''
+          activeBookingNote = `${activeBookingNote ? activeBookingNote + '\n' : ''}Clientul are o programare PROPUSĂ dar NEconfirmată: „${svc.name}"${slotInfo}. Răspunde firesc la mesajul curent; dacă vrea să finalizeze, amintește-i scurt să confirme cu „da". NU crea programarea și NU inventa ore sau prețuri.`
+          logger.info(`[AI][${userId.slice(0, 8)}] programare propusă, neconfirmată`)
         }
       } else if (booking.phase === 'collecting') {
         const missing = booking.missingInfo.length > 0
           ? `\nMai trebuie clarificat: ${booking.missingInfo.join('; ')}.`
           : ''
-        activeBookingNote = `Clientul vrea o PROGRAMARE la un serviciu, dar comanda e incompletă.${missing}\nCere-i natural, într-un mesaj scurt, exact ce lipsește (serviciul, ziua și ora, numele). NU confirma un interval — proprietarul îl confirmă. NU inventa zile, ore sau prețuri.`
+        const collectingNote = `Clientul vrea o PROGRAMARE la un serviciu, dar comanda e incompletă.${missing}\nCere-i natural, într-un mesaj scurt, exact ce lipsește (serviciul, ziua și ora, numele). NU confirma un interval — proprietarul îl confirmă. NU inventa zile, ore sau prețuri.`
+        activeBookingNote = activeBookingNote ? `${activeBookingNote}\n${collectingNote}` : collectingNote
         logger.info(`[AI][${userId.slice(0, 8)}] programare în colectare`, { missing: booking.missingInfo.length })
       }
     } catch (err) {
@@ -844,6 +893,30 @@ async function executeCommand(userId: string, sock: WASocket, jid: string, conta
     case 'help':
       reply = HELP_TEXT
       break
+
+    // Gestionare programări de pe WhatsApp (#6): owner-ul confirmă/anulează/finalizează după ref.
+    // Trece prin același service ca dashboard-ul → status în DB + notificare automată client.
+    case 'confirmBooking':
+    case 'cancelBooking':
+    case 'completeBooking': {
+      const statusMap = { confirmBooking: 'confirmed', cancelBooking: 'cancelled', completeBooking: 'completed' } as const
+      const statusRo = { confirmed: 'confirmată', cancelled: 'anulată', completed: 'finalizată' } as const
+      const appt = await appointmentsRepository.findByPublicRef(userId, cmd.ref)
+      if (!appt) {
+        reply = `❓ Programarea *${cmd.ref}* nu a fost găsită.`
+        break
+      }
+      const newStatus = statusMap[cmd.type]
+      const { changed, notified } = await setAppointmentStatus(userId, appt, newStatus)
+      if (!changed) {
+        reply = `ℹ️ Programarea *${appt.publicRef}* („${appt.serviceName}") era deja ${statusRo[newStatus]}.`
+      } else {
+        const clientLine = notified ? ' Clientul a fost anunțat.' : ' (Clientul nu a putut fi anunțat pe WhatsApp.)'
+        reply = `✅ *${appt.publicRef}* („${appt.serviceName}") → *${statusRo[newStatus]}*.${clientLine}`
+      }
+      logger.info(`[AI][${userId.slice(0, 8)}] comandă programare owner`, { ref: appt.publicRef, newStatus, changed })
+      break
+    }
   }
 
   if (reply) await sock.sendMessage(jid, { text: reply })

@@ -66,4 +66,27 @@ describe('parseCommand', () => {
     expect(parseCommand('/clearHistory +40758154490')).toEqual({ type: 'clearHistory' })
     expect(parseCommand('/clearHistory 40758154490')).toEqual({ type: 'clearHistory' })
   })
+
+  // Comenzi programări owner (#6)
+  it('/confirma cu ref valid', () => {
+    expect(parseCommand('/confirma prg_a1b2c3')).toEqual({ type: 'confirmBooking', ref: 'prg_a1b2c3' })
+    expect(parseCommand('/CONFIRMA prg_A1B2C3')).toEqual({ type: 'confirmBooking', ref: 'prg_A1B2C3' })
+  })
+
+  it('/anuleaza și /finalizeaza cu ref valid', () => {
+    expect(parseCommand('/anuleaza prg_abc123')).toEqual({ type: 'cancelBooking', ref: 'prg_abc123' })
+    expect(parseCommand('/finalizeaza prg_abc123')).toEqual({ type: 'completeBooking', ref: 'prg_abc123' })
+  })
+
+  it('tolerează diacriticele în numele comenzii', () => {
+    expect(parseCommand('/confirmă prg_a1b2c3')).toEqual({ type: 'confirmBooking', ref: 'prg_a1b2c3' })
+    expect(parseCommand('/anulează prg_a1b2c3')).toEqual({ type: 'cancelBooking', ref: 'prg_a1b2c3' })
+  })
+
+  it('returnează null pentru ref lipsă sau invalid', () => {
+    expect(parseCommand('/confirma')).toBeNull()
+    expect(parseCommand('/confirma abc123')).toBeNull()
+    expect(parseCommand('/confirma ord_a1b2c3')).toBeNull()
+    expect(parseCommand('/anuleaza prg_')).toBeNull()
+  })
 })

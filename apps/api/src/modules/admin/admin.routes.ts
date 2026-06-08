@@ -3,6 +3,7 @@ import { adminRepository } from './admin.repository.js'
 import { env } from '../../config/env.js'
 import { Errors } from '../../utils/errors.js'
 import { sendCustomEmail } from '../../utils/email.js'
+import { getActiveLLMProvider } from '../ai/groq.client.js'
 import { logger } from '../../utils/logger.js'
 import { timingSafeEqual } from 'crypto'
 import { verify as verifyTotp } from 'otplib'
@@ -75,7 +76,8 @@ export async function adminRoutes(app: FastifyInstance) {
   app.get('/stats', async (req, reply) => {
     verifyAdminToken(req)
     const stats = await adminRepository.getStats()
-    return reply.send(stats)
+    // Furnizorul LLM activ (platform-wide, din env) — indicator în admin (B5).
+    return reply.send({ ...stats, llmProvider: getActiveLLMProvider() })
   })
 
   // PATCH /admin/users/:userId/agent

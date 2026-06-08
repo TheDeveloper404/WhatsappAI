@@ -182,6 +182,14 @@ export default function OrdersPage() {
                   </p>
                 )}
 
+                {(order.deliveryMethod || order.deliveryAddress) && (
+                  <div className="font-mono-ui text-[12px] text-dim bg-cardhi/60 rounded-lg px-3 py-2 mb-3 space-y-0.5">
+                    {order.deliveryMethod === 'delivery' && <p>🚚 Livrare prin curier</p>}
+                    {order.deliveryMethod === 'pickup' && <p>🏪 Ridicare din locație</p>}
+                    {order.deliveryAddress && <p className="whitespace-pre-wrap">📍 {order.deliveryAddress}</p>}
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between pt-3 border-t border-line">
                   <span className="font-display text-[20px] text-ink">
                     {formatAmount(order.totalBani)} <span className="text-[12px] text-dim">{currencyLabel(currency)}</span>

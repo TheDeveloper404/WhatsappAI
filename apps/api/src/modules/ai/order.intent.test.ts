@@ -95,7 +95,7 @@ describe('parseOrderIntent', () => {
 
   it('fallback gol când nu există JSON', () => {
     expect(parseOrderIntent('nu am putut analiza', VALID)).toEqual({
-      phase: 'none', items: [], details: '', missingInfo: [], customerNote: '',
+      phase: 'none', items: [], details: '', missingInfo: [], customerNote: '', delivery: { method: '', address: '' },
     })
   })
 
@@ -105,5 +105,22 @@ describe('parseOrderIntent', () => {
 
   it('items non-array → gol, fără crash', () => {
     expect(parseOrderIntent('{"phase":"none","items":"oops","missingInfo":[]}', VALID).items).toEqual([])
+  })
+
+  it('extrage livrarea (metodă + adresă) — B11', () => {
+    const r = parseOrderIntent(
+      '{"phase":"ready","items":[{"productId":"p1","quantity":1}],"missingInfo":[],"delivery":{"method":"delivery","address":"str. Lalelelor 5, Cluj"}}',
+      VALID,
+    )
+    expect(r.delivery).toEqual({ method: 'delivery', address: 'str. Lalelelor 5, Cluj' })
+  })
+
+  it('metodă de livrare invalidă → gol (listă închisă) — B11', () => {
+    const r = parseOrderIntent(
+      '{"phase":"none","items":[],"missingInfo":[],"delivery":{"method":"drona","address":"x"}}',
+      VALID,
+    )
+    expect(r.delivery.method).toBe('')
+    expect(r.delivery.address).toBe('x')
   })
 })

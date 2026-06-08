@@ -11,10 +11,14 @@ const statusSchema = z.object({
 })
 
 export async function appointmentsRoutes(app: FastifyInstance) {
-  // Listă programări (pentru dashboard)
+  // Listă programări cu serviciile lor (pentru dashboard)
   app.get('/', { preHandler: [authenticate, requireActiveSubscription] }, async (req, reply) => {
     const list = await appointmentsRepository.list(req.user!.id)
-    return reply.send({ appointments: list })
+    const withItems = await Promise.all(list.map(async appt => ({
+      ...appt,
+      items: await appointmentsRepository.getItems(appt.id),
+    })))
+    return reply.send({ appointments: withItems })
   })
 
   app.patch('/:id/status', { preHandler: [authenticate, requireActiveSubscription] }, async (req, reply) => {

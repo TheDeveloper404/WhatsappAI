@@ -17,7 +17,7 @@ export default defineConfig({
       JWT_REFRESH_SECRET: 'test_refresh_secret_minimum_32_characters_long',
       JWT_ACCESS_EXPIRES_IN: '15m',
       JWT_REFRESH_EXPIRES_IN: '7d',
-      DATABASE_URL: 'postgresql://localhost/whatsapp_ai_test',
+      DATABASE_URL: 'postgresql://127.0.0.1:5432/whatsapp_ai_test',
       RESEND_API_KEY: 'test_resend_key',
       EMAIL_FROM: 'test@example.com',
       APP_URL: 'http://localhost:3000',

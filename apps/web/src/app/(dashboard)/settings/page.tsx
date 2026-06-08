@@ -25,6 +25,7 @@ export default function SettingsPage() {
   const [leadCriteria, setLeadCriteria] = useState('')
   const [orderIntakePrompt, setOrderIntakePrompt] = useState('')
   const [currency, setCurrency] = useState('RON')
+  const [llmProvider, setLlmProvider] = useState<{ provider: 'groq' | 'gemini'; fallback: 'groq' | 'gemini' | null } | null>(null)
   const [savingStyle, setSavingStyle] = useState(false)
   const [savedStyle, setSavedStyle] = useState(false)
   const [analyzingStyle, setAnalyzingStyle] = useState(false)
@@ -64,8 +65,9 @@ export default function SettingsPage() {
       api.ai.getBlacklist(accessToken),
       api.whatsapp.getSession(accessToken).catch(() => ({ session: null })),
       api.knowledge.list(accessToken).catch(() => ({ documents: [] })),
+      api.ai.getLlmProvider(accessToken).catch(() => null),
     ])
-      .then(([{ settings: s }, { phones }, { session }, { documents: docs }]) => {
+      .then(([{ settings: s }, { phones }, { session }, { documents: docs }, llm]) => {
         setSettings(s)
         setSystemPrompt(s.systemPrompt)
         setKnowledgeBase(s.knowledgeBase ?? '')
@@ -77,6 +79,7 @@ export default function SettingsPage() {
         setBlacklist(phones)
         setWaSession(session)
         setDocuments(docs)
+        setLlmProvider(llm)
       })
       .catch(() => setError('Nu s-au putut încărca setările.'))
       .finally(() => setLoading(false))
@@ -414,6 +417,32 @@ export default function SettingsPage() {
               {savedCurrency && <span className="font-mono-ui text-[12px] text-green-600 dark:text-green-400 font-medium">Salvat!</span>}
             </div>
           </div>
+
+          {/* Model AI activ (B5) — read-only, platform-wide */}
+          {llmProvider && (
+            <div className="py-7">
+              <div className="flex items-center gap-2 mb-3">
+                <Bot className="h-4 w-4 text-dimmer" />
+                <p className="font-mono-ui text-[11px] text-dimmer uppercase tracking-widest">Model AI</p>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-mono-ui text-[13px] text-ink font-medium">
+                  {llmProvider.provider === 'gemini' ? 'Google Gemini' : 'Groq (Llama)'}
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-green-500/10 text-green-600 dark:text-green-400 px-2 py-0.5 font-mono-ui text-[11px] font-medium">
+                  activ
+                </span>
+                {llmProvider.fallback && (
+                  <span className="font-mono-ui text-[12px] text-dim">
+                    · rezervă: {llmProvider.fallback === 'gemini' ? 'Google Gemini' : 'Groq (Llama)'}
+                  </span>
+                )}
+              </div>
+              <p className="font-mono-ui text-[12px] text-dim mt-2">
+                Modelul care generează răspunsurile agentului. La indisponibilitate, comută automat pe rezervă.
+              </p>
+            </div>
+          )}
 
         </div>
       )}

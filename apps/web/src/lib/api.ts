@@ -205,6 +205,12 @@ export const api = {
         credentials: 'include',
       }),
 
+    getLlmProvider: (accessToken: string) =>
+      request<{ provider: 'groq' | 'gemini'; fallback: 'groq' | 'gemini' | null }>('/api/v1/ai/llm-provider', {
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        credentials: 'include',
+      }),
+
     analyzeStyle: (accessToken: string) =>
       request<{ writingStyle: string }>('/api/v1/ai/analyze-style', {
         method: 'POST',
@@ -622,12 +628,22 @@ export interface Order {
   totalBani: number
   customerNote: string
   details: string
+  deliveryMethod: 'pickup' | 'delivery' | ''
+  deliveryAddress: string
   createdAt: number
   updatedAt: number
   items: OrderItem[]
 }
 
 export type AppointmentStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled'
+
+export interface AppointmentItem {
+  id: string
+  appointmentId: string
+  productId: string | null
+  serviceName: string
+  unitPriceBani: number
+}
 
 export interface Appointment {
   id: string
@@ -636,10 +652,12 @@ export interface Appointment {
   contactPhone: string
   status: AppointmentStatus
   serviceName: string
+  totalBani: number
   requestedSlot: string
   details: string
   createdAt: number
   updatedAt: number
+  items: AppointmentItem[]
 }
 
 export interface KnowledgeDocument {

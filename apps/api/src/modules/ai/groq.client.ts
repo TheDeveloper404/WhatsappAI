@@ -176,6 +176,16 @@ function looksTransient(err: unknown): boolean {
 // un coleg care preia conversația fără ca clientul să observe întreruperea.
 // Transcrierea vocală NU trece pe aici (rămâne pe Groq Whisper).
 // Secundarul există doar dacă are cheie: Groq mereu (GROQ_API_KEY obligatoriu); Gemini doar cu GEMINI_API_KEY.
+// Furnizorul LLM activ + secundarul de failover, derivate din env (sursă unică pentru UI — B5).
+// Groq e mereu disponibil (GROQ_API_KEY obligatoriu); Gemini doar dacă are cheie.
+export function getActiveLLMProvider(): { provider: 'groq' | 'gemini'; fallback: 'groq' | 'gemini' | null } {
+  const preferGemini = env.LLM_PROVIDER === 'gemini' && Boolean(env.GEMINI_API_KEY)
+  return {
+    provider: preferGemini ? 'gemini' : 'groq',
+    fallback: preferGemini ? 'groq' : (env.GEMINI_API_KEY ? 'gemini' : null),
+  }
+}
+
 async function callGroq(messages: GroqMessage[], options?: LLMOptions): Promise<string> {
   const preferGemini = env.LLM_PROVIDER === 'gemini' && Boolean(env.GEMINI_API_KEY)
   const primary = preferGemini ? callGeminiApi : callGroqApi
@@ -258,10 +268,12 @@ export type OrderIntent = {
   items: Array<{ productId: string; quantity: number }>
   details: string       // specificații/cerințe colectate (text liber)
   missingInfo: string[] // ce mai trebuie cerut clientului
-  customerNote: string  // adresă/observații
+  customerNote: string  // numele clientului / observații
+  // Livrare (B11): metoda + adresa, extrase din conversație pentru handoff AWB curat.
+  delivery: { method: 'pickup' | 'delivery' | '' ; address: string }
 }
 
-const EMPTY_INTENT: OrderIntent = { phase: 'none', items: [], details: '', missingInfo: [], customerNote: '' }
+const EMPTY_INTENT: OrderIntent = { phase: 'none', items: [], details: '', missingInfo: [], customerNote: '', delivery: { method: '', address: '' } }
 
 // Validare strictă a output-ului LLM (extrasă pentru test fără rețea).
 // Plasă de siguranță: orice item cu id în afara catalogului e aruncat; dacă după
@@ -289,6 +301,12 @@ export function parseOrderIntent(raw: string, validIds: Set<string>): OrderInten
   const details = typeof parsed.details === 'string' ? parsed.details.slice(0, 1000) : ''
   const customerNote = typeof parsed.customerNote === 'string' ? parsed.customerNote.slice(0, 500) : ''
 
+  // Livrare (B11): metoda validată la lista închisă, adresa = text liber plafonat.
+  const rawDelivery = (parsed as { delivery?: { method?: unknown; address?: unknown } }).delivery
+  const dMethod = rawDelivery?.method === 'pickup' || rawDelivery?.method === 'delivery' ? rawDelivery.method : ''
+  const dAddress = typeof rawDelivery?.address === 'string' ? rawDelivery.address.slice(0, 500) : ''
+  const delivery: OrderIntent['delivery'] = { method: dMethod, address: dAddress }
+
   let phase: OrderIntent['phase'] =
     parsed.phase === 'collecting' || parsed.phase === 'ready' || parsed.phase === 'none'
       ? parsed.phase
@@ -303,7 +321,7 @@ export function parseOrderIntent(raw: string, validIds: Set<string>): OrderInten
     phase = 'none'
   }
 
-  return { phase, items, details, missingInfo, customerNote }
+  return { phase, items, details, missingInfo, customerNote, delivery }
 }
 
 export async function analyzeOrderIntent(
@@ -344,10 +362,12 @@ REGULI IMPORTANTE:
 - NU inventa cantități. Dacă clientul dă un buget sau o cerere fără cantitate clară (ex: "vreau un website de 3000€"), pune produsul în "details" ca text și lasă "items" gol — cantitatea/prețul le stabilește omul. NU forța în items.
 - "items" conține DOAR produse din catalog cu cantitate explicit cerută de client.
 - Pune în "details" specificațiile cerute de client (mărimi, opțiuni, cerințe custom).
+- "delivery.method": "pickup" dacă clientul vrea să RIDICE personal, "delivery" dacă vrea LIVRARE/curier, "" dacă nu s-a stabilit. "delivery.address" = adresa COMPLETĂ de livrare exact cum a dat-o clientul (stradă, număr, oraș, eventual cod poștal), sau gol dacă ridicare/necunoscută. NU inventa adresa.
+- Numele clientului pune-l în "customerNote", NU în adresă.
 - Nu trece la "ready" dacă "missingInfo" nu e gol.
 
 Răspunde STRICT cu JSON valid, fără text în plus:
-{"phase":"none|collecting|ready","items":[{"productId":"<id>","quantity":<număr>}],"details":"<specificații sau gol>","missingInfo":["<ce mai trebuie cerut>"],"customerNote":"<adresă/observații sau gol>"}`
+{"phase":"none|collecting|ready","items":[{"productId":"<id>","quantity":<număr>}],"details":"<specificații sau gol>","missingInfo":["<ce mai trebuie cerut>"],"customerNote":"<nume/observații sau gol>","delivery":{"method":"pickup|delivery|","address":"<adresă completă sau gol>"}}`
 
   const raw = await callGroq([{ role: 'user', content: prompt }], { max_tokens: 500, temperature: 0 })
   return parseOrderIntent(raw, new Set(catalog.map(p => p.id)))
@@ -359,28 +379,34 @@ Răspunde STRICT cu JSON valid, fără text în plus:
 // owner-ului. Handoff ușor — nu verificăm disponibilitatea, owner-ul confirmă intervalul.
 export type BookingIntent = {
   phase: 'none' | 'collecting' | 'ready'
-  serviceId: string | null   // id din catalogul rezervabil (null dacă neclar)
+  serviceIds: string[]       // unul sau mai multe id-uri din catalogul rezervabil (B10 multi-serviciu)
   requestedSlot: string      // intervalul dorit, text liber („vineri pe la 15")
   details: string
   missingInfo: string[]
   customerNote: string       // numele clientului / observații
 }
 
-const EMPTY_BOOKING: BookingIntent = { phase: 'none', serviceId: null, requestedSlot: '', details: '', missingInfo: [], customerNote: '' }
+const EMPTY_BOOKING: BookingIntent = { phase: 'none', serviceIds: [], requestedSlot: '', details: '', missingInfo: [], customerNote: '' }
 
 // Validare strictă a output-ului LLM (extrasă pentru test fără rețea). Plasă de siguranță:
-// serviceId în afara catalogului → null; „ready" fără serviciu sau fără interval → retrogradat.
+// id-uri în afara catalogului eliminate; „ready" fără niciun serviciu sau fără interval → retrogradat.
 export function parseBookingIntent(raw: string, validIds: Set<string>): BookingIntent {
   const match = raw.match(/\{[\s\S]*\}/)
   if (!match) return EMPTY_BOOKING
-  let parsed: Partial<BookingIntent>
+  let parsed: Partial<BookingIntent> & { serviceId?: unknown }
   try {
-    parsed = JSON.parse(match[0]) as Partial<BookingIntent>
+    parsed = JSON.parse(match[0]) as Partial<BookingIntent> & { serviceId?: unknown }
   } catch {
     return EMPTY_BOOKING
   }
 
-  const serviceId = typeof parsed.serviceId === 'string' && validIds.has(parsed.serviceId) ? parsed.serviceId : null
+  // Acceptă atât "serviceIds" (array, nou) cât și "serviceId" (string, compat) → set validat + dedup.
+  const rawIds: unknown[] = Array.isArray(parsed.serviceIds)
+    ? parsed.serviceIds
+    : (typeof parsed.serviceId === 'string' ? [parsed.serviceId] : [])
+  const serviceIds = [...new Set(
+    rawIds.filter((id): id is string => typeof id === 'string' && validIds.has(id)),
+  )].slice(0, 10)
   const requestedSlot = typeof parsed.requestedSlot === 'string' ? parsed.requestedSlot.slice(0, 200) : ''
   const details = typeof parsed.details === 'string' ? parsed.details.slice(0, 1000) : ''
   const customerNote = typeof parsed.customerNote === 'string' ? parsed.customerNote.slice(0, 500) : ''
@@ -395,14 +421,14 @@ export function parseBookingIntent(raw: string, validIds: Set<string>): BookingI
       : 'none'
 
   // Retrogradări de siguranță decise de COD, nu de LLM:
-  // - „ready" fără serviciu valid SAU fără interval → nu putem crea programarea → collecting.
-  if (phase === 'ready' && (!serviceId || !requestedSlot.trim())) phase = 'collecting'
-  // - non-none complet gol (fără serviciu, interval, missingInfo, details) → nu e programare.
-  if (phase !== 'none' && !serviceId && !requestedSlot.trim() && missingInfo.length === 0 && !details.trim()) {
+  // - „ready" fără niciun serviciu valid SAU fără interval → nu putem crea programarea → collecting.
+  if (phase === 'ready' && (serviceIds.length === 0 || !requestedSlot.trim())) phase = 'collecting'
+  // - non-none complet gol (fără servicii, interval, missingInfo, details) → nu e programare.
+  if (phase !== 'none' && serviceIds.length === 0 && !requestedSlot.trim() && missingInfo.length === 0 && !details.trim()) {
     phase = 'none'
   }
 
-  return { phase, serviceId, requestedSlot, details, missingInfo, customerNote }
+  return { phase, serviceIds, requestedSlot, details, missingInfo, customerNote }
 }
 
 export async function analyzeBookingIntent(
@@ -425,7 +451,7 @@ export async function analyzeBookingIntent(
 
   const prompt = `Ești un sistem care analizează o conversație WhatsApp de business și decide în ce fază se află o PROGRAMARE la un serviciu.
 
-SERVICII REZERVABILE (folosește DOAR aceste id-uri pentru "serviceId"):
+SERVICII REZERVABILE (folosește DOAR aceste id-uri pentru "serviceIds"):
 ${serviceText}
 
 ${intakeBlock}CONVERSAȚIE:
@@ -434,16 +460,16 @@ ${convoText}
 Stabilește "phase":
 - "none": clientul NU vrea o programare (doar întreabă de preț/program/servicii, salută, mulțumește).
 - "collecting": clientul VREA o programare, dar lipsește serviciul clar, intervalul (zi/oră) sau numele. Pune în "missingInfo" ce mai trebuie cerut.
-- "ready": clientul a cerut clar un serviciu din listă ȘI a indicat un interval (zi/oră).
+- "ready": clientul a cerut clar cel puțin un serviciu din listă ȘI a indicat un interval (zi/oră).
 
 REGULI:
-- "serviceId" = DOAR un id din lista de mai sus; dacă nu e clar, pune null și treci-l în "missingInfo".
+- "serviceIds" = listă cu UNUL SAU MAI MULTE id-uri din lista de mai sus, dacă clientul a cerut mai multe servicii pentru aceeași programare (ex: „tuns și barbă" → ambele id-uri). Pune DOAR id-uri din listă; dacă niciunul nu e clar, lasă lista goală și treci serviciul în "missingInfo".
 - "requestedSlot" = intervalul dorit, exact cum l-a spus clientul (ex: "vineri pe la 15", "mâine dimineață").
 - "customerNote" = numele clientului dacă l-a dat, plus observații scurte.
 - NU inventa zile, ore sau servicii. NU trece la "ready" dacă lipsește serviciul sau intervalul.
 
 Răspunde STRICT cu JSON valid, fără text în plus:
-{"phase":"none|collecting|ready","serviceId":"<id sau null>","requestedSlot":"<interval sau gol>","details":"<observații sau gol>","missingInfo":["<ce mai trebuie cerut>"],"customerNote":"<nume/observații sau gol>"}`
+{"phase":"none|collecting|ready","serviceIds":["<id>"],"requestedSlot":"<interval sau gol>","details":"<observații sau gol>","missingInfo":["<ce mai trebuie cerut>"],"customerNote":"<nume/observații sau gol>"}`
 
   const raw = await callGroq([{ role: 'user', content: prompt }], { max_tokens: 400, temperature: 0 })
   return parseBookingIntent(raw, new Set(services.map(s => s.id)))

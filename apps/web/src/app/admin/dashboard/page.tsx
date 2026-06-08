@@ -6,7 +6,7 @@ import {
   Loader2, Users, Bot, CreditCard, RefreshCw, Bell, LogOut, Phone,
   CheckCircle, XCircle, Clock, AlertCircle, TrendingUp, ChevronDown,
   Mail, Trash2, WifiOff, CalendarPlus, Settings, Save, X, Eye,
-  Activity, MessageSquare, ShieldCheck, Smartphone, AlertTriangle,
+  Activity, MessageSquare, ShieldCheck, Smartphone, AlertTriangle, Cpu,
 } from 'lucide-react'
 import { ThemeToggle } from '@/components/ThemeToggle'
 
@@ -33,6 +33,7 @@ interface AdminStats {
   cancelingSubscriptions: number; monthlySubscribers: number; annualSubscribers: number
   messagesToday: number; aiMessagesToday: number; ownerMessagesToday: number
   totalConversations: number
+  llmProvider?: { provider: 'groq' | 'gemini'; fallback: 'groq' | 'gemini' | null }
 }
 
 interface AdminNotification {
@@ -547,6 +548,12 @@ export default function AdminDashboard() {
     { icon: Smartphone, label: 'WhatsApp conectat', value: stats.connectedWhatsapp, sub: `${stats.disconnectedWhatsapp} fără sesiune` },
     { icon: Clock, label: 'În pairing', value: stats.pairingWhatsapp, sub: 'așteaptă conectare' },
     { icon: Bot, label: 'Agenți activi', value: stats.activeAgents, sub: `${stats.activeAgentsWithoutWhatsapp} fără WA conectat` },
+    ...(stats.llmProvider ? [{
+      icon: Cpu,
+      label: 'Model AI activ',
+      value: stats.llmProvider.provider === 'gemini' ? 'Gemini' : 'Groq',
+      sub: stats.llmProvider.fallback ? `rezervă: ${stats.llmProvider.fallback === 'gemini' ? 'Gemini' : 'Groq'}` : 'fără rezervă',
+    }] : []),
   ] : []
 
   const productCards = stats ? [

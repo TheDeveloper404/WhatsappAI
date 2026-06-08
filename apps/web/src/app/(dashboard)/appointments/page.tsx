@@ -4,6 +4,7 @@ import { useAuthStore } from '@/store/auth'
 import { api, type Appointment, type AppointmentStatus } from '@/lib/api'
 import { Loader2, CalendarClock, ChevronDown, Trash2 } from 'lucide-react'
 import { SalesTabs } from '@/components/SalesTabs'
+import { formatAmount, currencyLabel } from '@/lib/format'
 
 function formatDate(ts: number): string {
   return new Date(ts).toLocaleString('ro-RO', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
@@ -35,11 +36,18 @@ export default function AppointmentsPage() {
   const [filter, setFilter] = useState<'all' | AppointmentStatus>('all')
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [currency, setCurrency] = useState('RON')
 
   useEffect(() => {
     if (!accessToken) return
-    api.appointments.list(accessToken)
-      .then(({ appointments: a }) => setAppointments(a))
+    Promise.all([
+      api.appointments.list(accessToken),
+      api.ai.getSettings(accessToken).catch(() => null),
+    ])
+      .then(([{ appointments: a }, settingsRes]) => {
+        setAppointments(a)
+        if (settingsRes?.settings.currency) setCurrency(settingsRes.settings.currency)
+      })
       .catch(() => setError('Nu s-au putut încărca programările.'))
       .finally(() => setLoading(false))
   }, [accessToken])
@@ -153,7 +161,26 @@ export default function AppointmentsPage() {
                   </span>
                 </div>
 
-                <p className="font-mono-ui text-[14px] text-ink mb-1">{appt.serviceName}</p>
+                {appt.items && appt.items.length > 0 ? (
+                  <div className="mb-1">
+                    {appt.items.map(it => (
+                      <p key={it.id} className="font-mono-ui text-[14px] text-ink flex items-center justify-between gap-3">
+                        <span>{it.serviceName}</span>
+                        {it.unitPriceBani > 0 && (
+                          <span className="text-dim text-[13px]">{formatAmount(it.unitPriceBani)} {currencyLabel(currency)}</span>
+                        )}
+                      </p>
+                    ))}
+                    {appt.items.length > 1 && appt.totalBani > 0 && (
+                      <p className="font-mono-ui text-[13px] text-ink font-medium mt-1 pt-1 border-t border-line flex items-center justify-between">
+                        <span>Total</span>
+                        <span>{formatAmount(appt.totalBani)} {currencyLabel(currency)}</span>
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="font-mono-ui text-[14px] text-ink mb-1">{appt.serviceName}</p>
+                )}
                 {appt.requestedSlot && (
                   <p className="font-mono-ui text-[13px] text-dim flex items-center gap-1.5">
                     <CalendarClock className="h-3.5 w-3.5 text-dimmer" />

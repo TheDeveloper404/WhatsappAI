@@ -201,6 +201,11 @@ export const orders = pgTable('orders', {
   // Detalii structurate colectate conversațional (text liber: specificații, cerințe custom).
   // Separat de customerNote — aici intră ce a cerut clientul dincolo de produs×cantitate.
   details: text('details').notNull().default(''),
+  // Livrare (B11): metoda ('' necunoscut / 'pickup' ridicare / 'delivery' curier) + adresa structurată
+  // (text liber, dar câmp dedicat ca owner-ul s-o copieze direct pentru AWB). Numele = customerNote,
+  // telefonul = contactPhone.
+  deliveryMethod: text('delivery_method').notNull().default(''),
+  deliveryAddress: text('delivery_address').notNull().default(''),
   createdAt: bigint('created_at', { mode: 'number' }).notNull(),
   updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
 })
@@ -225,13 +230,26 @@ export const appointments = pgTable('appointments', {
   userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   contactPhone: text('contact_phone').notNull(),
   status: text('status').notNull().default('pending'),
-  // Serviciul cerut (denormalizat — numele la momentul programării).
+  // Serviciul cerut (denormalizat). La programări multi-serviciu (B10) e eticheta combinată
+  // („Tuns + Aranjat barbă") pentru afișare rapidă; sursa structurată e în appointment_items.
   serviceName: text('service_name').notNull(),
+  // Total preț (bani) al serviciilor programate. 0 = necunoscut/servicii fără preț.
+  totalBani: integer('total_bani').notNull().default(0),
   // Intervalul dorit, ca text liber („vineri pe la 15"). Nu calculăm sloturi reale aici.
   requestedSlot: text('requested_slot').notNull().default(''),
   details: text('details').notNull().default(''),
   createdAt: bigint('created_at', { mode: 'number' }).notNull(),
   updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
+})
+
+// Liniile unei programări (B10): un serviciu rezervabil per rând, cu nume + preț denormalizate
+// la momentul programării (serviciul se poate schimba/șterge ulterior).
+export const appointmentItems = pgTable('appointment_items', {
+  id: text('id').primaryKey(),
+  appointmentId: text('appointment_id').notNull().references(() => appointments.id, { onDelete: 'cascade' }),
+  productId: text('product_id'),
+  serviceName: text('service_name').notNull(),
+  unitPriceBani: integer('unit_price_bani').notNull().default(0),
 })
 
 // RAG — documente încărcate de owner ca bază de cunoștințe pentru agent.
@@ -268,6 +286,8 @@ export type OrderItem = typeof orderItems.$inferSelect
 export type NewOrderItem = typeof orderItems.$inferInsert
 export type Appointment = typeof appointments.$inferSelect
 export type NewAppointment = typeof appointments.$inferInsert
+export type AppointmentItem = typeof appointmentItems.$inferSelect
+export type NewAppointmentItem = typeof appointmentItems.$inferInsert
 export type Document = typeof documents.$inferSelect
 export type NewDocument = typeof documents.$inferInsert
 export type DocumentChunk = typeof documentChunks.$inferSelect

@@ -239,4 +239,17 @@ export const migrationStatements = [
   )`,
   `CREATE INDEX IF NOT EXISTS idx_documents_user ON documents(user_id, created_at)`,
   `CREATE INDEX IF NOT EXISTS idx_document_chunks_user ON document_chunks(user_id)`,
+  // B11 — date de livrare structurate pe comandă (metodă + adresă), gata de copiat pentru AWB.
+  `ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_method TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_address TEXT NOT NULL DEFAULT ''`,
+  // B10 — programări cu mai multe servicii: total pe programare + tabel de linii (servicii).
+  `ALTER TABLE appointments ADD COLUMN IF NOT EXISTS total_bani INTEGER NOT NULL DEFAULT 0`,
+  `CREATE TABLE IF NOT EXISTS appointment_items (
+    id TEXT PRIMARY KEY,
+    appointment_id TEXT NOT NULL REFERENCES appointments(id) ON DELETE CASCADE,
+    product_id TEXT,
+    service_name TEXT NOT NULL,
+    unit_price_bani INTEGER NOT NULL DEFAULT 0
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_appointment_items_appt ON appointment_items(appointment_id)`,
 ]

@@ -1,7 +1,7 @@
 import { Pool } from 'pg'
 
 export async function setup() {
-  const connectionString = process.env.DATABASE_URL ?? 'postgresql://localhost/whatsapp_ai_test'
+  const connectionString = process.env.DATABASE_URL ?? 'postgresql://127.0.0.1:5432/whatsapp_ai_test'
   const pool = new Pool({
     connectionString,
     // Fără asta, dacă Postgres e oprit sau blocat, suita ATÂRNĂ la infinit (Pool-ul așteaptă
@@ -230,6 +230,18 @@ export async function setup() {
     // L10 — refresh token reuse detection / family revocation (folosite de claim/save/revoke).
     `ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS family_id TEXT`,
     `ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS rotated_at BIGINT`,
+    // B11 — date de livrare structurate pe comandă.
+    `ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_method TEXT NOT NULL DEFAULT ''`,
+    `ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_address TEXT NOT NULL DEFAULT ''`,
+    // B10 — programări cu mai multe servicii (total + tabel de linii).
+    `ALTER TABLE appointments ADD COLUMN IF NOT EXISTS total_bani INTEGER NOT NULL DEFAULT 0`,
+    `CREATE TABLE IF NOT EXISTS appointment_items (
+      id TEXT PRIMARY KEY,
+      appointment_id TEXT NOT NULL REFERENCES appointments(id) ON DELETE CASCADE,
+      product_id TEXT,
+      service_name TEXT NOT NULL,
+      unit_price_bani INTEGER NOT NULL DEFAULT 0
+    )`,
   ]
 
   try {

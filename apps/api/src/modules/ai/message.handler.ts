@@ -83,6 +83,55 @@ export function detectSentiment(text: string): 'urgent' | 'frustrated' | 'normal
   return 'normal'
 }
 
+// Red-flags (B1): semnale de escaladare juridică / reclamație care merită atenția owner-ului.
+// Determinist (fără cost LLM), diacritic-insensitive + variantă compactă (prinde separatorii), ca
+// `classifyBusinessScope`. COMPLETEAZĂ apărarea anti-injection și gatekeeper-ul — NU le înlocuiește.
+// Returnează etichetele categoriilor găsite (gol = niciun red-flag).
+export function detectRedFlags(text: string): string[] {
+  const t = normalizeText(text)
+  const compact = t.replace(/[^a-z0-9]/g, '')
+  const has = (k: string) => t.includes(k) || compact.includes(k.replace(/[^a-z0-9]/g, ''))
+  const groups: Array<{ label: string; keys: string[] }> = [
+    { label: 'reclamație/plângere', keys: ['reclamatie', 'plangere', 'ma plang', 'depun o plangere', 'fac o plangere'] },
+    { label: 'cerere de bani înapoi/rambursare', keys: ['banii inapoi', 'vreau banii', 'rambursare', 'returnez banii', 'returnati banii', 'refund', 'imi dati banii'] },
+    { label: 'amenințare legală (avocat/instanță)', keys: ['avocat', 'instanta', 'tribunal', 'in judecata', 'dau in judecata', 'actiune in instanta', 'somatie', 'notificare legala'] },
+    { label: 'ANPC/ANAF/autorități', keys: ['anpc', 'protectia consumatorului', 'anaf', 'garda financiara'] },
+    { label: 'GDPR/date personale', keys: ['gdpr', 'date personale', 'date cu caracter personal', 'stergeti datele', 'protectia datelor'] },
+    { label: 'acuzație de fraudă/înșelăciune', keys: ['frauda', 'inselaciune', 'escrocherie', 'm-ati inselat', 'mati inselat', 'escroci', 'teapa', 'hoti'] },
+  ]
+  const found: string[] = []
+  for (const g of groups) {
+    if (g.keys.some(has)) found.push(g.label)
+  }
+  return found
+}
+
+// Notificare owner pentru comandă nouă (B11): bloc structurat gata de copiat pentru AWB
+// (nume, telefon, metodă livrare, adresă, detalii). Câmpurile goale sunt omise.
+export function formatOwnerOrderNotification(
+  publicRef: string,
+  contactPhone: string,
+  lines: string,
+  total: string,
+  customerNote: string,
+  details: string,
+  delivery: { method: 'pickup' | 'delivery' | ''; address: string },
+): string {
+  const block: string[] = []
+  if (customerNote.trim()) block.push(`👤 ${customerNote.trim()}`)
+  block.push(`📞 +${contactPhone}`)
+  if (delivery.method === 'delivery') {
+    block.push('🚚 Livrare prin curier')
+    if (delivery.address.trim()) block.push(`📍 ${delivery.address.trim()}`)
+  } else if (delivery.method === 'pickup') {
+    block.push('🏪 Ridicare din locație')
+  } else if (delivery.address.trim()) {
+    block.push(`📍 ${delivery.address.trim()}`)
+  }
+  if (details.trim()) block.push(`📝 ${details.trim()}`)
+  return `🛒 Comandă nouă ${publicRef} de la +${contactPhone}\n${lines}\n\nTotal: ${total}\n\n${block.join('\n')}\n\nVezi în dashboard.`
+}
+
 // Mesaje programate: când owner e activ, le trimitem după ce expiră timer-ul
 export type BusinessScope = 'business' | 'off_topic' | 'roleplay_or_prompt_injection'
 
@@ -162,6 +211,9 @@ const lastNotified = new Map<string, Map<string, number>>()
 // Throttle handoff ofertă custom (servicii cu preț estimativ): maxim o notificare owner
 // la 30 min per contact, ca să nu spamăm owner-ul la fiecare mesaj din discovery.
 const lastEstimateHandoff = new Map<string, Map<string, number>>()
+
+// Throttle alertă red-flag (mesaje sensibile juridic — B1): maxim o alertă owner la 30 min per contact.
+const lastRedFlagAlert = new Map<string, Map<string, number>>()
 
 // Throttle memorie: actualizăm rezumatul contactului cel mult o dată la 10 min
 // (altfel am face un apel Groq suplimentar la fiecare răspuns AI)
@@ -246,6 +298,28 @@ async function sendAiResponse(userId: string, contactPhone: string, jid: string,
     return
   }
 
+  // Red-flags (B1): mesaj sensibil juridic/escaladare → alertăm owner-ul pe WhatsApp (throttled) ȘI
+  // lăsăm AI-ului o notă de prudență (răspunde calm, fără promisiuni/consultanță juridică, anunță că
+  // proprietarul revine). AI-ul continuă să răspundă — nu lăsăm clientul în aer.
+  const redFlags = detectRedFlags(lastIncoming)
+  let redFlagNote = ''
+  if (redFlags.length > 0) {
+    redFlagNote = `[Atenție — situație sensibilă] Clientul a menționat: ${redFlags.join(', ')}. Răspunde calm, scurt și empatic: recunoaște îngrijorarea, NU face promisiuni, NU oferi consultanță juridică, NU recunoaște și NU nega vinovăția firmei. Spune-i firesc că proprietarul a fost anunțat și revine personal în cel mai scurt timp.`
+    const ownerJid = sock.user?.id
+    if (ownerJid) {
+      const now = Date.now()
+      const throttle = lastRedFlagAlert.get(userId) ?? new Map<string, number>()
+      if (now - (throttle.get(contactPhone) ?? 0) > NOTIFY_THROTTLE_MS) {
+        throttle.set(contactPhone, now)
+        lastRedFlagAlert.set(userId, throttle)
+        sock.sendMessage(ownerJid, {
+          text: `🚩 Mesaj sensibil de la +${contactPhone}: ${redFlags.join(', ')}.\nAI-ul a răspuns prudent, dar ar fi bine să preiei tu conversația. Vezi în dashboard.`,
+        }).catch(() => {})
+        logger.info(`[AI][${userId.slice(0, 8)}] red-flag detectat`, { flags: redFlags.length })
+      }
+    }
+  }
+
   // Catalog COMPLET — agentul trebuie să vadă și produsele epuizate/indisponibile ca să
   // poată spune onest „momentan nu mai avem X" (nu doar să le ascundă). Codul verifică stocul.
   const catalog = await productsRepository.list(userId)
@@ -283,20 +357,32 @@ async function sendAiResponse(userId: string, contactPhone: string, jid: string,
         ordered,
       )
 
-      if (booking.phase === 'ready' && booking.serviceId) {
-        const svc = catalog.find(p => p.id === booking.serviceId)!
-        // Anti-dublură: programare recentă (12h) același contact + serviciu + interval → nu recrea.
+      if (booking.phase === 'ready' && booking.serviceIds.length > 0) {
+        // B10: una sau mai multe servicii pentru aceeași programare. Păstrăm ordinea din catalog.
+        const svcs = booking.serviceIds
+          .map(id => catalog.find(p => p.id === id))
+          .filter((p): p is NonNullable<typeof p> => Boolean(p))
+        const cur = curLabel(settings.currency)
+        const hasEstimate = svcs.some(s => s.isEstimate)
+        const combinedName = svcs.map(s => s.name).join(' + ')
+        const totalBani = svcs.reduce((sum, s) => sum + s.priceBani, 0)
+        const totalText = `${hasEstimate ? 'de la ' : ''}${(totalBani / 100).toFixed(2)} ${cur}`
+        const svcLines = svcs.map(s => `• ${s.name} — ${s.isEstimate ? 'de la ' : ''}${(s.priceBani / 100).toFixed(2)} ${cur}`).join('\n')
+
+        // Anti-dublură: aceeași MULȚIME de servicii + același interval, în ultimele 12h → nu recrea.
         const RECENT_MS = 12 * 60 * 60 * 1000
         const since = Date.now() - RECENT_MS
         const slotKey = booking.requestedSlot.trim().toLowerCase()
+        const setKey = (name: string) => name.split(' + ').map(s => s.trim().toLowerCase()).sort().join('|')
+        const nameKey = setKey(combinedName)
         const dup = recent.find(a => a.status !== 'cancelled' && a.createdAt >= since
-          && a.serviceName === svc.name && a.requestedSlot.trim().toLowerCase() === slotKey)
+          && setKey(a.serviceName) === nameKey && a.requestedSlot.trim().toLowerCase() === slotKey)
 
         if (dup) {
           activeBookingNote += ` Are deja această programare înregistrată — NU crea alta și NU repeta confirmarea.`
           logger.info(`[AI][${userId.slice(0, 8)}] programare duplicată ignorată`, { apptId: dup.id })
         } else {
-          // Poartă de confirmare (fix bug serviciu greșit): propunem serviciul + preț + interval și
+          // Poartă de confirmare (fix bug serviciu greșit): propunem serviciile + preț + interval și
           // creăm DOAR după confirmarea explicită a clientului. Așa prinde din timp dacă agentul a
           // înțeles alt serviciu (ex. „Tuns" în loc de „Pachet tuns + barbă").
           const lastAssistant = [...ordered].reverse().find(m => m.fromMe)?.body ?? ''
@@ -305,14 +391,15 @@ async function sendAiResponse(userId: string, contactPhone: string, jid: string,
 
           if (confirmed) {
             const appt = await appointmentsRepository.create(userId, contactPhone, {
-              serviceName: svc.name,
+              services: svcs.map(s => ({ productId: s.id, serviceName: s.name, unitPriceBani: s.priceBani })),
               requestedSlot: booking.requestedSlot,
               details: booking.details,
             })
-            logger.info(`[AI][${userId.slice(0, 8)}] programare înregistrată`, { apptId: appt.id })
+            logger.info(`[AI][${userId.slice(0, 8)}] programare înregistrată`, { apptId: appt.id, services: svcs.length })
 
             const slotLine = booking.requestedSlot.trim() ? `\n🗓️ Interval dorit: ${booking.requestedSlot.trim()}` : ''
-            const reply = `Am notat cererea ta de programare (*${appt.publicRef}*):\n• ${svc.name}${slotLine}\n\nProprietarul îți confirmă intervalul în scurt timp. Mulțumim!`
+            const totalLine = svcs.length > 1 ? `\n\n*Total: ${totalText}*` : ''
+            const reply = `Am notat cererea ta de programare (*${appt.publicRef}*):\n${svcLines}${slotLine}${totalLine}\n\nProprietarul îți confirmă intervalul în scurt timp. Mulțumim!`
             await sock.sendMessage(jid, { text: reply })
             await aiRepository.saveMessage(userId, contactPhone, true, reply, Date.now(), true)
 
@@ -320,21 +407,19 @@ async function sendAiResponse(userId: string, contactPhone: string, jid: string,
             if (ownerJid) {
               const name = booking.customerNote.trim() ? `\nClient: ${booking.customerNote.trim()}` : ''
               const det = booking.details.trim() ? `\nDetalii: ${booking.details.trim()}` : ''
+              const totalOwner = svcs.length > 1 ? `\nTotal: ${totalText}` : ''
               sock.sendMessage(ownerJid, {
-                text: `📅 Programare nouă ${appt.publicRef} de la +${contactPhone}\nServiciu: ${svc.name}\nInterval dorit: ${booking.requestedSlot.trim() || '(nespecificat)'}${name}${det}\n\nConfirmă sau anulează din dashboard.`,
+                text: `📅 Programare nouă ${appt.publicRef} de la +${contactPhone}\nServicii:\n${svcLines}${totalOwner}\nInterval dorit: ${booking.requestedSlot.trim() || '(nespecificat)'}${name}${det}\n\nConfirmă sau anulează din dashboard.`,
               }).catch(() => {})
             }
             return
           }
 
           if (!alreadyProposed) {
-            // Propunem serviciul exact + preț + interval și cerem confirmarea. NU creăm încă.
-            const cur = curLabel(settings.currency)
-            const priceText = svc.isEstimate
-              ? `de la ${(svc.priceBani / 100).toFixed(2)} ${cur}`
-              : `${(svc.priceBani / 100).toFixed(2)} ${cur}`
+            // Propunem serviciile exacte + preț + interval și cerem confirmarea. NU creăm încă.
             const slotLine = booking.requestedSlot.trim() ? `\n🗓️ ${booking.requestedSlot.trim()}` : ''
-            const reply = `${BOOKING_CONFIRM_MARKER}\n\n• ${svc.name} — ${priceText}${slotLine}\n\nRăspunde cu *da* ca să trimit cererea de programare (proprietarul confirmă apoi ora), sau spune-mi ce vrei să schimbi.`
+            const totalLine = svcs.length > 1 ? `\n\n*Total: ${totalText}*` : ''
+            const reply = `${BOOKING_CONFIRM_MARKER}\n\n${svcLines}${slotLine}${totalLine}\n\nRăspunde cu *da* ca să trimit cererea de programare (proprietarul confirmă apoi ora), sau spune-mi ce vrei să schimbi.`
             await sock.sendMessage(jid, { text: reply })
             await aiRepository.saveMessage(userId, contactPhone, true, reply, Date.now(), true)
             return
@@ -342,7 +427,7 @@ async function sendAiResponse(userId: string, contactPhone: string, jid: string,
 
           // Am propus deja, dar clientul n-a confirmat — nu spamăm propunerea.
           const slotInfo = booking.requestedSlot.trim() ? ` (${booking.requestedSlot.trim()})` : ''
-          activeBookingNote = `${activeBookingNote ? activeBookingNote + '\n' : ''}Clientul are o programare PROPUSĂ dar NEconfirmată: „${svc.name}"${slotInfo}. Răspunde firesc la mesajul curent; dacă vrea să finalizeze, amintește-i scurt să confirme cu „da". NU crea programarea și NU inventa ore sau prețuri.`
+          activeBookingNote = `${activeBookingNote ? activeBookingNote + '\n' : ''}Clientul are o programare PROPUSĂ dar NEconfirmată: „${combinedName}"${slotInfo}. Răspunde firesc la mesajul curent; dacă vrea să finalizeze, amintește-i scurt să confirme cu „da". NU crea programarea și NU inventa ore sau prețuri.`
           logger.info(`[AI][${userId.slice(0, 8)}] programare propusă, neconfirmată`)
         }
       } else if (booking.phase === 'collecting') {
@@ -500,7 +585,7 @@ REGULI OBLIGATORII pentru acest caz:
             return
           }
 
-          const order = await ordersRepository.create(userId, contactPhone, items, intent.customerNote, intent.details)
+          const order = await ordersRepository.create(userId, contactPhone, items, intent.customerNote, intent.details, intent.delivery)
           logger.info(`[AI][${userId.slice(0, 8)}] comandă înregistrată`, { orderId: order.id, items: items.length, totalBani: order.totalBani })
 
           const detailsLine = intent.details.trim() ? `\n_${intent.details.trim()}_` : ''
@@ -510,10 +595,8 @@ REGULI OBLIGATORII pentru acest caz:
 
           const ownerJid = sock.user?.id
           if (ownerJid) {
-            const note = intent.customerNote ? `\nNotă: ${intent.customerNote}` : ''
-            const det = intent.details.trim() ? `\nDetalii: ${intent.details.trim()}` : ''
             sock.sendMessage(ownerJid, {
-              text: `🛒 Comandă nouă ${order.publicRef} de la +${contactPhone}\n${lines}\n\nTotal: ${totalLei} ${cur}${det}${note}\n\nVezi în dashboard.`,
+              text: formatOwnerOrderNotification(order.publicRef, contactPhone, lines, `${totalLei} ${cur}`, intent.customerNote, intent.details, intent.delivery),
             }).catch(() => {})
           }
           return
@@ -626,6 +709,9 @@ REGULI OBLIGATORII pentru acest caz:
     systemPrompt += `\n\n---\n[Atenție: clientul are o cerere urgentă. Răspunde direct, oferă soluție sau următor pas concret.]`
   } else if (sentiment === 'frustrated') {
     systemPrompt += `\n\n---\n[Atenție: clientul pare nemulțumit sau frustrat. Fii empatic, recunoaște problema și calmează situația.]`
+  }
+  if (redFlagNote) {
+    systemPrompt += `\n\n---\n${redFlagNote}`
   }
   if (activeOrderNote) {
     systemPrompt += `\n\n---\n[Comandă activă a clientului]\n${activeOrderNote}`

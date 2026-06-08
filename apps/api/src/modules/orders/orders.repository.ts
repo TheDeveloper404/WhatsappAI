@@ -20,7 +20,7 @@ function genPublicRef(): string {
 export const ordersRepository = {
   // Creează comanda + liniile ei. Totalul e calculat din prețurile primite
   // (care vin din DB, nu de la AI) — banii nu trec niciodată prin LLM.
-  async create(userId: string, contactPhone: string, items: OrderItemInput[], customerNote: string, details = ''): Promise<Order> {
+  async create(userId: string, contactPhone: string, items: OrderItemInput[], customerNote: string, details = '', delivery: { method: 'pickup' | 'delivery' | ''; address: string } = { method: '', address: '' }): Promise<Order> {
     const now = Date.now()
     const totalBani = items.reduce((sum, it) => sum + it.unitPriceBani * it.quantity, 0)
     const order = {
@@ -32,6 +32,8 @@ export const ordersRepository = {
       totalBani,
       customerNote,
       details,
+      deliveryMethod: delivery.method,
+      deliveryAddress: delivery.address,
       createdAt: now,
       updatedAt: now,
     }

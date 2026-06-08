@@ -4,6 +4,7 @@ import { authenticate } from '../../middleware/authenticate.js'
 import { requireActiveSubscription } from '../../middleware/requireSubscription.js'
 import { userHasEntitlement } from '../billing/entitlement.js'
 import { aiService } from './ai.service.js'
+import { getActiveLLMProvider } from './groq.client.js'
 import { Errors } from '../../utils/errors.js'
 import { appEvents } from '../../utils/events.js'
 import { createStreamToken, verifyStreamToken } from '../../utils/tokens.js'
@@ -31,6 +32,12 @@ export async function aiRoutes(app: FastifyInstance) {
     if (!result.success) throw Errors.validation(result.error.errors.map(e => ({ field: String(e.path[0]), message: e.message })))
     const settings = await aiService.updateSettings(req.user!.id, result.data)
     return reply.send({ settings })
+  })
+
+  // Furnizorul LLM activ (Groq/Gemini) — indicator read-only în dashboard/admin (B5). Platform-wide
+  // (din env), fără date sensibile; doar autentificare.
+  app.get('/llm-provider', { preHandler: [authenticate] }, async (_req, reply) => {
+    return reply.send(getActiveLLMProvider())
   })
 
   app.post('/analyze-style', { config: { rateLimit: { max: 3, timeWindow: '1 minute' } }, preHandler: [authenticate, requireActiveSubscription]}, async (req, reply) => {

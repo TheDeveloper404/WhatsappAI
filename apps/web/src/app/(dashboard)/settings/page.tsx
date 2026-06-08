@@ -82,6 +82,17 @@ export default function SettingsPage() {
       .finally(() => setLoading(false))
   }, [accessToken])
 
+  // Persistă tab-ul activ în hash-ul URL → refresh-ul rămâne pe același tab (nu mai sare la „Agent").
+  useEffect(() => {
+    const hash = window.location.hash.replace('#', '')
+    if (TABS.some(t => t.id === hash)) setActiveTab(hash as Tab)
+  }, [])
+
+  function selectTab(id: Tab) {
+    setActiveTab(id)
+    history.replaceState(null, '', `#${id}`)
+  }
+
   async function handleToggleAI() {
     if (!accessToken || !settings || settings.adminDisabled) return
     setTogglingAI(true)
@@ -255,7 +266,7 @@ export default function SettingsPage() {
         {TABS.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
-            onClick={() => setActiveTab(id)}
+            onClick={() => selectTab(id)}
             className={`flex items-center gap-2 px-5 py-3 font-mono-ui text-[13px] font-medium transition-all border-b-2 -mb-px ${
               activeTab === id
                 ? 'text-ink border-acid'

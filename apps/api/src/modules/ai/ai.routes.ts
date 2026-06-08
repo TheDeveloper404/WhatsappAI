@@ -19,7 +19,7 @@ export async function aiRoutes(app: FastifyInstance) {
     const schema = z.object({
       isActive: z.boolean().optional(),
       timerMinutes: z.number().int().min(1).max(60).optional(),
-      systemPrompt: z.string().min(10).max(2000).optional(),
+      systemPrompt: z.string().max(2000).optional(),
       knowledgeBase: z.string().max(5000).optional(),
       writingStyle: z.string().max(2000).optional(),
       notifyOnAiTakeover: z.boolean().optional(),

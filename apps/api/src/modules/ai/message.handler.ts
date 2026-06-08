@@ -197,7 +197,7 @@ export function classifyBusinessScope(text: string): BusinessScope {
 
 function businessScopeReply(scope: Exclude<BusinessScope, 'business'>) {
   if (scope === 'roleplay_or_prompt_injection') {
-    return 'Nu pot schimba rolul conversației. Sunt aici pentru informații legate de serviciile noastre. Cu ce vă pot ajuta?'
+    return 'Sunt asistentul virtual al echipei și vă pot ajuta cu informații despre servicii, program, prețuri și disponibilitate. Cu ce vă pot ajuta?'
   }
   return 'Vă rog să păstrăm discuția legată de serviciile noastre. Vă pot ajuta cu informații despre ofertă, program, prețuri sau disponibilitate.'
 }
@@ -434,7 +434,7 @@ async function sendAiResponse(userId: string, contactPhone: string, jid: string,
         const missing = booking.missingInfo.length > 0
           ? `\nMai trebuie clarificat: ${booking.missingInfo.join('; ')}.`
           : ''
-        const collectingNote = `Clientul vrea o PROGRAMARE la un serviciu, dar comanda e incompletă.${missing}\nCere-i natural, într-un mesaj scurt, exact ce lipsește (serviciul, ziua și ora, numele). NU confirma un interval — proprietarul îl confirmă. NU inventa zile, ore sau prețuri.`
+        const collectingNote = `Clientul vrea o PROGRAMARE la un serviciu, dar mai lipsesc informații.${missing}\nVerifică ÎNTÂI istoricul conversației: NU re-cere ceea ce clientul a oferit deja (serviciu, interval, nume, detalii vehicul). Cere-i natural, într-un mesaj scurt, DOAR informația care încă lipsește. NU confirma un interval — proprietarul îl confirmă. NU inventa zile, ore sau prețuri.`
         activeBookingNote = activeBookingNote ? `${activeBookingNote}\n${collectingNote}` : collectingNote
         logger.info(`[AI][${userId.slice(0, 8)}] programare în colectare`, { missing: booking.missingInfo.length })
       }
@@ -627,7 +627,7 @@ REGULI OBLIGATORII pentru acest caz:
         const customNote = intent.details.trim()
           ? `\nCerere specială notată: „${intent.details.trim()}". Dacă nu există în catalog, NU inventa preț — spune-i clientului că proprietarul îi confirmă prețul.`
           : ''
-        activeOrderNote = `Clientul vrea să comande, dar comanda e INCOMPLETĂ.${partial}${missing}${customNote}\nCere-i natural, într-un mesaj scurt, exact informațiile care lipsesc. NU propune un rezumat de comandă, NU calcula un total și NU inventa cantități sau prețuri.`
+        activeOrderNote = `Clientul vrea să comande, dar comanda e INCOMPLETĂ.${partial}${missing}${customNote}\nVerifică ÎNTÂI istoricul conversației: NU re-cere ceea ce clientul a oferit deja. Cere-i natural, într-un mesaj scurt, DOAR informațiile care încă lipsesc. NU propune un rezumat de comandă, NU calcula un total și NU inventa cantități sau prețuri.`
         logger.info(`[AI][${userId.slice(0, 8)}] comandă în colectare`, { missing: intent.missingInfo.length, items: items.length })
       }
     } catch (err) {
@@ -684,7 +684,8 @@ REGULI OBLIGATORII pentru acest caz:
 - Dacă nu poți face ceva acum, spune sincer că proprietarul revine cu un răspuns. NU inventa confirmări, prețuri, termene sau disponibilitate.
 - NU inventa persoane (colegi, angajați, un alt operator) și NU pretinde că tu sau clientul ați discutat deja cu cineva. „Proprietarul" e singura altă persoană la care te poți referi, și DOAR ca cineva care va reveni cu un răspuns — nu relata o conversație care nu a avut loc.
 - Fii consecvent: nu te contrazice de la un mesaj la altul. Dacă într-un mesaj ai spus un preț sau o stare, nu o nega în următorul fără un motiv real comunicat de sistem.
-- Oferă DOAR produse din catalog, cu prețurile exacte de acolo. Niciodată produse inexistente, indisponibile sau epuizate.`
+- Oferă DOAR produse din catalog, cu prețurile exacte de acolo. Niciodată produse inexistente, indisponibile sau epuizate.
+- Un mesaj de salut (de ex. „salut", „bună", „vă salut", „bună ziua", „hey", „noroc") este o DESCHIDERE de conversație: răspunde cu un salut și întreabă cu ce poți ajuta. NU răspunde cu formule de rămas-bun („la revedere", „o zi bună", „pa") decât dacă clientul încheie CLAR conversația (de ex. „mulțumesc, am terminat", „pa", „asta a fost tot").`
 
   // Promptul user poate fi gol (userul și-a șters textul din Setări) → cădem pe persona implicită,
   // ca agentul să nu rămână fără ton/instrucțiuni de bază (doar regulile platformei).

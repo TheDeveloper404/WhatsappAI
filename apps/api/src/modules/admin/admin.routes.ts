@@ -1,4 +1,5 @@
-import type { FastifyInstance } from 'fastify'
+import type { FastifyInstance, FastifyRequest } from 'fastify'
+import { z } from 'zod'
 import { adminRepository } from './admin.repository.js'
 import { env } from '../../config/env.js'
 import { Errors } from '../../utils/errors.js'
@@ -28,11 +29,32 @@ function verifyAdminToken(req: { headers: { authorization?: string } }) {
   }
 }
 
+// Guard de autorizare în lanțul de hook-uri (L-2): aplicat ca preHandler pe TOATE rutele admin
+// protejate (toate în afară de POST /auth, care emite token-ul). Autorizarea stă în preHandler,
+// nu în corpul handler-ului — o rută nouă fără guard rămâne vizibil neprotejată, nu tăcut.
+const adminGuard = async (req: FastifyRequest) => verifyAdminToken(req)
+
 // Rate limit pe rutele admin distructive (L3), dezactivat în test/E2E (ca în auth.routes).
 const rl = (max: number, timeWindow: string) =>
   process.env.NODE_ENV === 'test' || process.env.E2E_MODE === 'true'
     ? {}
     : { config: { rateLimit: { max, timeWindow } } }
+
+// Validare input cu Zod (M-1), consecvent cu pattern-ul din ai.routes/auth.controller:
+// câmpurile necunoscute sunt eliminate, erorile sunt mapate pe forma Errors.validation.
+function parse<S extends z.ZodTypeAny>(schema: S, data: unknown): z.infer<S> {
+  const result = schema.safeParse(data)
+  if (!result.success) {
+    throw Errors.validation(result.error.errors.map(e => ({ field: String(e.path[0]), message: e.message })))
+  }
+  return result.data
+}
+const userIdParams = z.object({ userId: z.string().uuid() })
+const agentBody = z.object({ isActive: z.boolean() })
+const emailBody = z.object({
+  subject: z.string().trim().min(1).max(200),
+  body: z.string().trim().min(1).max(10_000),
+})
 
 // Whitelist de chei la PATCH /config (M5/L4): doar cheile pe care le citește efectiv app-ul.
 // Blochează injectarea de chei arbitrare (poisoning / junk) în config-ul de platformă.
@@ -48,7 +70,7 @@ async function audit(req: { ip?: string }, action: string, targetUserId: string 
 }
 
 export async function adminRoutes(app: FastifyInstance) {
-  // POST /admin/auth
+  // POST /admin/auth — public (emite token-ul de sesiune); NU primește adminGuard.
   app.post('/auth', { config: { rateLimit: { max: 10, timeWindow: '15 minutes' } } }, async (req, reply) => {
     const { secret, totp } = req.body as { secret?: string; totp?: string }
     if (!secret || !env.ADMIN_SECRET || !secretsMatch(secret, env.ADMIN_SECRET)) {
@@ -66,33 +88,29 @@ export async function adminRoutes(app: FastifyInstance) {
   })
 
   // GET /admin/users
-  app.get('/users', async (req, reply) => {
-    verifyAdminToken(req)
+  app.get('/users', { preHandler: adminGuard }, async (_req, reply) => {
     const users = await adminRepository.listUsers()
     return reply.send({ users })
   })
 
   // GET /admin/stats
-  app.get('/stats', async (req, reply) => {
-    verifyAdminToken(req)
+  app.get('/stats', { preHandler: adminGuard }, async (_req, reply) => {
     const stats = await adminRepository.getStats()
     // Furnizorul LLM activ (platform-wide, din env) — indicator în admin (B5).
     return reply.send({ ...stats, llmProvider: getActiveLLMProvider() })
   })
 
   // PATCH /admin/users/:userId/agent
-  app.patch('/users/:userId/agent', async (req, reply) => {
-    verifyAdminToken(req)
-    const { userId } = req.params as { userId: string }
-    const { isActive } = req.body as { isActive: boolean }
+  app.patch('/users/:userId/agent', { preHandler: adminGuard }, async (req, reply) => {
+    const { userId } = parse(userIdParams, req.params)
+    const { isActive } = parse(agentBody, req.body)
     await adminRepository.setAgentActive(userId, isActive)
     await audit(req, 'user.set_agent_active', userId, { isActive })
     return reply.send({ ok: true })
   })
 
   // POST /admin/users/:userId/extend-trial
-  app.post('/users/:userId/extend-trial', rl(30, '5 minutes'), async (req, reply) => {
-    verifyAdminToken(req)
+  app.post('/users/:userId/extend-trial', { preHandler: adminGuard, ...rl(30, '5 minutes') }, async (req, reply) => {
     const { userId } = req.params as { userId: string }
     const { days } = req.body as { days: number }
     if (!days || days < 1 || days > 365) throw Errors.validation([{ field: 'days', message: 'Zile invalide (1-365).' }])
@@ -102,8 +120,7 @@ export async function adminRoutes(app: FastifyInstance) {
   })
 
   // POST /admin/users/:userId/disconnect-wa
-  app.post('/users/:userId/disconnect-wa', async (req, reply) => {
-    verifyAdminToken(req)
+  app.post('/users/:userId/disconnect-wa', { preHandler: adminGuard }, async (req, reply) => {
     const { userId } = req.params as { userId: string }
     try {
       const { disconnectSession } = await import('../whatsapp/whatsapp.session-manager.js')
@@ -114,8 +131,7 @@ export async function adminRoutes(app: FastifyInstance) {
   })
 
   // DELETE /admin/users/:userId
-  app.delete('/users/:userId', rl(20, '5 minutes'), async (req, reply) => {
-    verifyAdminToken(req)
+  app.delete('/users/:userId', { preHandler: adminGuard, ...rl(20, '5 minutes') }, async (req, reply) => {
     const { userId } = req.params as { userId: string }
     await adminRepository.deleteUser(userId)
     await audit(req, 'user.delete', userId)
@@ -123,11 +139,9 @@ export async function adminRoutes(app: FastifyInstance) {
   })
 
   // POST /admin/users/:userId/email
-  app.post('/users/:userId/email', rl(20, '5 minutes'), async (req, reply) => {
-    verifyAdminToken(req)
-    const { userId } = req.params as { userId: string }
-    const { subject, body } = req.body as { subject: string; body: string }
-    if (!subject?.trim() || !body?.trim()) throw Errors.validation([{ field: 'subject', message: 'Subiect și mesaj obligatorii.' }])
+  app.post('/users/:userId/email', { preHandler: adminGuard, ...rl(20, '5 minutes') }, async (req, reply) => {
+    const { userId } = parse(userIdParams, req.params)
+    const { subject, body } = parse(emailBody, req.body)
     const users = await adminRepository.listUsers()
     const user = users.find(u => u.id === userId)
     if (!user) throw Errors.notFound('User negăsit.')
@@ -139,45 +153,39 @@ export async function adminRoutes(app: FastifyInstance) {
   })
 
   // GET /admin/notifications
-  app.get('/notifications', async (req, reply) => {
-    verifyAdminToken(req)
+  app.get('/notifications', { preHandler: adminGuard }, async (_req, reply) => {
     const items = await adminRepository.getAdminNotifications()
     const unreadCount = await adminRepository.getAdminUnreadCount()
     return reply.send({ notifications: items, unreadCount })
   })
 
   // POST /admin/notifications/read
-  app.post('/notifications/read', async (req, reply) => {
-    verifyAdminToken(req)
+  app.post('/notifications/read', { preHandler: adminGuard }, async (_req, reply) => {
     await adminRepository.markAdminNotificationsRead()
     return reply.send({ ok: true })
   })
 
   // DELETE /admin/notifications
-  app.delete('/notifications', async (req, reply) => {
-    verifyAdminToken(req)
+  app.delete('/notifications', { preHandler: adminGuard }, async (_req, reply) => {
     await adminRepository.deleteAllAdminNotifications()
     return reply.send({ ok: true })
   })
 
   // DELETE /admin/notifications/:notificationId
-  app.delete('/notifications/:notificationId', async (req, reply) => {
-    verifyAdminToken(req)
+  app.delete('/notifications/:notificationId', { preHandler: adminGuard }, async (req, reply) => {
     const { notificationId } = req.params as { notificationId: string }
     await adminRepository.deleteAdminNotification(notificationId)
     return reply.send({ ok: true })
   })
 
   // GET /admin/config
-  app.get('/config', async (req, reply) => {
-    verifyAdminToken(req)
+  app.get('/config', { preHandler: adminGuard }, async (_req, reply) => {
     const config = await adminRepository.getPlatformConfig()
     return reply.send({ config })
   })
 
   // PATCH /admin/config — doar chei din whitelist (M5/L4).
-  app.patch('/config', rl(30, '5 minutes'), async (req, reply) => {
-    verifyAdminToken(req)
+  app.patch('/config', { preHandler: adminGuard, ...rl(30, '5 minutes') }, async (req, reply) => {
     const updates = req.body as Record<string, unknown>
     const invalid = Object.keys(updates).filter(k => !ALLOWED_CONFIG_KEYS.has(k))
     if (invalid.length) {
@@ -195,8 +203,7 @@ export async function adminRoutes(app: FastifyInstance) {
   })
 
   // GET /admin/audit — jurnalul de acțiuni admin (M5).
-  app.get('/audit', async (req, reply) => {
-    verifyAdminToken(req)
+  app.get('/audit', { preHandler: adminGuard }, async (_req, reply) => {
     const entries = await adminRepository.getAuditLog(100)
     return reply.send({ entries })
   })

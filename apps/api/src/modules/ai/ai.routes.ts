@@ -34,9 +34,9 @@ export async function aiRoutes(app: FastifyInstance) {
     return reply.send({ settings })
   })
 
-  // Furnizorul LLM activ (Groq/Gemini) — indicator read-only în dashboard/admin (B5). Platform-wide
-  // (din env), fără date sensibile; doar autentificare.
-  app.get('/llm-provider', { preHandler: [authenticate] }, async (_req, reply) => {
+  // Furnizorul LLM activ (Groq/Gemini) — indicator read-only în dashboard (B5). Platform-wide
+  // (din env), fără date sensibile. Gated pe abonament ca restul rutelor /ai/* (L-1, consecvență).
+  app.get('/llm-provider', { preHandler: [authenticate, requireActiveSubscription] }, async (_req, reply) => {
     return reply.send(getActiveLLMProvider())
   })
 

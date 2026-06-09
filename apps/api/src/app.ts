@@ -173,6 +173,10 @@ export async function buildApp() {
         cb(new AppError(403, 'CORS_REJECTED', 'Not allowed by CORS'), false)
       }
     },
+    // @fastify/cors v11 a strâns default-ul `methods` la CORS-safelisted (`GET,HEAD,POST`),
+    // ceea ce blochează preflight-ul pentru DELETE/PUT/PATCH (ștergere produs/user, editări).
+    // Le declarăm explicit ca să nu depindem de default-ul plugin-ului la upgrade-uri viitoare.
+    methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'],
     credentials: true,
   })
   await app.register(helmet, {

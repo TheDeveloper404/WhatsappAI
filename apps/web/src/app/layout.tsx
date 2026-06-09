@@ -61,12 +61,13 @@ const themeScript = `
 })();
 `;
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   // F3: nonce-ul generat în middleware, necesar pentru scriptul inline de temă sub noul CSP
   // (fără `'unsafe-inline'`). Citirea header-elor optează randarea dinamică — compromis acceptat.
-  const nonce = headers().get("x-nonce") ?? undefined;
+  // Next 16: `headers()` e async → await.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     <html lang="ro" className={`${spaceGrotesk.variable} ${GeistMono.variable}`} suppressHydrationWarning>
       <head>

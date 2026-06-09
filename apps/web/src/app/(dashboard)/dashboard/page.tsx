@@ -59,7 +59,7 @@ function DashboardContent() {
   const [waConnecting, setWaConnecting] = useState(false)
   const [waDisconnecting, setWaDisconnecting] = useState(false)
   const [waError, setWaError] = useState('')
-  const waPollRef = useRef<ReturnType<typeof setInterval>>()
+  const waPollRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined)
 
   const checkoutSuccess = searchParams.get('checkout') === 'success'
   const [showCheckoutSuccess, setShowCheckoutSuccess] = useState(false)

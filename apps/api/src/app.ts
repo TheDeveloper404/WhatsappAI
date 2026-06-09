@@ -163,7 +163,10 @@ export async function buildApp() {
   // user/produs/blacklist, disconnect-wa etc.), care în Fastify 4 treceau. Restaurăm comportamentul
   // de dinainte: body gol → undefined; restul merge prin parser-ul JSON securizat default (păstrăm
   // protecția anti proto/constructor-poisoning, deci fără regresie de securitate).
+  // Fastify are deja un parser înregistrat pentru `application/json`; trebuie eliminat înainte de
+  // a-l înlocui, altfel `addContentTypeParser` aruncă FST_ERR_CTP_ALREADY_PRESENT la boot.
   const defaultJsonParser = app.getDefaultJsonParser('error', 'error')
+  app.removeContentTypeParser('application/json')
   app.addContentTypeParser('application/json', { parseAs: 'string' }, (req, body, done) => {
     if (body === '') return done(null, undefined)
     defaultJsonParser(req, body as string, done)

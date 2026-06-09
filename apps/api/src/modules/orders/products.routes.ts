@@ -59,7 +59,7 @@ export async function productsRoutes(app: FastifyInstance) {
 
   app.post('/', { preHandler: [authenticate, requireActiveSubscription] }, async (req, reply) => {
     const result = createSchema.safeParse(req.body)
-    if (!result.success) throw Errors.validation(result.error.errors.map(e => ({ field: String(e.path[0]), message: e.message })))
+    if (!result.success) throw Errors.validation(result.error.issues.map(e => ({ field: String(e.path[0]), message: e.message })))
     const { name, description, priceLei, category, isAvailable, isEstimate, isBookable, stock } = result.data
     const product = await productsRepository.create(req.user!.id, {
       name, description, priceBani: leiToBani(priceLei), category, isAvailable, isEstimate, isBookable, stock,
@@ -70,7 +70,7 @@ export async function productsRoutes(app: FastifyInstance) {
   app.patch('/:id', { preHandler: [authenticate, requireActiveSubscription] }, async (req, reply) => {
     const id = (req.params as { id: string }).id
     const result = updateSchema.safeParse(req.body)
-    if (!result.success) throw Errors.validation(result.error.errors.map(e => ({ field: String(e.path[0]), message: e.message })))
+    if (!result.success) throw Errors.validation(result.error.issues.map(e => ({ field: String(e.path[0]), message: e.message })))
 
     const existing = await productsRepository.findById(req.user!.id, id)
     if (!existing) throw Errors.notFound('Product')
@@ -85,7 +85,7 @@ export async function productsRoutes(app: FastifyInstance) {
 
   app.post('/import', { preHandler: [authenticate, requireActiveSubscription] }, async (req, reply) => {
     const result = importSchema.safeParse(req.body)
-    if (!result.success) throw Errors.validation(result.error.errors.map(e => ({ field: e.path.join('.'), message: e.message })))
+    if (!result.success) throw Errors.validation(result.error.issues.map(e => ({ field: e.path.join('.'), message: e.message })))
 
     const count = await productsRepository.createMany(req.user!.id, result.data.items.map(it => ({
       name: it.name,

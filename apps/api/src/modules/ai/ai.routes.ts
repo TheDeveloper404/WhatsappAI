@@ -29,7 +29,7 @@ export async function aiRoutes(app: FastifyInstance) {
       orderIntakePrompt: z.string().max(2000).optional(),
     })
     const result = schema.safeParse(req.body)
-    if (!result.success) throw Errors.validation(result.error.errors.map(e => ({ field: String(e.path[0]), message: e.message })))
+    if (!result.success) throw Errors.validation(result.error.issues.map(e => ({ field: String(e.path[0]), message: e.message })))
     const settings = await aiService.updateSettings(req.user!.id, result.data)
     return reply.send({ settings })
   })
@@ -53,7 +53,7 @@ export async function aiRoutes(app: FastifyInstance) {
   app.post('/blacklist', { preHandler: [authenticate, requireActiveSubscription]}, async (req, reply) => {
     const schema = z.object({ phoneNumber: z.string().min(7).max(20) })
     const result = schema.safeParse(req.body)
-    if (!result.success) throw Errors.validation(result.error.errors.map(e => ({ field: String(e.path[0]), message: e.message })))
+    if (!result.success) throw Errors.validation(result.error.issues.map(e => ({ field: String(e.path[0]), message: e.message })))
     await aiService.addBlacklist(req.user!.id, result.data.phoneNumber.replace(/[^0-9]/g, ''))
     return reply.status(201).send({ ok: true })
   })
@@ -84,7 +84,7 @@ export async function aiRoutes(app: FastifyInstance) {
   app.post('/leads/analyze', { config: { rateLimit: { max: 5, timeWindow: '1 minute' } }, preHandler: [authenticate, requireActiveSubscription]}, async (req, reply) => {
     const schema = z.object({ phone: z.string().min(7).max(20).optional() })
     const result = schema.safeParse(req.body ?? {})
-    if (!result.success) throw Errors.validation(result.error.errors.map(e => ({ field: String(e.path[0]), message: e.message })))
+    if (!result.success) throw Errors.validation(result.error.issues.map(e => ({ field: String(e.path[0]), message: e.message })))
 
     if (result.data.phone) {
       const phone = result.data.phone.replace(/[^0-9]/g, '')

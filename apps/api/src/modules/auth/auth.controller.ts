@@ -1,4 +1,5 @@
 import type { FastifyRequest, FastifyReply } from 'fastify'
+import type { ZodType } from 'zod'
 import { authService } from './auth.service.js'
 import {
   registerSchema,
@@ -34,14 +35,14 @@ function assertTrustedOrigin(req: FastifyRequest): void {
   if (!allowed.has(origin.replace(/\/$/, ''))) throw Errors.forbidden('Cross-site request blocked.')
 }
 
-function parseBody<T>(schema: { safeParse: (v: unknown) => { success: boolean; data?: T; error?: { errors: { path: (string | number)[]; message: string }[] } } }, body: unknown): T {
+function parseBody<T>(schema: ZodType<T>, body: unknown): T {
   const result = schema.safeParse(body)
   if (!result.success) {
     throw Errors.validation(
-      result.error!.errors.map(e => ({ field: String(e.path[0] ?? 'unknown'), message: e.message }))
+      result.error.issues.map(e => ({ field: String(e.path[0] ?? 'unknown'), message: e.message }))
     )
   }
-  return result.data!
+  return result.data
 }
 
 export const authController = {

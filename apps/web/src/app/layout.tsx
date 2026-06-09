@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import "./globals.css";
 import { CookieBanner } from "@/components/CookieBanner";
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 // Fonturi self-hostate (non-blocking) — înlocuiesc <link> sincron spre Google Fonts (~2s mobil în Lighthouse).
 // Space Grotesk prin next/font/google (`latin-ext` = diacritice RO ș/ț/ă/â/î).
@@ -75,6 +76,7 @@ export default function RootLayout({
         {children}
         <CookieBanner />
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );

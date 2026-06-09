@@ -45,7 +45,7 @@ const rl = (max: number, timeWindow: string) =>
 function parse<S extends z.ZodTypeAny>(schema: S, data: unknown): z.infer<S> {
   const result = schema.safeParse(data)
   if (!result.success) {
-    throw Errors.validation(result.error.errors.map(e => ({ field: String(e.path[0]), message: e.message })))
+    throw Errors.validation(result.error.issues.map(e => ({ field: String(e.path[0]), message: e.message })))
   }
   return result.data
 }

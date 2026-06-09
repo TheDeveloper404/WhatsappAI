@@ -24,7 +24,7 @@ export async function appointmentsRoutes(app: FastifyInstance) {
   app.patch('/:id/status', { preHandler: [authenticate, requireActiveSubscription] }, async (req, reply) => {
     const id = (req.params as { id: string }).id
     const result = statusSchema.safeParse(req.body)
-    if (!result.success) throw Errors.validation(result.error.errors.map(e => ({ field: String(e.path[0]), message: e.message })))
+    if (!result.success) throw Errors.validation(result.error.issues.map(e => ({ field: String(e.path[0]), message: e.message })))
 
     const existing = await appointmentsRepository.findById(req.user!.id, id)
     if (!existing) throw Errors.notFound('Appointment')

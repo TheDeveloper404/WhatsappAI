@@ -9,7 +9,7 @@ const checkoutSchema = z.object({ plan: z.enum(['monthly', 'annual']) })
 export async function billingRoutes(app: FastifyInstance) {
   app.post('/checkout', { preHandler: authenticate }, async (req, reply) => {
     const result = checkoutSchema.safeParse(req.body)
-    if (!result.success) throw Errors.validation(result.error.errors.map(e => ({ field: String(e.path[0]), message: e.message })))
+    if (!result.success) throw Errors.validation(result.error.issues.map(e => ({ field: String(e.path[0]), message: e.message })))
 
     const { url } = await billingService.createCheckoutSession(req.user!.id, result.data.plan)
     return reply.send({ url })

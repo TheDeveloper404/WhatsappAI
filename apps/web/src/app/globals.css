@@ -1,120 +1,292 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
 
-/* ─── THEME TOKENS ───────────────────────────────────────────────── */
-:root {
-  --bg: #F6F4EF;
-  --ink: #0A0F0C;
-  --dim: rgba(10,15,12,0.62);
-  --dimmer: rgba(10,15,12,0.42);
-  --line: rgba(10,15,12,0.10);
-  --card-bg: rgba(10,15,12,0.025);
-  --card-hi: rgba(10,15,12,0.05);
-  --acid: #128C7E;
-  --acid-fill: #25D366;
-  --danger: #E04A3A;
-  --on-acid: #ffffff;
-  --on-acid-muted: rgba(255,255,255,0.72);
-  color-scheme: light;
-}
-html.dark {
-  --bg: #0A0F0C;
-  --ink: #E8E6E1;
-  --dim: rgba(232,230,225,0.58);
-  --dimmer: rgba(232,230,225,0.38);
-  --line: rgba(232,230,225,0.08);
-  --card-bg: rgba(255,255,255,0.025);
-  --card-hi: #1A211C;
-  --acid: #C8FB4A;
-  --acid-fill: #C8FB4A;
-  --danger: #FF5C4D;
-  --on-acid: #0A0F0C;
-  --on-acid-muted: rgba(10,15,12,0.65);
-  color-scheme: dark;
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --color-base: var(--bg);
+  --color-card: var(--card-bg);
+  --color-cardhi: var(--card-hi);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-dim: var(--dim);
+  --color-dimmer: var(--dimmer);
+  --color-acid: var(--acid);
+  --color-wa: #25d366;
+
+  --color-primary-50: #f0fdf4;
+  --color-primary-100: #dcfce7;
+  --color-primary-200: #bbf7d0;
+  --color-primary-300: #86efac;
+  --color-primary-400: #4ade80;
+  --color-primary-500: #22c55e;
+  --color-primary-600: #16a34a;
+  --color-primary-700: #15803d;
+  --color-primary-800: #166534;
+  --color-primary-900: #14532d;
+  --color-primary-950: #052e16;
+
+  --font-sans: var(--font-space-grotesk), system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 }
 
-/* ─── BASE ───────────────────────────────────────────────────────── */
-html { scroll-behavior: smooth; }
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
 
-/* iOS Safari face „shrink-to-fit": dacă orice element depășește cu un pic
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
+
+@utility text-balance {
+  text-wrap: balance;
+}
+
+@layer utilities {
+  /* ─── THEME TOKENS ───────────────────────────────────────────────── */
+  :root {
+    --bg: #f6f4ef;
+    --ink: #0a0f0c;
+    --dim: rgba(10, 15, 12, 0.62);
+    --dimmer: rgba(10, 15, 12, 0.42);
+    --line: rgba(10, 15, 12, 0.1);
+    --card-bg: rgba(10, 15, 12, 0.025);
+    --card-hi: rgba(10, 15, 12, 0.05);
+    --acid: #128c7e;
+    --acid-fill: #25d366;
+    --danger: #e04a3a;
+    --on-acid: #ffffff;
+    --on-acid-muted: rgba(255, 255, 255, 0.72);
+    color-scheme: light;
+  }
+  html.dark {
+    --bg: #0a0f0c;
+    --ink: #e8e6e1;
+    --dim: rgba(232, 230, 225, 0.58);
+    --dimmer: rgba(232, 230, 225, 0.38);
+    --line: rgba(232, 230, 225, 0.08);
+    --card-bg: rgba(255, 255, 255, 0.025);
+    --card-hi: #1a211c;
+    --acid: #c8fb4a;
+    --acid-fill: #c8fb4a;
+    --danger: #ff5c4d;
+    --on-acid: #0a0f0c;
+    --on-acid-muted: rgba(10, 15, 12, 0.65);
+    color-scheme: dark;
+  }
+
+  /* ─── BASE ───────────────────────────────────────────────────────── */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* iOS Safari face „shrink-to-fit": dacă orice element depășește cu un pic
    lățimea ecranului, micșorează TOATĂ pagina (pare că dai zoom-out) în loc
    să pună scroll orizontal. `overflow-x: clip` taie overflow-ul marginal fără
    să strice `position: sticky` (cum ar face `overflow: hidden`). */
-html, body { overflow-x: clip; }
-body {
-  background: var(--bg);
-  color: var(--ink);
-  font-family: var(--font-space-grotesk), system-ui, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  font-feature-settings: 'ss01','ss02';
-}
+  html,
+  body {
+    overflow-x: clip;
+  }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-space-grotesk), system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    font-feature-settings: 'ss01', 'ss02';
+  }
 
-/* iOS Safari face auto-zoom la focus pe orice câmp cu font < 16px.
+  /* iOS Safari face auto-zoom la focus pe orice câmp cu font < 16px.
    Forțăm minim 16px pe mobil (≤640px) pe input/textarea/select — oprește zoom-ul
    fără să afectăm designul compact de pe desktop. */
-@media (max-width: 640px) {
-  input, textarea, select { font-size: 16px !important; }
-}
+  @media (max-width: 640px) {
+    input,
+    textarea,
+    select {
+      font-size: 16px !important;
+    }
+  }
 
-/* ─── TYPOGRAPHY ─────────────────────────────────────────────────── */
-.font-display { font-family: var(--font-geist-mono), ui-monospace, monospace; letter-spacing: -0.04em; line-height: 0.92; font-weight: 700; }
-.font-display-md { font-family: var(--font-geist-mono), ui-monospace, monospace; letter-spacing: -0.03em; line-height: 0.96; font-weight: 600; }
-.font-mono-ui { font-family: var(--font-geist-mono), ui-monospace, monospace; font-feature-settings: 'zero'; }
+  /* ─── TYPOGRAPHY ─────────────────────────────────────────────────── */
+  .font-display {
+    font-family: var(--font-geist-mono), ui-monospace, monospace;
+    letter-spacing: -0.04em;
+    line-height: 0.92;
+    font-weight: 700;
+  }
+  .font-display-md {
+    font-family: var(--font-geist-mono), ui-monospace, monospace;
+    letter-spacing: -0.03em;
+    line-height: 0.96;
+    font-weight: 600;
+  }
+  .font-mono-ui {
+    font-family: var(--font-geist-mono), ui-monospace, monospace;
+    font-feature-settings: 'zero';
+  }
 
-/* ─── SURFACE HELPERS ────────────────────────────────────────────── */
-.card-glass { background: linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.005)); border: 1px solid var(--line); }
-.card-elevated { background: var(--card-hi); border: 1px solid var(--line); }
+  /* ─── SURFACE HELPERS ────────────────────────────────────────────── */
+  .card-glass {
+    background: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.025),
+      rgba(255, 255, 255, 0.005)
+    );
+    border: 1px solid var(--line);
+  }
+  .card-elevated {
+    background: var(--card-hi);
+    border: 1px solid var(--line);
+  }
 
-/* ─── GRID OVERLAY ───────────────────────────────────────────────── */
-.gridlines {
-  background-image:
-    linear-gradient(to right, var(--line) 1px, transparent 1px),
-    linear-gradient(to bottom, var(--line) 1px, transparent 1px);
-  background-size: 64px 64px;
-}
-.gridlines-mask {
-  -webkit-mask-image: radial-gradient(ellipse 80% 50% at 50% 0%, #000 30%, transparent 80%);
-  mask-image: radial-gradient(ellipse 80% 50% at 50% 0%, #000 30%, transparent 80%);
-}
+  /* ─── GRID OVERLAY ───────────────────────────────────────────────── */
+  .gridlines {
+    background-image:
+      linear-gradient(to right, var(--line) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--line) 1px, transparent 1px);
+    background-size: 64px 64px;
+  }
+  .gridlines-mask {
+    -webkit-mask-image: radial-gradient(
+      ellipse 80% 50% at 50% 0%,
+      #000 30%,
+      transparent 80%
+    );
+    mask-image: radial-gradient(
+      ellipse 80% 50% at 50% 0%,
+      #000 30%,
+      transparent 80%
+    );
+  }
 
-/* ─── CHAT BUBBLES ───────────────────────────────────────────────── */
-.bubble-r { border-radius: 14px 14px 4px 14px; }
-.bubble-l { border-radius: 14px 14px 14px 4px; }
+  /* ─── CHAT BUBBLES ───────────────────────────────────────────────── */
+  .bubble-r {
+    border-radius: 14px 14px 4px 14px;
+  }
+  .bubble-l {
+    border-radius: 14px 14px 14px 4px;
+  }
 
-/* ─── ANIMATIONS ─────────────────────────────────────────────────── */
-@keyframes pulseSoft { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.6; transform:scale(1.35); } }
-.pulse-dot { animation: pulseSoft 1.8s ease-in-out infinite; }
+  /* ─── ANIMATIONS ─────────────────────────────────────────────────── */
+  @keyframes pulseSoft {
+    0%,
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.6;
+      transform: scale(1.35);
+    }
+  }
+  .pulse-dot {
+    animation: pulseSoft 1.8s ease-in-out infinite;
+  }
 
-@keyframes typing { 0%,60%,100% { transform:translateY(0); opacity:.35; } 30% { transform:translateY(-3px); opacity:1; } }
-.typing-dot { animation: typing 1.2s infinite; display: inline-block; }
-.typing-dot:nth-child(2) { animation-delay: .12s; }
-.typing-dot:nth-child(3) { animation-delay: .24s; }
+  @keyframes typing {
+    0%,
+    60%,
+    100% {
+      transform: translateY(0);
+      opacity: 0.35;
+    }
+    30% {
+      transform: translateY(-3px);
+      opacity: 1;
+    }
+  }
+  .typing-dot {
+    animation: typing 1.2s infinite;
+    display: inline-block;
+  }
+  .typing-dot:nth-child(2) {
+    animation-delay: 0.12s;
+  }
+  .typing-dot:nth-child(3) {
+    animation-delay: 0.24s;
+  }
 
-@keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
-.marquee-track { animation: marquee 35s linear infinite; }
+  @keyframes marquee {
+    0% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(-50%);
+    }
+  }
+  .marquee-track {
+    animation: marquee 35s linear infinite;
+  }
 
-@keyframes barGrow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
-.bar-anim { transform-origin: bottom; }
+  @keyframes barGrow {
+    from {
+      transform: scaleY(0);
+    }
+    to {
+      transform: scaleY(1);
+    }
+  }
+  .bar-anim {
+    transform-origin: bottom;
+  }
 
-@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-.fade-in { animation: fadeIn 0.25s ease forwards; }
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  .fade-in {
+    animation: fadeIn 0.25s ease forwards;
+  }
 
-/* ─── ACCORDION ──────────────────────────────────────────────────── */
-details summary { list-style: none; cursor: pointer; }
-details summary::-webkit-details-marker { display: none; }
-details[open] .chev { transform: rotate(45deg); }
-.chev { transition: transform 0.2s ease; }
+  /* ─── ACCORDION ──────────────────────────────────────────────────── */
+  details summary {
+    list-style: none;
+    cursor: pointer;
+  }
+  details summary::-webkit-details-marker {
+    display: none;
+  }
+  details[open] .chev {
+    transform: rotate(45deg);
+  }
+  .chev {
+    transition: transform 0.2s ease;
+  }
 
-/* ─── THEME SWITCH — kill transitions for one frame ─────────────── */
-html.no-transition * { transition: none !important; }
+  /* ─── THEME SWITCH — kill transitions for one frame ─────────────── */
+  html.no-transition * {
+    transition: none !important;
+  }
 
-/* ─── MISC ───────────────────────────────────────────────────────── */
-.lift { transition: transform .25s ease, background-color .25s ease, border-color .25s ease; }
-.lift:hover { transform: translateY(-2px); }
-.nice-scroll::-webkit-scrollbar { display: none; }
-.nice-scroll { scrollbar-width: none; }
-
-@layer utilities {
-  .text-balance { text-wrap: balance; }
+  /* ─── MISC ───────────────────────────────────────────────────────── */
+  .lift {
+    transition:
+      transform 0.25s ease,
+      background-color 0.25s ease,
+      border-color 0.25s ease;
+  }
+  .lift:hover {
+    transform: translateY(-2px);
+  }
+  .nice-scroll::-webkit-scrollbar {
+    display: none;
+  }
+  .nice-scroll {
+    scrollbar-width: none;
+  }
 }

@@ -68,7 +68,7 @@ function NavRow({ item, active, onClick }: { item: NavItem; active: boolean; onC
         active ? 'bg-cardhi text-ink' : 'text-dim hover:text-ink hover:bg-cardhi'
       }`}
     >
-      <Icon className={`h-5 w-5 flex-shrink-0 mt-0.5 ${active ? 'text-acid' : ''}`} />
+      <Icon className={`h-5 w-5 shrink-0 mt-0.5 ${active ? 'text-acid' : ''}`} />
       <span className="min-w-0">
         <span className="block font-mono-ui text-[14px] leading-tight">{item.label}</span>
         <span className="block font-mono-ui text-[10.5px] text-dimmer leading-tight mt-0.5 truncate">{item.desc}</span>
@@ -107,7 +107,7 @@ function BrandLink({ size = 'sm', onClick }: { size?: 'sm' | 'lg'; onClick?: () 
   const text = size === 'lg' ? 'text-[18px]' : 'text-[16px]'
   return (
     <Link href="/dashboard" onClick={onClick} className="flex items-center gap-2.5">
-      <span className={`inline-flex items-center justify-center ${circle} rounded-full flex-shrink-0`} style={{ background: '#25D366' }}>
+      <span className={`inline-flex items-center justify-center ${circle} rounded-full shrink-0`} style={{ background: '#25D366' }}>
         <WaIcon size={size === 'lg' ? 18 : 16} />
       </span>
       <span className={`font-mono-ui ${text} font-semibold text-ink`}>
@@ -155,7 +155,7 @@ function NavDrawer({
     <div className="lg:hidden">
       {/* Overlay */}
       <div
-        className={`fixed inset-0 z-40 bg-black/40 backdrop-blur-sm transition-opacity duration-200 ${
+        className={`fixed inset-0 z-40 bg-black/40 backdrop-blur-xs transition-opacity duration-200 ${
           open ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
         onClick={onClose}
@@ -200,7 +200,7 @@ function NavDrawer({
 // pe desktop brand-ul e în sidebar, deci stânga rămâne goală.
 function TopBar({ onMenu, onLogout }: { onMenu: () => void; onLogout: () => void }) {
   return (
-    <header className="sticky top-0 z-20 border-b border-line bg-base/90 backdrop-blur-sm">
+    <header className="sticky top-0 z-20 border-b border-line bg-base/90 backdrop-blur-xs">
       <div className="flex items-center justify-between gap-3 px-4 py-3">
         <div className="flex items-center gap-3 lg:hidden">
           <button

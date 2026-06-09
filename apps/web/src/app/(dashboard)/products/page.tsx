@@ -7,7 +7,7 @@ import { formatAmount, currencyLabel } from '@/lib/format'
 import { Loader2, Plus, Pencil, Trash2, X, Package, Save, Upload, FileSpreadsheet } from 'lucide-react'
 import { SalesTabs } from '@/components/SalesTabs'
 
-const inputCls = 'w-full rounded-xl border border-line px-3 py-2.5 text-[13px] text-ink bg-cardhi focus:outline-none focus:ring-2 focus:ring-acid/40 focus:border-acid transition-colors'
+const inputCls = 'w-full rounded-xl border border-line px-3 py-2.5 text-[13px] text-ink bg-cardhi focus:outline-hidden focus:ring-2 focus:ring-acid/40 focus:border-acid transition-colors'
 
 type FormState = {
   name: string
@@ -261,11 +261,11 @@ export default function ProductsPage() {
             type="button"
             onClick={() => setForm(f => ({ ...f, isAvailable: !f.isAvailable }))}
             style={form.isAvailable ? { background: 'var(--acid)' } : undefined}
-            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none ${
+            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-hidden ${
               form.isAvailable ? '' : 'bg-cardhi border border-line'
             }`}
           >
-            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${form.isAvailable ? 'translate-x-6' : 'translate-x-1'}`} />
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-xs transition-transform ${form.isAvailable ? 'translate-x-6' : 'translate-x-1'}`} />
           </button>
           <span className="font-mono-ui text-[13px] text-dim">
             Disponibil {form.isAvailable ? '— agentul îl poate oferi' : '— ascuns, agentul nu îl oferă'}
@@ -277,11 +277,11 @@ export default function ProductsPage() {
             type="button"
             onClick={() => setForm(f => ({ ...f, isEstimate: !f.isEstimate }))}
             style={form.isEstimate ? { background: 'var(--acid)' } : undefined}
-            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none ${
+            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-hidden ${
               form.isEstimate ? '' : 'bg-cardhi border border-line'
             }`}
           >
-            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${form.isEstimate ? 'translate-x-6' : 'translate-x-1'}`} />
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-xs transition-transform ${form.isEstimate ? 'translate-x-6' : 'translate-x-1'}`} />
           </button>
           <span className="font-mono-ui text-[13px] text-dim">
             Preț estimativ („de la”) {form.isEstimate ? '— proiect custom; agentul nu propune un total fix, predă ofertarea ție' : '— preț fix; agentul poate finaliza comanda'}
@@ -293,11 +293,11 @@ export default function ProductsPage() {
             type="button"
             onClick={() => setForm(f => ({ ...f, isBookable: !f.isBookable }))}
             style={form.isBookable ? { background: 'var(--acid)' } : undefined}
-            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none ${
+            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-hidden ${
               form.isBookable ? '' : 'bg-cardhi border border-line'
             }`}
           >
-            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${form.isBookable ? 'translate-x-6' : 'translate-x-1'}`} />
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-xs transition-transform ${form.isBookable ? 'translate-x-6' : 'translate-x-1'}`} />
           </button>
           <span className="font-mono-ui text-[13px] text-dim">
             Rezervabil {form.isBookable ? '— serviciu pe programare; agentul strânge intervalul, tu confirmi' : '— fără programare'}
@@ -418,7 +418,7 @@ export default function ProductsPage() {
                     <th className="px-3 py-2 text-center">Disp.</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[var(--line)]">
+                <tbody className="divide-y divide-(--line)">
                   {importPreview.slice(0, 50).map((p, i) => (
                     <tr key={i} className="font-mono-ui text-[12px] text-ink">
                       <td className="px-3 py-2">{p.name}</td>
@@ -467,7 +467,7 @@ export default function ProductsPage() {
           )}
         </div>
       ) : (
-        <ul className="divide-y divide-[var(--line)] border border-line rounded-xl overflow-hidden">
+        <ul className="divide-y divide-(--line) border border-line rounded-xl overflow-hidden">
           {products.map(p =>
             editingId === p.id ? (
               // Editare inline: formularul ia locul rândului, exact în dreptul produsului.
@@ -478,7 +478,7 @@ export default function ProductsPage() {
               <li key={p.id} className="flex items-center gap-3 px-4 sm:px-5 py-4 hover:bg-cardhi/40 transition-colors">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-mono-ui text-[14px] text-ink font-medium break-words">{p.name}</span>
+                    <span className="font-mono-ui text-[14px] text-ink font-medium wrap-break-word">{p.name}</span>
                     {p.category && (
                       <span className="font-mono-ui text-[10px] text-dim bg-cardhi px-2 py-0.5 rounded-full">{p.category}</span>
                     )}

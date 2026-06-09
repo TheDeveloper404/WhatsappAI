@@ -65,7 +65,7 @@ export function DeleteAccountButton() {
           onChange={e => setPassword(e.target.value)}
           autoComplete="current-password"
           placeholder="parola"
-          className="mt-1 w-full bg-cardhi border border-line rounded-lg px-3 py-2 font-mono-ui text-[13px] text-ink placeholder:text-dimmer focus:outline-none focus:ring-2 focus:ring-red-500/40 focus:border-red-500 transition-colors"
+          className="mt-1 w-full bg-cardhi border border-line rounded-lg px-3 py-2 font-mono-ui text-[13px] text-ink placeholder:text-dimmer focus:outline-hidden focus:ring-2 focus:ring-red-500/40 focus:border-red-500 transition-colors"
         />
       </label>
       {error && <p className="font-mono-ui text-[12px] text-red-500 mb-3">{error}</p>}

@@ -93,7 +93,7 @@ export default function ProfilePage() {
       {/* Avatar + info cont */}
       <div className="flex items-center gap-4 pb-7 border-b border-line">
         <div
-          className="w-14 h-14 rounded-full flex items-center justify-center font-mono-ui text-[18px] font-bold flex-shrink-0"
+          className="w-14 h-14 rounded-full flex items-center justify-center font-mono-ui text-[18px] font-bold shrink-0"
           style={{ background: 'var(--acid)', color: 'var(--on-acid)' }}
         >
           {initials}
@@ -107,7 +107,7 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      <div className="divide-y divide-[var(--line)]">
+      <div className="divide-y divide-(--line)">
 
         {/* Securitate */}
         <div className="py-6">
@@ -126,7 +126,7 @@ export default function ProfilePage() {
               <button
                 onClick={handleSendReset}
                 disabled={sendingReset}
-                className="flex items-center gap-2 font-mono-ui text-[12px] px-4 py-2 rounded-lg border border-line hover:bg-cardhi transition-colors disabled:opacity-50 whitespace-nowrap flex-shrink-0"
+                className="flex items-center gap-2 font-mono-ui text-[12px] px-4 py-2 rounded-lg border border-line hover:bg-cardhi transition-colors disabled:opacity-50 whitespace-nowrap shrink-0"
               >
                 {sendingReset ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
                 Trimite link
@@ -158,7 +158,7 @@ export default function ProfilePage() {
               <button
                 onClick={handleOpenPortal}
                 disabled={openingPortal}
-                className="flex items-center gap-2 font-mono-ui text-[12px] px-4 py-2 rounded-lg border border-line hover:bg-cardhi transition-colors disabled:opacity-50 whitespace-nowrap flex-shrink-0"
+                className="flex items-center gap-2 font-mono-ui text-[12px] px-4 py-2 rounded-lg border border-line hover:bg-cardhi transition-colors disabled:opacity-50 whitespace-nowrap shrink-0"
               >
                 {openingPortal ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
                 Gestionează

@@ -36,7 +36,7 @@ export function CookieBanner() {
           </Link>
         </p>
       </div>
-      <div className="flex flex-shrink-0 gap-2">
+      <div className="flex shrink-0 gap-2">
         <button
           onClick={accept}
           className="font-mono-ui text-[12.5px] bg-acid px-5 py-2.5 rounded-full hover:opacity-90 transition-opacity"

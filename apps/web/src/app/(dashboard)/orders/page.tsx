@@ -200,7 +200,7 @@ export default function OrdersPage() {
                         value={order.status}
                         onChange={e => handleStatusChange(order.id, e.target.value as OrderStatus)}
                         disabled={updatingId === order.id}
-                        className="appearance-none font-mono-ui text-[12px] text-ink bg-cardhi border border-line rounded-lg pl-3 pr-8 py-2 focus:outline-none focus:ring-2 focus:ring-acid/40 cursor-pointer disabled:opacity-50"
+                        className="appearance-none font-mono-ui text-[12px] text-ink bg-cardhi border border-line rounded-lg pl-3 pr-8 py-2 focus:outline-hidden focus:ring-2 focus:ring-acid/40 cursor-pointer disabled:opacity-50"
                       >
                         {STATUS_OPTIONS.map(s => (
                           <option key={s} value={s}>{STATUS_META[s].label}</option>

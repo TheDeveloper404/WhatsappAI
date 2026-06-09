@@ -147,7 +147,7 @@ function ContactRow({
                   }`}
                   style={msg.fromMe ? { background: 'var(--acid)', color: 'var(--on-acid)' } : undefined}
                 >
-                  <p className="whitespace-pre-wrap break-words font-mono-ui text-[13px]">{msg.body}</p>
+                  <p className="whitespace-pre-wrap wrap-break-word font-mono-ui text-[13px]">{msg.body}</p>
                   <p className={`font-mono-ui text-[10px] mt-1 ${msg.fromMe ? 'opacity-70' : 'text-dimmer'}`}>
                     {formatTime(msg.waTimestamp)}
                   </p>

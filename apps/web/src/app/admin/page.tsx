@@ -79,7 +79,7 @@ export default function AdminLoginPage() {
               value={secret}
               onChange={e => setSecret(e.target.value)}
               placeholder="cod de acces"
-              className="w-full h-12 px-4 text-center text-ink bg-cardhi border border-line rounded-xl font-mono-ui tracking-widest placeholder:tracking-normal placeholder:text-dimmer focus:outline-none focus:ring-2 focus:ring-acid/40 focus:border-acid transition-colors"
+              className="w-full h-12 px-4 text-center text-ink bg-cardhi border border-line rounded-xl font-mono-ui tracking-widest placeholder:tracking-normal placeholder:text-dimmer focus:outline-hidden focus:ring-2 focus:ring-acid/40 focus:border-acid transition-colors"
             />
 
             <input
@@ -90,7 +90,7 @@ export default function AdminLoginPage() {
               value={totp}
               onChange={e => setTotp(e.target.value.replace(/\D/g, ''))}
               placeholder="cod 2FA (dacă e activat)"
-              className="w-full h-12 px-4 text-center text-ink bg-cardhi border border-line rounded-xl font-mono-ui tracking-widest placeholder:tracking-normal placeholder:text-dimmer focus:outline-none focus:ring-2 focus:ring-acid/40 focus:border-acid transition-colors"
+              className="w-full h-12 px-4 text-center text-ink bg-cardhi border border-line rounded-xl font-mono-ui tracking-widest placeholder:tracking-normal placeholder:text-dimmer focus:outline-hidden focus:ring-2 focus:ring-acid/40 focus:border-acid transition-colors"
             />
 
             {error && <Alert type="error" message={error} />}

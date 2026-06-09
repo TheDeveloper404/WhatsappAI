@@ -110,7 +110,7 @@ function Hero() {
       <div className="max-w-[1440px] mx-auto px-6 lg:px-8 relative">
         {/* Announcement chip */}
         <div className="flex justify-center mb-10">
-          <a href="#diff" className="inline-flex items-center gap-2 font-mono-ui text-[11.5px] tracking-wide px-3 py-1.5 rounded-full border border-line backdrop-blur text-dim hover:text-ink transition-colors"
+          <a href="#diff" className="inline-flex items-center gap-2 font-mono-ui text-[11.5px] tracking-wide px-3 py-1.5 rounded-full border border-line backdrop-blur-sm text-dim hover:text-ink transition-colors"
             style={{ background: 'color-mix(in oklab, var(--bg) 60%, transparent)' }}>
             <span className="relative flex w-1.5 h-1.5">
               <span className="absolute inline-flex w-full h-full rounded-full bg-acid pulse-dot" />
@@ -244,10 +244,10 @@ function OperatorConsole() {
           {/* Console header */}
           <div className="flex items-center justify-between gap-2 px-5 py-3 border-b border-line">
             <div className="flex items-center gap-2 min-w-0">
-              <span className="w-2 h-2 rounded-full bg-acid pulse-dot flex-shrink-0" />
+              <span className="w-2 h-2 rounded-full bg-acid pulse-dot shrink-0" />
               <span className="font-mono-ui text-[11px] text-acid truncate">whatsapp.ai · operator console</span>
             </div>
-            <div className="font-mono-ui text-[10.5px] text-dimmer flex-shrink-0">uptime <span className="text-ink">99.97%</span> · lat. <span className="text-ink">142ms</span></div>
+            <div className="font-mono-ui text-[10.5px] text-dimmer shrink-0">uptime <span className="text-ink">99.97%</span> · lat. <span className="text-ink">142ms</span></div>
           </div>
 
           {/* Console body — 3 coloane egale */}
@@ -266,7 +266,7 @@ function OperatorConsole() {
               <div className="font-mono-ui text-[9.5px] text-dimmer tracking-widest uppercase mb-3">MESAJE / ORĂ</div>
               <div className="flex items-end gap-1 h-[52px] mb-1">
                 {[65, 45, 80, 55, 90, 70, 60, 85].map((h, i) => (
-                  <div key={i} className="flex-1 rounded-sm bar-anim" style={{ height: `${h}%`, background: 'var(--acid)', animation: `barGrow 0.5s ease ${i * 0.07}s both` }} />
+                  <div key={i} className="flex-1 rounded-xs bar-anim" style={{ height: `${h}%`, background: 'var(--acid)', animation: `barGrow 0.5s ease ${i * 0.07}s both` }} />
                 ))}
               </div>
               <div className="flex justify-between font-mono-ui text-[9px] text-dimmer mb-6">
@@ -286,7 +286,7 @@ function OperatorConsole() {
                 <span className="font-mono-ui text-[10px] text-acid border border-acid rounded-full px-2 py-0.5 pulse-dot">· live</span>
               </div>
               <div className="flex items-center gap-2.5 mb-5">
-                <div className="w-9 h-9 rounded-full font-mono-ui text-[11px] font-bold text-ink flex items-center justify-center flex-shrink-0" style={{ background: 'var(--card-hi)' }}>MD</div>
+                <div className="w-9 h-9 rounded-full font-mono-ui text-[11px] font-bold text-ink flex items-center justify-center shrink-0" style={{ background: 'var(--card-hi)' }}>MD</div>
                 <div>
                   <div className="font-mono-ui text-[13px] font-medium text-ink">Maria D.</div>
                   <div className="font-mono-ui text-[10px] text-dimmer">lead nou · imobiliare</div>
@@ -323,7 +323,7 @@ function OperatorConsole() {
                 <div className="flex items-center gap-2 font-mono-ui text-[10px] text-dimmer">
                   <span>STIL · 99% match</span>
                   <div className="flex gap-0.5">
-                    {[1,2,3,4].map(i => <div key={i} className="w-1.5 h-3.5 rounded-sm" style={{ background: 'var(--acid)' }} />)}
+                    {[1,2,3,4].map(i => <div key={i} className="w-1.5 h-3.5 rounded-xs" style={{ background: 'var(--acid)' }} />)}
                   </div>
                 </div>
                 <span className="font-mono-ui text-[10px] text-acid">preia tu →</span>
@@ -345,7 +345,7 @@ function OperatorConsole() {
                   { dot: 'dim', title: 'contact pe blacklist · sărit', sub: '+40 723 ···', time: '2h ago' },
                 ].map((item, i) => (
                   <div key={i} className="flex items-start gap-2.5">
-                    <span className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0"
+                    <span className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0"
                       style={{ background: item.dot === 'acid' ? 'var(--acid)' : item.dot === 'danger' ? 'var(--danger)' : 'var(--dim)' }} />
                     <div>
                       <div className="font-mono-ui text-[11px] text-ink leading-snug">{item.title}</div>
@@ -381,7 +381,7 @@ function Ticker() {
     <div className="border-y border-line overflow-hidden py-3">
       <div className="marquee-track flex gap-12 whitespace-nowrap">
         {doubled.map((item, i) => (
-          <span key={i} className="font-mono-ui text-[11px] text-dimmer flex-shrink-0">{item}</span>
+          <span key={i} className="font-mono-ui text-[11px] text-dimmer shrink-0">{item}</span>
         ))}
       </div>
     </div>
@@ -397,9 +397,9 @@ const HIGHLIGHTS = [
     desc: 'Încarci PDF, DOCX sau TXT. Agentul caută în ele și răspunde clienților exact din informațiile tale — prețuri, politici, specificații — fără să inventeze.',
     detail: (
       <div className="flex items-center gap-1.5 font-mono-ui text-[10px] text-dimmer">
-        <span className="px-1.5 py-0.5 rounded bg-cardhi text-ink">PDF</span>
-        <span className="px-1.5 py-0.5 rounded bg-cardhi text-ink">DOCX</span>
-        <span className="px-1.5 py-0.5 rounded bg-cardhi text-ink">TXT</span>
+        <span className="px-1.5 py-0.5 rounded-sm bg-cardhi text-ink">PDF</span>
+        <span className="px-1.5 py-0.5 rounded-sm bg-cardhi text-ink">DOCX</span>
+        <span className="px-1.5 py-0.5 rounded-sm bg-cardhi text-ink">TXT</span>
         <ArrowRight className="h-3 w-3 text-acid" />
         <span className="text-acid">răspuns exact</span>
       </div>
@@ -453,7 +453,7 @@ function Differentiator() {
         {/* Cele 3 dovezi — rânduri, nu carduri */}
         <div className="divide-y border-t border-b" style={{ borderColor: 'var(--line)' }}>
           {HIGHLIGHTS.map(({ icon: Icon, tag, title, desc, detail }) => (
-            <div key={tag} className="grid grid-cols-[44px_1fr] sm:grid-cols-[44px_260px_1fr_auto] items-center gap-4 sm:gap-8 py-6 group hover:bg-cardhi transition-colors px-2 rounded">
+            <div key={tag} className="grid grid-cols-[44px_1fr] sm:grid-cols-[44px_260px_1fr_auto] items-center gap-4 sm:gap-8 py-6 group hover:bg-cardhi transition-colors px-2 rounded-sm">
               <span className="inline-flex items-center justify-center w-10 h-10 rounded-xl"
                 style={{ background: 'color-mix(in oklab, var(--acid) 16%, var(--card-hi))' }}>
                 <Icon className="h-4 w-4 text-acid" />
@@ -715,7 +715,7 @@ function HowItWorks() {
               </div>
               <div className="flex items-end gap-1 h-8">
                 {[55, 70, 40, 85, 65, 90, 75].map((h, i) => (
-                  <div key={i} className="flex-1 rounded-sm transition-all duration-500" style={{ height: `${h}%`, background: toggleOn ? 'var(--acid)' : 'var(--dimmer)', opacity: toggleOn ? 1 : 0.4 }} />
+                  <div key={i} className="flex-1 rounded-xs transition-all duration-500" style={{ height: `${h}%`, background: toggleOn ? 'var(--acid)' : 'var(--dimmer)', opacity: toggleOn ? 1 : 0.4 }} />
                 ))}
               </div>
             </div>
@@ -731,7 +731,7 @@ const FEATURES = [
   {
     no: '01', title: 'răspunde 24/7, fără excepții',
     desc: 'Timer 1–60 min. Dacă nu răspunzi în acel interval, agentul preia automat conversația.',
-    visual: <div className="flex items-end gap-0.5 h-5">{[40,70,50,90,65,85,55,100,75].map((h,i)=><div key={i} className="w-1 rounded-sm" style={{height:`${h}%`,background:'var(--acid)'}}/>)}</div>,
+    visual: <div className="flex items-end gap-0.5 h-5">{[40,70,50,90,65,85,55,100,75].map((h,i)=><div key={i} className="w-1 rounded-xs" style={{height:`${h}%`,background:'var(--acid)'}}/>)}</div>,
   },
   {
     no: '02', title: 'bază de cunoștințe a ta',
@@ -751,7 +751,7 @@ const FEATURES = [
   {
     no: '05', title: 'detectează frustrarea și urgența',
     desc: 'Client nervos sau cerere urgentă — primești alertă pe WhatsApp și AI ajustează tonul răspunsului.',
-    visual: <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full flex-shrink-0" style={{background:'var(--danger)'}} /><span className="font-mono-ui text-[10px]" style={{color:'var(--danger)'}}>tone</span><span className="font-mono-ui text-[11px] font-bold text-acid">!</span></div>,
+    visual: <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full shrink-0" style={{background:'var(--danger)'}} /><span className="font-mono-ui text-[10px]" style={{color:'var(--danger)'}}>tone</span><span className="font-mono-ui text-[11px] font-bold text-acid">!</span></div>,
   },
   {
     no: '06', title: 'listă neagră de contacte',
@@ -766,7 +766,7 @@ const FEATURES = [
   {
     no: '08', title: 'statistici și dashboard',
     desc: 'Câte mesaje a răspuns AI azi, în 7 și 30 de zile. Conversații preluate, sesiune activă.',
-    visual: <div className="flex items-end gap-0.5 h-5">{[60,90,45,75,100].map((h,i)=><div key={i} className="w-1.5 rounded-sm" style={{height:`${h}%`,background:'var(--acid)'}}/>)}<span className="font-mono-ui text-[9px] text-acid ml-1">+34k</span></div>,
+    visual: <div className="flex items-end gap-0.5 h-5">{[60,90,45,75,100].map((h,i)=><div key={i} className="w-1.5 rounded-xs" style={{height:`${h}%`,background:'var(--acid)'}}/>)}<span className="font-mono-ui text-[9px] text-acid ml-1">+34k</span></div>,
   },
   {
     no: '09', title: 'pornești/oprești instant',
@@ -798,7 +798,7 @@ function Features() {
         {/* Table rows */}
         <div className="divide-y border-t border-b border-line" style={{ borderColor: 'var(--line)' }}>
           {FEATURES.map((f) => (
-            <div key={f.no} className="grid grid-cols-[40px_1fr_auto] sm:grid-cols-[40px_220px_1fr_140px] items-center gap-4 sm:gap-8 py-5 group hover:bg-cardhi transition-colors px-2 rounded">
+            <div key={f.no} className="grid grid-cols-[40px_1fr_auto] sm:grid-cols-[40px_220px_1fr_140px] items-center gap-4 sm:gap-8 py-5 group hover:bg-cardhi transition-colors px-2 rounded-sm">
               <div className="font-mono-ui text-[11px] text-dimmer">{f.no}</div>
               <div className="font-display text-[17px] sm:text-[18px] text-ink">{f.title}</div>
               <div className="hidden sm:block text-[13px] text-dim leading-relaxed">{f.desc}</div>
@@ -870,7 +870,7 @@ function Pricing() {
               <ul className="space-y-2 mb-5 flex-1">
                 {PLAN_LUNAR.map(f => (
                   <li key={f} className="flex items-center gap-2 font-mono-ui text-[12px] text-dim">
-                    <Check className="w-3 h-3 text-acid flex-shrink-0" strokeWidth={2.5} />
+                    <Check className="w-3 h-3 text-acid shrink-0" strokeWidth={2.5} />
                     {f}
                   </li>
                 ))}
@@ -904,7 +904,7 @@ function Pricing() {
               <ul className="space-y-2 mb-5 flex-1">
                 {PLAN_ANUAL_EXTRA.map((f, i) => (
                   <li key={f} className={`flex items-center gap-2 font-mono-ui text-[12px] ${i === 0 ? 'font-semibold' : ''}`} style={{ color: 'var(--on-acid)' }}>
-                    <Check className="w-3 h-3 flex-shrink-0" style={{ color: 'var(--on-acid)' }} strokeWidth={2.5} />
+                    <Check className="w-3 h-3 shrink-0" style={{ color: 'var(--on-acid)' }} strokeWidth={2.5} />
                     {f}
                   </li>
                 ))}
@@ -965,7 +965,7 @@ const FAQ_ITEMS: { q: string; a: React.ReactNode }[] = [
           { model: 'Gemini 2.0 Flash', by: 'Google', role: 'backup', note: 'disponibil ca alternativă în caz de indisponibilitate' },
         ].map(m => (
           <div key={m.model} className="flex items-start gap-3">
-            <span className="mt-0.5 flex-shrink-0 w-1.5 h-1.5 rounded-full bg-acid" />
+            <span className="mt-0.5 shrink-0 w-1.5 h-1.5 rounded-full bg-acid" />
             <div>
               <span className="text-ink font-medium">{m.model}</span>
               <span className="text-dimmer"> · {m.by} · {m.role}</span>
@@ -1016,7 +1016,7 @@ function FAQ() {
                     className="flex items-start justify-between gap-4 w-full text-left"
                   >
                     <span className="font-display-md text-[17px] text-ink flex-1">{item.q}</span>
-                    <span className={`flex-shrink-0 w-7 h-7 rounded-full border border-line text-dim grid place-items-center font-mono-ui text-[14px] transition-transform duration-300 ${isOpen ? 'rotate-45' : ''}`}>
+                    <span className={`shrink-0 w-7 h-7 rounded-full border border-line text-dim grid place-items-center font-mono-ui text-[14px] transition-transform duration-300 ${isOpen ? 'rotate-45' : ''}`}>
                       +
                     </span>
                   </button>

@@ -5,7 +5,7 @@ import { api, type AiSettings, type WhatsappSession, type KnowledgeDocument } fr
 import { CURRENCIES, currencyLabel } from '@/lib/format'
 import { Loader2, Save, Plus, X, Bot, Clock, Shield, Terminal, Flame, FileText, Upload, Trash2 } from 'lucide-react'
 
-const inputCls = 'w-full rounded-xl border border-line px-3 py-2.5 text-[13px] text-ink bg-cardhi focus:outline-none focus:ring-2 focus:ring-acid/40 focus:border-acid transition-colors resize-y'
+const inputCls = 'w-full rounded-xl border border-line px-3 py-2.5 text-[13px] text-ink bg-cardhi focus:outline-hidden focus:ring-2 focus:ring-acid/40 focus:border-acid transition-colors resize-y'
 
 const TABS = [
   { id: 'agent', label: 'Agent', icon: Bot },
@@ -284,7 +284,7 @@ export default function SettingsPage() {
 
       {/* Tab: Agent */}
       {activeTab === 'agent' && (
-        <div className="divide-y divide-[var(--line)]">
+        <div className="divide-y divide-(--line)">
 
           {/* Stare agent */}
           <div className="pb-7">
@@ -298,7 +298,7 @@ export default function SettingsPage() {
                 Agentul a fost dezactivat de administrator. Contactează suportul pentru reactivare.
               </div>
             ) : (
-              <div className="space-y-0 divide-y divide-[var(--line)]">
+              <div className="space-y-0 divide-y divide-(--line)">
                 <div className="flex items-center justify-between pb-5">
                   <div>
                     <p className="font-mono-ui text-[14px] text-ink font-medium">
@@ -314,13 +314,13 @@ export default function SettingsPage() {
                     onClick={handleToggleAI}
                     disabled={togglingAI}
                     style={settings?.isActive ? { background: 'var(--acid)' } : undefined}
-                    className={`relative inline-flex h-6 w-11 shrink-0 ml-6 items-center rounded-full transition-colors focus:outline-none disabled:opacity-50 ${
+                    className={`relative inline-flex h-6 w-11 shrink-0 ml-6 items-center rounded-full transition-colors focus:outline-hidden disabled:opacity-50 ${
                       settings?.isActive ? '' : 'bg-cardhi border border-line'
                     }`}
                   >
                     {togglingAI
                       ? <Loader2 className="h-3 w-3 animate-spin text-white absolute left-1/2 -translate-x-1/2" />
-                      : <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${settings?.isActive ? 'translate-x-6' : 'translate-x-1'}`} />
+                      : <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-xs transition-transform ${settings?.isActive ? 'translate-x-6' : 'translate-x-1'}`} />
                     }
                   </button>
                 </div>
@@ -337,11 +337,11 @@ export default function SettingsPage() {
                       setSettings(updated)
                     }}
                     style={settings?.notifyOnAiTakeover ? { background: 'var(--acid)' } : undefined}
-                    className={`relative inline-flex h-6 w-11 shrink-0 ml-6 items-center rounded-full transition-colors focus:outline-none ${
+                    className={`relative inline-flex h-6 w-11 shrink-0 ml-6 items-center rounded-full transition-colors focus:outline-hidden ${
                       settings?.notifyOnAiTakeover ? '' : 'bg-cardhi border border-line'
                     }`}
                   >
-                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${settings?.notifyOnAiTakeover ? 'translate-x-6' : 'translate-x-1'}`} />
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-xs transition-transform ${settings?.notifyOnAiTakeover ? 'translate-x-6' : 'translate-x-1'}`} />
                   </button>
                 </div>
               </div>
@@ -371,7 +371,7 @@ export default function SettingsPage() {
                 max={60}
                 value={timerMinutes}
                 onChange={e => setTimerMinutes(Math.max(1, Math.min(60, parseInt(e.target.value) || 1)))}
-                className="w-20 rounded-xl border border-line px-3 py-2.5 text-[13px] text-ink bg-cardhi text-center focus:outline-none focus:ring-2 focus:ring-acid/40 focus:border-acid transition-colors"
+                className="w-20 rounded-xl border border-line px-3 py-2.5 text-[13px] text-ink bg-cardhi text-center focus:outline-hidden focus:ring-2 focus:ring-acid/40 focus:border-acid transition-colors"
               />
               <span className="font-mono-ui text-[13px] text-dim">minute (1–60)</span>
               <button
@@ -399,7 +399,7 @@ export default function SettingsPage() {
               <select
                 value={currency}
                 onChange={e => setCurrency(e.target.value)}
-                className="w-40 rounded-xl border border-line px-3 py-2.5 text-[13px] text-ink bg-cardhi focus:outline-none focus:ring-2 focus:ring-acid/40 focus:border-acid transition-colors"
+                className="w-40 rounded-xl border border-line px-3 py-2.5 text-[13px] text-ink bg-cardhi focus:outline-hidden focus:ring-2 focus:ring-acid/40 focus:border-acid transition-colors"
               >
                 {CURRENCIES.map(c => (
                   <option key={c} value={c}>{c} ({currencyLabel(c)})</option>
@@ -449,7 +449,7 @@ export default function SettingsPage() {
 
       {/* Tab: Conținut */}
       {activeTab === 'continut' && (
-        <div className="divide-y divide-[var(--line)]">
+        <div className="divide-y divide-(--line)">
 
           {/* System prompt */}
           <div className="pb-7">
@@ -662,7 +662,7 @@ export default function SettingsPage() {
 
       {/* Tab: Control */}
       {activeTab === 'control' && (
-        <div className="divide-y divide-[var(--line)]">
+        <div className="divide-y divide-(--line)">
 
           {/* Comenzi WhatsApp */}
           <div className="pb-7">
@@ -673,7 +673,7 @@ export default function SettingsPage() {
             <p className="font-mono-ui text-[13px] text-dim mb-5">
               Trimite aceste comenzi de pe numărul tău conectat direct în WhatsApp pentru a controla agentul în timp real.
             </p>
-            <div className="divide-y divide-[var(--line)]">
+            <div className="divide-y divide-(--line)">
               {([
                 { cmd: '/activateAI', desc: 'Activează agentul' },
                 { cmd: '/deactivateAI', desc: 'Dezactivează agentul' },
@@ -685,7 +685,7 @@ export default function SettingsPage() {
                 { cmd: '/help', desc: 'Afișează lista comenzilor direct în WhatsApp' },
               ] as { cmd: string; desc: string }[]).map(({ cmd, desc }) => (
                 <div key={cmd} className="flex items-start gap-3 py-3">
-                  <code className="font-mono text-[12px] text-acid bg-acid/10 px-2 py-1 rounded shrink-0 mt-0.5">{cmd}</code>
+                  <code className="font-mono text-[12px] text-acid bg-acid/10 px-2 py-1 rounded-sm shrink-0 mt-0.5">{cmd}</code>
                   <span className="font-mono-ui text-[13px] text-dim">{desc}</span>
                 </div>
               ))}
@@ -708,7 +708,7 @@ export default function SettingsPage() {
                 onChange={e => { setNewPhone(e.target.value); setPhoneError(null) }}
                 onKeyDown={e => e.key === 'Enter' && handleAddPhone()}
                 placeholder="ex: 40758154490"
-                className="flex-1 rounded-xl border border-line px-3 py-2.5 text-[13px] text-ink bg-cardhi focus:outline-none focus:ring-2 focus:ring-acid/40 focus:border-acid transition-colors"
+                className="flex-1 rounded-xl border border-line px-3 py-2.5 text-[13px] text-ink bg-cardhi focus:outline-hidden focus:ring-2 focus:ring-acid/40 focus:border-acid transition-colors"
               />
               <button
                 onClick={handleAddPhone}
@@ -723,7 +723,7 @@ export default function SettingsPage() {
             {blacklist.length === 0 ? (
               <p className="font-mono-ui text-[13px] text-dimmer py-4">Niciun contact ignorat.</p>
             ) : (
-              <ul className="divide-y divide-[var(--line)]">
+              <ul className="divide-y divide-(--line)">
                 {blacklist.map(phone => (
                   <li key={phone} className="flex items-center justify-between py-3">
                     <span className="font-mono text-[13px] text-ink">+{phone}</span>

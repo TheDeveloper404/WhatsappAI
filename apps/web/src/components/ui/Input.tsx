@@ -30,9 +30,9 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             aria-invalid={!!error}
             className={cn(
               'w-full rounded-xl border px-3.5 py-2.5 text-[16px] text-ink placeholder:text-dimmer',
-              'bg-cardhi focus:outline-none focus:ring-2 focus:ring-acid/40 focus:border-acid',
+              'bg-cardhi focus:outline-hidden focus:ring-2 focus:ring-acid/40 focus:border-acid',
               'transition-[border-color,box-shadow]',
-              error ? 'border-[var(--danger)] bg-red-50 dark:bg-red-950/20' : 'border-line hover:border-acid/40',
+              error ? 'border-(--danger) bg-red-50 dark:bg-red-950/20' : 'border-line hover:border-acid/40',
               isPassword && 'pr-10',
               className
             )}
@@ -50,7 +50,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           )}
         </div>
         {error && (
-          <p id={`${inputId}-error`} className="text-[12px] text-[var(--danger)]" role="alert">
+          <p id={`${inputId}-error`} className="text-[12px] text-(--danger)" role="alert">
             {error}
           </p>
         )}

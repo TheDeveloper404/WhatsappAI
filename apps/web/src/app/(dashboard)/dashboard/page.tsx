@@ -231,7 +231,7 @@ function DashboardContent() {
     <div>
       {/* Popup expirare trial */}
       {showTrialPopup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={dismissTrialPopup}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs" onClick={dismissTrialPopup}>
           <div
             className="bg-base border border-line rounded-2xl p-6 max-w-md w-full shadow-xl"
             onClick={e => e.stopPropagation()}
@@ -340,7 +340,7 @@ function DashboardContent() {
       )}
 
       {/* Status bar — 3 secțiuni flat */}
-      <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-[var(--line)] border border-line rounded-xl mb-8 overflow-hidden">
+      <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-(--line) border border-line rounded-xl mb-8 overflow-hidden">
 
         {/* Agent AI */}
         <div className={`p-5 flex flex-col gap-3 transition-colors ${
@@ -359,12 +359,12 @@ function DashboardContent() {
               onClick={handleToggleAI}
               disabled={!initialLoaded || togglingAI || !canToggleAI}
               style={initialLoaded && aiSettings?.isActive ? { background: 'var(--acid)' } : undefined}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none disabled:opacity-40 disabled:cursor-not-allowed ${
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-hidden disabled:opacity-40 disabled:cursor-not-allowed ${
                 initialLoaded && aiSettings?.isActive ? '' : 'bg-cardhi border border-line'
               }`}
               title={aiSettings?.adminDisabled ? 'Dezactivat de administrator' : undefined}
             >
-              <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-xs transition-transform ${
                 initialLoaded && aiSettings?.isActive ? 'translate-x-6' : 'translate-x-1'
               }`} />
             </button>
@@ -599,7 +599,7 @@ function DashboardContent() {
       {/* Pași următori */}
       <div>
         <p className="font-mono-ui text-[11px] text-dimmer tracking-widest uppercase mb-6">Pașii următori</p>
-        <div className="flex flex-col divide-y divide-[var(--line)]">
+        <div className="flex flex-col divide-y divide-(--line)">
           {[
             { step: 1, title: 'Cont creat', done: true, desc: 'Contul tău este activ.' },
             ...(user?.role !== 'admin' ? [{

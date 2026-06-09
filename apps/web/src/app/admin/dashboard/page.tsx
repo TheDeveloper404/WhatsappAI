@@ -91,7 +91,7 @@ function trialDaysLeft(trialEndsAt: number | null) {
   return `${days}z`
 }
 
-const inputCls = 'w-full border border-line rounded-xl px-3 py-2 text-sm text-ink bg-cardhi placeholder:text-dimmer focus:outline-none focus:ring-2 focus:ring-acid/40 focus:border-acid transition-colors'
+const inputCls = 'w-full border border-line rounded-xl px-3 py-2 text-sm text-ink bg-cardhi placeholder:text-dimmer focus:outline-hidden focus:ring-2 focus:ring-acid/40 focus:border-acid transition-colors'
 const btnSecondary = 'px-4 py-2 text-sm font-mono-ui text-dim hover:text-ink hover:bg-cardhi rounded-lg transition-colors'
 
 // ─── Modal email ─────────────────────────────────────────────────────────────
@@ -218,7 +218,7 @@ function DeleteModal({ user, token, onClose, onDone }: { user: AdminUser; token:
           <button
             onClick={doDelete}
             disabled={loading}
-            className="px-4 py-2 text-sm font-mono-ui bg-[var(--danger)] text-white rounded-lg disabled:opacity-50 flex items-center gap-1.5 hover:opacity-90 transition-opacity"
+            className="px-4 py-2 text-sm font-mono-ui bg-(--danger) text-white rounded-lg disabled:opacity-50 flex items-center gap-1.5 hover:opacity-90 transition-opacity"
           >
             {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
             Șterge definitiv
@@ -608,7 +608,7 @@ export default function AdminDashboard() {
             <button onClick={openBell} className="relative p-2 text-dim hover:text-ink hover:bg-cardhi rounded-lg transition-colors">
               <Bell className="h-4 w-4" />
               {unreadCount > 0 && (
-                <span className="absolute top-1 right-1 h-3.5 w-3.5 bg-[var(--danger)] text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                <span className="absolute top-1 right-1 h-3.5 w-3.5 bg-(--danger) text-white text-[9px] font-bold rounded-full flex items-center justify-center">
                   {unreadCount > 9 ? '9+' : unreadCount}
                 </span>
               )}

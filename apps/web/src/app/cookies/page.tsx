@@ -20,8 +20,8 @@ export default function CookiesPage() {
           <h2 className="font-display-md text-[22px] text-ink mb-3">Cookie-uri strict necesare</h2>
           <p>Acestea sunt esențiale pentru funcționarea site-ului și nu pot fi dezactivate. Includ:</p>
           <ul className="list-disc pl-5 space-y-1.5 mt-3">
-            <li><code className="font-mono-ui text-[13px] bg-cardhi px-1.5 py-0.5 rounded">wa-ai-theme</code> — preferința de temă (light/dark), stocat în localStorage</li>
-            <li><code className="font-mono-ui text-[13px] bg-cardhi px-1.5 py-0.5 rounded">wa-ai-cookie-consent</code> — înregistrarea consimțământului tău pentru cookies</li>
+            <li><code className="font-mono-ui text-[13px] bg-cardhi px-1.5 py-0.5 rounded-sm">wa-ai-theme</code> — preferința de temă (light/dark), stocat în localStorage</li>
+            <li><code className="font-mono-ui text-[13px] bg-cardhi px-1.5 py-0.5 rounded-sm">wa-ai-cookie-consent</code> — înregistrarea consimțământului tău pentru cookies</li>
             <li>Cookie-uri de sesiune pentru autentificare (JWT)</li>
           </ul>
         </section>

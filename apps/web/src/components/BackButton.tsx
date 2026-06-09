@@ -11,6 +11,9 @@ export function BackButton() {
   }
 
   return (
+    // Navigare intenționat JS-driven (fade-out apoi window.location.href); `href` e doar fallback
+    // semantic/accesibilitate. `next lint` nu o semnala; plain eslint da → suprimare țintită.
+    // eslint-disable-next-line @next/next/no-html-link-for-pages
     <a
       href="/"
       onClick={handleBack}

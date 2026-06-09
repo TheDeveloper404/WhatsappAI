@@ -12,6 +12,10 @@ dist/
 *.db-shm
 *.db-wal
 
+# Helper local de dev: căi hardcodate spre mașină + parolă Postgres locală (nu un secret real,
+# dar trip-uie scannerele de secrete). Fișierul trăiește pe disc, nu în git.
+scripts/db-up.ps1
+
 # WhatsApp session files (chei criptografice — date extrem de sensibile)
 apps/api/data/
 /pentest

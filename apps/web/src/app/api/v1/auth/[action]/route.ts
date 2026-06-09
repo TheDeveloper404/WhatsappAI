@@ -19,9 +19,10 @@ function extractRefreshToken(setCookie: string | null) {
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { action: string } }
+  // Next 16: `params` dintr-o rută dinamică e acum un Promise → await.
+  { params }: { params: Promise<{ action: string }> }
 ) {
-  const action = params.action
+  const action = (await params).action
   if (!AUTH_ACTIONS.has(action)) {
     return NextResponse.json(
       { error: { code: 'NOT_FOUND', message: 'Not found.' } },

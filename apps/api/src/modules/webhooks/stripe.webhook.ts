@@ -8,7 +8,11 @@ import { adminRepository } from '../admin/admin.repository.js'
 import { notifyAdmin } from '../admin/notifications.service.js'
 
 export async function stripeWebhookRoutes(app: FastifyInstance) {
-  // Raw body needed for Stripe signature verification
+  // Raw body needed for Stripe signature verification.
+  // Acest scope (înregistrat cu prefix `/webhooks`) moștenește parser-ul `application/json` custom
+  // definit la root (în `app.ts`); îl eliminăm aici înainte de a-l înlocui cu varianta `buffer`,
+  // altfel `addContentTypeParser` aruncă FST_ERR_CTP_ALREADY_PRESENT la boot.
+  app.removeContentTypeParser('application/json')
   app.addContentTypeParser('application/json', { parseAs: 'buffer' }, (_req, body, done) => {
     done(null, body)
   })

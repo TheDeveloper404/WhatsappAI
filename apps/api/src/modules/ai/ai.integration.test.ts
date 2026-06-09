@@ -199,11 +199,23 @@ describe('PATCH /ai/settings', () => {
     expect(res.json().settings.systemPrompt).toBe(newPrompt)
   })
 
-  it('400 — systemPrompt prea scurt', async () => {
+  // systemPrompt nu mai are min (un prompt scurt sau gol e permis → fallback pe DEFAULT_PROMPT
+  // în message.handler). Singura constrângere rămasă e max(2000), ca plafon anti-DoS.
+  it('200 — systemPrompt scurt e acceptat (fără min)', async () => {
     const token = await registerAndLogin('settings-prompt-short@test.com')
     const res = await app.inject({
       method: 'PATCH', url: '/api/v1/ai/settings',
       payload: { systemPrompt: 'scurt' },
+      headers: { authorization: `Bearer ${token}` },
+    })
+    expect(res.statusCode).toBe(200)
+  })
+
+  it('400 — systemPrompt prea lung (>2000)', async () => {
+    const token = await registerAndLogin('settings-prompt-long@test.com')
+    const res = await app.inject({
+      method: 'PATCH', url: '/api/v1/ai/settings',
+      payload: { systemPrompt: 'x'.repeat(2001) },
       headers: { authorization: `Bearer ${token}` },
     })
     expect(res.statusCode).toBe(400)

@@ -10,6 +10,7 @@
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",
     "audit": "node scripts/audit-check.mjs",
+    "db:up": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/db-up.ps1",
     "test:e2e": "pnpm --filter e2e test",
     "test:e2e:ui": "pnpm --filter e2e test:ui",
     "test:e2e:headed": "pnpm --filter e2e test:headed"

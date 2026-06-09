@@ -1,4 +1,4 @@
-import Fastify from 'fastify'
+import Fastify, { type FastifyError } from 'fastify'
 import cookie from '@fastify/cookie'
 import cors from '@fastify/cors'
 import helmet from '@fastify/helmet'
@@ -239,7 +239,7 @@ export async function buildApp() {
   // Health check exceptat de la rate limit (monitorizare/uptime probes).
   app.get('/health', { config: { rateLimit: false } }, async () => ({ status: 'ok' }))
 
-  app.setErrorHandler((error, _req, reply) => {
+  app.setErrorHandler((error: FastifyError, _req, reply) => {
     if (error instanceof AppError) {
       const body: Record<string, unknown> = {
         error: { code: error.code, message: error.message },

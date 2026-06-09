@@ -461,9 +461,11 @@ describe('POST /admin/users/:userId/email', () => {
   })
 
   it('404 — userId inexistent', async () => {
+    // UUID valid ca format, dar inexistent: trece de validarea Zod (userId uuid, M-1) și
+    // ajunge la căutarea userului → 404. (Un id ne-UUID ar pica la 400 înainte de lookup.)
     const res = await app.inject({
       method: 'POST',
-      url: '/api/v1/admin/users/nonexistent-id/email',
+      url: '/api/v1/admin/users/11111111-1111-4111-8111-111111111111/email',
       payload: { subject: 'Test', body: 'Body' },
       headers: { authorization: ADMIN_TOKEN },
     })

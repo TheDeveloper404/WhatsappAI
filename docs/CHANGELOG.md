@@ -6,6 +6,33 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed (2026-06-09) — B13: upgrade major de pachete (Fastify 5, Next 16, React 19, Tailwind 4, ESLint 9, zod 4, Drizzle 0.45)
+
+Upgrade pe clustere izolate (un major pe branch → `tsc`+lint local → suită rulată de owner → preview → merge squash). Lecție de proces: branch-urile stivuite produc conflicte pe `pnpm-lock.yaml` → fiecare branch se ramifică de pe `main` proaspăt.
+
+**Backend:**
+- **Cluster 0** — `stripe` 22.1→22.2 (+`apiVersion 2026-05-27.dahlia`), `vitest`+`@vitest/coverage-v8`→4.1.8, `tsx`→4.22.4, scos `@types/node-cache`.
+- **Cluster 1** — `uuid` SCOS complet (→`crypto.randomUUID()` în `auth.service`/`billing.service`), `bcryptjs` 2→3 (hash-uri `$2b$` compatibile, zero cod), `dotenv` 16→17.
+- **Cluster 2** — `resend` 3→6 (`^6.12.4`), zero cod (folosim doar `html`, nu `react`).
+- **Cluster 3** — `zod` 3→4 (`^4.4.3`): breaking real `ZodError.errors`→`.issues` reparat în 7 rute + `parseBody` (`auth.controller`) rescris pe tipul real `ZodType<T>`. `.email()/.url()/.uuid()/message:` deprecate dar funcționale (nemigrate, diff mic).
+- **Cluster 4** — `drizzle-orm` 0.30→0.45 (`^0.45.2`), ZERO cod (folosit doar ca query builder: `sql/eq/and`, `pg-core`, `node-postgres`; fără RQB/`relations()`, fără `drizzle-kit` — migrările = SQL brut).
+- **Cluster 5** — `fastify` 4→5 (`^5.8.5`) + plugin-urile @fastify (`cookie`→11, `cors`→11, `helmet`→13, `multipart`→10, `rate-limit`→10). Cod: `setErrorHandler` tipat explicit (`FastifyError`). OPS: `"engines":{"node":">=20"}` în `package.json` rădăcină. Post-deploy au apărut 2 regresii (reparate, vezi „Fixed 2026-06-09 — DELETE/Fastify 5" mai jos).
+
+**Frontend (apps/web):**
+- **web-1** — `lucide-react` 0.378→1.17 (zero cod; niciuna din cele 42 icoane folosite nu e brand).
+- **web-2** — `zustand` 4→5 (`^5.0.14`), zero cod (`import { create }`, fără `shallow`, `persist` standard).
+- **web-3 + web-4** (merge împreună — combinația React19+Next14 e nesuportată) — `react`+`react-dom` 18→19 (`^19.2.7`, `@types/react`+`dom`→19) + `next` 14→16 (`16.2.7`). Fixuri: `useRef(undefined)` (types 19), `layout.tsx` `async`+`await headers()`, `auth/[action]/route` params `Promise`+await, `BackButton` eslint-disable țintit. `next build` (Turbopack) verde. `next lint` ELIMINAT în Next 16.
+- **web-5** — `tailwindcss` 3→4 (`^4.3.0`) via `npx @tailwindcss/upgrade`: `globals.css`→`@import 'tailwindcss'`+`@custom-variant dark`+`@theme{}` (token-uri mapate), `@tailwindcss/postcss`, `tailwind.config.ts` ȘTERS (config în CSS); 16 fișiere template redenumiri (`outline-none`→`outline-hidden` etc.). ⚠️ v4 cere Safari 16.4+/Chrome 111+.
+- **web-6** — `eslint` 8→9 (`^9`, flat config) + `eslint-config-next` 15.5.19→16.2.7. `.eslintrc.json` ȘTERS → `eslint.config.mjs` (exporturi native flat `eslint-config-next/core-web-vitals`+`/typescript`, fără FlatCompat); script `lint`: `--ext`→`eslint src`. eslint 10 blocat de peer-urile plugin-urilor (`<=9`). Reguli noi „React Compiler" (`eslint-plugin-react-hooks` v6): 20 findings lăsate pe `warn` → curățenie în `BACKLOG.md` B13.1.
+
+**Colateral web:** `@vercel/speed-insights@^2` adăugat în `layout.tsx`. **DEFER:** `@whiskeysockets/baileys` 6→7 (încă RC), `typescript` 5→6 (beneficiu mic) — `BACKLOG.md` B13.
+
+### Fixed (2026-06-09) — DELETE-uri în prod după Fastify 5 (CORS + body gol) + latență + hydration #418
+
+- **Toate DELETE-urile (ștergere user admin/produs/blacklist, clear conversație, disconnect-wa) picau în prod** după cluster-5. Două cauze suprapuse: (1) `@fastify/cors` v11 a strâns default-ul `methods` la `GET,HEAD,POST` → preflight respingea DELETE/PUT/PATCH → `app.ts` declară explicit `methods: ['GET','HEAD','POST','PUT','PATCH','DELETE']`; (2) **cauza reală mascată** — Fastify 5 respinge cu 400 `FST_ERR_CTP_EMPTY_JSON_BODY` orice cerere cu `content-type: application/json` și body gol (clientul trimite Content-Type pe DELETE-uri fără body). Fix: parser custom `application/json` în `app.ts` (body gol → `undefined`, restul prin `getDefaultJsonParser` securizat). ⚠️ Gotcha: `addContentTypeParser` aruncă `FST_ERR_CTP_ALREADY_PRESENT` peste parser-ul existent → `removeContentTypeParser` întâi; idem în `stripe.webhook.ts` (scope încapsulat moștenește parser-ul de la root → și acolo `removeContentTypeParser` înainte de parser-ul buffer). `tsc` verde + repro standalone.
+- **„Lent peste tot, mereu" (frontend)**: funcțiile Vercel rulau în US East (`iad1`) deși userii + API-ul (Railway `europe-west4`) sunt în Europa → fiecare randare dinamică = drum transatlantic. Fix: regiunea funcțiilor mutată în Frankfurt (`fra1`) din dashboard Vercel. Confirmat live `X-Vercel-Id: fra1::fra1`.
+- **React hydration error #418 + emailuri afișate `[email protected]`**: cauza = **Cloudflare Email Obfuscation** (Scrape Shield) rescria `support@waai.ro` în HTML în tranzit → HTML livrat ≠ ce randa React (mismatch text), iar `email-decode.min.js` era blocat de CSP. Fix: dezactivat Email Address Obfuscation în Cloudflare (nu e cod). Confirmat live: HTML fără `__cf_email__`, consolă 0 erori.
+
 ### Removed (2026-06-09) — Email confirmare comandă către client (securitate L9 + branding)
 
 - **Scos** emailul automat de confirmare comandă către client din `message.handler.ts` (+ `sendOrderConfirmationEmail`/`OrderEmailSummary` din `utils/email.ts`, plus codul mort aferent: `extractEmail`, throttle `lastOrderEmail`, `emailNote`, importurile `z`/email).

@@ -70,6 +70,21 @@ pnpm --filter api db:migrate
 - Niciodată commit/push direct pe `main` — branch + PR (hook `block-push-main` la nivel global).
 - Secretele prod trăiesc în env-urile Railway/Vercel, niciodată în `.env` local sau în cod.
 
+## Evidență documentație (obligatoriu, automat)
+**Rolurile celor 3 docuri (nu le amesteca):**
+- **`docs/CHANGELOG.md`** = ce s-a LIVRAT (cu dată). Append-only.
+- **`docs/BACKLOG.md`** = ce NU e livrat **+ ORDINEA de lucru** (roadmap pe etape). Sursa de adevăr pentru „ce urmează".
+  Aici stau TOATE itemele de implementat. **La început de sesiune, citește BACKLOG ca să știi ordinea de atac.**
+- **`.remember/remember.md`** = unde am rămas (stare VOLATILĂ: în-curs, branch, env) + capcane/gotchas active + pointer
+  la BACKLOG. NU ține definiții de work (alea-s în BACKLOG); NU ține lucruri livrate (alea-s în CHANGELOG).
+
+Când termini de implementat ceva (finalizat + verificat), fă AUTOMAT, fără să fie cerut:
+1. **Adaugă în CHANGELOG** sub `[Unreleased]`, cu data curentă (Added/Changed/Fixed/Removed/Security).
+2. **Șterge itemul din BACKLOG** (sau bifează apoi mută) — fără evidență dublă.
+3. **Actualizează starea volatilă din remember** (ce s-a închis, ce urmează) — pointer la BACKLOG, nu re-descrie work-ul.
+
+Regula scurtă: **de implementat → BACKLOG (ordonat); livrat → CHANGELOG (cu dată); volatil + gotchas → remember.**
+
 ## Securitate
 Postură și audituri în `docs/SECURITY.md`. La orice feature nou verifică: prompt injection,
 rate limiting per rută (`global: false`, fiecare rută optează explicit), PII în loguri, IDOR.

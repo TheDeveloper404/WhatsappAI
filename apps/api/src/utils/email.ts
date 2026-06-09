@@ -188,47 +188,6 @@ export async function sendPasswordResetEmail(to: string, token: string) {
   if (error) throw new Error(`Resend error (reset): ${error.message}`)
 }
 
-// Confirmare comandă trimisă clientului la cerere (Faza 5). Datele (linii, total) sunt
-// PRE-FORMATATE de handler din prețurile din DB — email.ts doar randează, nu atinge banii.
-export type OrderEmailSummary = {
-  lines: string[]        // ex: "2× Margherita — 50.00 lei"
-  total: string          // ex: "50.00 lei"
-  details?: string       // specificații colectate (opțional)
-}
-
-export async function sendOrderConfirmationEmail(to: string, businessName: string, orders: OrderEmailSummary[]) {
-  const blocks = orders.map((o, i) => {
-    const itemsHtml = o.lines.map(l => `<li style="margin:0 0 4px;font-size:14px;color:#374151;">${escapeHtml(l)}</li>`).join('')
-    const detailsHtml = o.details?.trim()
-      ? `<p style="margin:8px 0 0;font-size:13px;color:#6B7280;white-space:pre-wrap;">${escapeHtml(o.details.trim())}</p>`
-      : ''
-    return `
-      <div style="border:1px solid #E5E7EB;border-radius:12px;padding:16px;margin:0 0 12px;">
-        ${orders.length > 1 ? `<p style="margin:0 0 8px;font-size:12px;color:#9CA3AF;">Comanda ${i + 1}</p>` : ''}
-        <ul style="margin:0;padding-left:18px;">${itemsHtml}</ul>
-        ${detailsHtml}
-        <p style="margin:12px 0 0;font-size:15px;font-weight:700;color:#0A0F0C;">Total: ${escapeHtml(o.total)}</p>
-      </div>`
-  }).join('')
-
-  const { error } = await resend.emails.send({
-    from: env.EMAIL_FROM,
-    to,
-    subject: `Confirmare comandă — ${escapeHtml(businessName)}`,
-    html: baseTemplate(`
-      <h1 style="margin:0 0 8px;font-size:24px;font-weight:700;color:#0A0F0C;">Confirmare comandă</h1>
-      <p style="margin:0 0 16px;font-size:15px;color:#6B7280;line-height:1.6;">
-        Îți mulțumim! Mai jos găsești rezumatul comenzii tale. Te contactăm în scurt timp pentru detalii.
-      </p>
-      ${blocks}
-      <p style="margin:16px 0 0;font-size:13px;color:#9CA3AF;line-height:1.6;">
-        Dacă ai întrebări, răspunde direct pe WhatsApp.
-      </p>
-    `, `Rezumatul comenzii tale de la ${businessName}.`),
-  })
-  if (error) throw new Error(`Resend error (order confirmation): ${error.message}`)
-}
-
 export async function sendCustomEmail(to: string, subject: string, body: string) {
   const { error } = await resend.emails.send({
     from: env.EMAIL_FROM,

@@ -1,6 +1,5 @@
 import type { WASocket } from '@whiskeysockets/baileys'
 import { downloadMediaMessage } from '@whiskeysockets/baileys'
-import { z } from 'zod'
 import { aiRepository, DEFAULT_PROMPT } from './ai.repository.js'
 import { askGroq, extractContactMemory, transcribeAudio, classifyScopeLLM, analyzeOrderIntent, analyzeBookingIntent, classifyOrderConfirmation, classifyBookingConfirmation, extractFromImage, type GroqMessage } from './groq.client.js'
 import { productsRepository } from '../orders/products.repository.js'
@@ -12,7 +11,6 @@ import { userHasEntitlement } from '../billing/entitlement.js'
 import { allowIncomingMessage } from './incoming.rate-limiter.js'
 import { parseCommand, HELP_TEXT } from './command.parser.js'
 import { recordOwnerReply, isOwnerActive } from './inactivity.tracker.js'
-import { sendOrderConfirmationEmail } from '../../utils/email.js'
 import { logger } from '../../utils/logger.js'
 import { appEvents } from '../../utils/events.js'
 import type { AiSettings } from '../../db/schema.js'
@@ -220,17 +218,6 @@ const lastRedFlagAlert = new Map<string, Map<string, number>>()
 const MEMORY_THROTTLE_MS = 10 * 60 * 1000
 const lastMemoryUpdate = new Map<string, Map<string, number>>()
 
-// Throttle email confirmare: maxim un email la 10 min per contact (anti-spam).
-const EMAIL_THROTTLE_MS = 10 * 60 * 1000
-const lastOrderEmail = new Map<string, Map<string, number>>()
-
-// Detectează o adresă de email validă într-un mesaj. Conservator: prima potrivire,
-// validată suplimentar cu zod în apelant. Returnează null dacă nu există.
-function extractEmail(text: string): string | null {
-  const match = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/)
-  return match ? match[0] : null
-}
-
 function cancelPending(userId: string, contactPhone: string) {
   const t = pendingResponses.get(userId)?.get(contactPhone)
   if (t) {
@@ -434,7 +421,7 @@ async function sendAiResponse(userId: string, contactPhone: string, jid: string,
         const missing = booking.missingInfo.length > 0
           ? `\nMai trebuie clarificat: ${booking.missingInfo.join('; ')}.`
           : ''
-        const collectingNote = `Clientul vrea o PROGRAMARE la un serviciu, dar mai lipsesc informații.${missing}\nVerifică ÎNTÂI istoricul conversației: NU re-cere ceea ce clientul a oferit deja (serviciu, interval, nume, detalii vehicul). Cere-i natural, într-un mesaj scurt, DOAR informația care încă lipsește. NU confirma un interval — proprietarul îl confirmă. NU inventa zile, ore sau prețuri.`
+        const collectingNote = `Clientul vrea o PROGRAMARE la un serviciu, dar mai lipsesc informații.${missing}\nVerifică ÎNTÂI istoricul conversației: NU re-cere ceea ce clientul a oferit deja (serviciu, interval, nume, detalii vehicul). Cere-i natural, într-un mesaj scurt, DOAR informația care încă lipsește. NU confirma un interval — proprietarul îl confirmă. NU inventa zile, ore sau prețuri.\nIMPORTANT: încă NU ai înregistrat nicio programare și NU ai anunțat proprietarul sau vreun coleg — NU spune că ai făcut-o. Spune sincer că aduni detaliile și că proprietarul revine după ce programarea e completă.`
         activeBookingNote = activeBookingNote ? `${activeBookingNote}\n${collectingNote}` : collectingNote
         logger.info(`[AI][${userId.slice(0, 8)}] programare în colectare`, { missing: booking.missingInfo.length })
       }
@@ -627,52 +614,11 @@ REGULI OBLIGATORII pentru acest caz:
         const customNote = intent.details.trim()
           ? `\nCerere specială notată: „${intent.details.trim()}". Dacă nu există în catalog, NU inventa preț — spune-i clientului că proprietarul îi confirmă prețul.`
           : ''
-        activeOrderNote = `Clientul vrea să comande, dar comanda e INCOMPLETĂ.${partial}${missing}${customNote}\nVerifică ÎNTÂI istoricul conversației: NU re-cere ceea ce clientul a oferit deja. Cere-i natural, într-un mesaj scurt, DOAR informațiile care încă lipsesc. NU propune un rezumat de comandă, NU calcula un total și NU inventa cantități sau prețuri.`
+        activeOrderNote = `Clientul vrea să comande, dar comanda e INCOMPLETĂ.${partial}${missing}${customNote}\nVerifică ÎNTÂI istoricul conversației: NU re-cere ceea ce clientul a oferit deja. Cere-i natural, într-un mesaj scurt, DOAR informațiile care încă lipsesc. NU propune un rezumat de comandă, NU calcula un total și NU inventa cantități sau prețuri.\nIMPORTANT: încă NU ai înregistrat nicio comandă și NU ai anunțat proprietarul sau vreun coleg — NU spune că ai făcut-o. Spune sincer că aduni detaliile și că proprietarul revine după ce comanda e completă.`
         logger.info(`[AI][${userId.slice(0, 8)}] comandă în colectare`, { missing: intent.missingInfo.length, items: items.length })
       }
     } catch (err) {
       logger.error(`[AI][${userId.slice(0, 8)}] eroare analiză comandă`, { err: String(err) })
-    }
-  }
-
-  // Email confirmare comandă (Faza 5): dacă clientul a scris o adresă de email validă ȘI are
-  // o comandă recentă, îi trimitem confirmarea pe email. PII (adresa) nu apare în logs.
-  // Throttle anti-spam + zod. Fail-soft: dacă emailul eșuează, nu blocăm conversația.
-  let emailNote = ''
-  const candidateEmail = extractEmail(lastIncoming)
-  if (candidateEmail && z.string().email().max(255).safeParse(candidateEmail).success) {
-    const now = Date.now()
-    const throttle = lastOrderEmail.get(userId) ?? new Map<string, number>()
-    const lastSent = throttle.get(contactPhone) ?? 0
-    if (now - lastSent > EMAIL_THROTTLE_MS) {
-      try {
-        const recent = await ordersRepository.listRecentForContact(userId, contactPhone, 5)
-        const cur = curLabel(settings.currency)
-        const RECENT_MS = 24 * 60 * 60 * 1000
-        const summaries = []
-        for (const o of recent) {
-          if (o.status === 'cancelled' || o.createdAt < now - RECENT_MS) continue
-          const its = await ordersRepository.getItems(o.id)
-          summaries.push({
-            lines: its.map(it => `${it.quantity}× ${it.productName} — ${((it.unitPriceBani * it.quantity) / 100).toFixed(2)} ${cur}`),
-            total: `${(o.totalBani / 100).toFixed(2)} ${cur}`,
-            details: o.details,
-          })
-        }
-        if (summaries.length > 0) {
-          // Numele businessului nu e stocat separat — folosim un nume generic în subiect.
-          await sendOrderConfirmationEmail(candidateEmail, 'comanda ta', summaries)
-          throttle.set(contactPhone, now)
-          lastOrderEmail.set(userId, throttle)
-          logger.info(`[AI][${userId.slice(0, 8)}] email confirmare trimis`, { orders: summaries.length })
-          emailNote = `Tocmai ai TRIMIS clientului un email de confirmare cu rezumatul comenzii, la adresa pe care a dat-o. Confirmă-i scurt și firesc că emailul a fost trimis. NU promite alt email și NU cere din nou adresa.`
-        } else {
-          // A dat email dar n-are comandă recentă — nu trimitem, dar evităm să promitem ce nu facem.
-          emailNote = `Clientul a dat o adresă de email, dar NU are o comandă recentă de confirmat. NU spune că ai trimis un email. Întreabă firesc cu ce îl poți ajuta sau ce vrea să comande.`
-        }
-      } catch (err) {
-        logger.error(`[AI][${userId.slice(0, 8)}] eroare email confirmare`, { err: String(err) })
-      }
     }
   }
 
@@ -719,9 +665,6 @@ REGULI OBLIGATORII pentru acest caz:
   }
   if (activeBookingNote) {
     systemPrompt += `\n\n---\n[Programare activă a clientului]\n${activeBookingNote}`
-  }
-  if (emailNote) {
-    systemPrompt += `\n\n---\n[Email confirmare]\n${emailNote}`
   }
 
   // RAG: caută în documentele businessului bucățile relevante la ultima întrebare a clientului

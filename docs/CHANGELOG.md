@@ -6,6 +6,34 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Removed (2026-06-09) — Email confirmare comandă către client (securitate L9 + branding)
+
+- **Scos** emailul automat de confirmare comandă către client din `message.handler.ts` (+ `sendOrderConfirmationEmail`/`OrderEmailSummary` din `utils/email.ts`, plus codul mort aferent: `extractEmail`, throttle `lastOrderEmail`, `emailNote`, importurile `z`/email).
+- **De ce**: (1) venea de la `noreply@waai.ro` — nebrandat și confuz pentru clientul altui business (a comandat de la „Auto Service X", primea mail „de la waai."); (2) era vectorul **L9** (cineva putea tasta în chat emailul unei victime → confirmarea ajungea acolo, throttle 10min). WhatsApp confirmă oricum comanda din numărul businessului. Decizie de produs: platforma nu trebuie să fie expeditor în relația owner↔client.
+- **Constatare conexă**: domeniul `waai.ro` e **Verified** în Resend (nu sandbox, cum zicea nota veche N3) → emailurile tranzacționale rămase (verificare cont, resetare parolă, ștergere cont, notificări admin) livrează corect.
+- **Viitor**: confirmări pe email branduite pe business, trimise din contul owner-ului (SMTP) și declanșate explicit din dashboard — `BACKLOG.md` B14. `tsc` verde.
+
+### Fixed (2026-06-09) — Agent nu mai pretinde un handoff inexistent (CB7)
+
+- **Problema** (test service auto): clientul cerea o programare („revizie") + comandă piese; niciuna nu se crea (corect — „Revizie" nu era produs rezervabil în catalog, iar piesele n-au fost identificate), DAR agentul promitea fals „am anunțat echipa și vă confirmă". `honestyGuard` interzicea deja asta, însă modelul îl încălca în context de programare/comandă neterminată.
+- **Fix**: notele de fază `collecting` din `message.handler.ts` (booking `:437`, order `:630`) reafirmă acum explicit „încă NU ai înregistrat nicio programare/comandă și NU ai anunțat proprietarul sau vreun coleg — nu spune că ai făcut-o; spune sincer că aduni detaliile și proprietarul revine". LLM-steering (probabilistic, aliniat cu `honestyGuard`), `tsc` verde.
+- **Cauza programării = conținut, nu cod**: „revizie" e termen-umbrelă colocvial (= schimb ulei + filtre); `analyzeBookingIntent` primește doar serviciile rezervabile + `orderIntakePrompt` (nu Knowledge Base) și are regula „nu inventa servicii". Rezolvare în dashboard: adăugare „Revizie" ca produs rezervabil-pachet **sau** mapare în `orderIntakePrompt`. Vezi `BACKLOG.md` CB7.
+
+### Added (2026-06-08) — Multi-serviciu, date livrare, red-flag alerts, furnizor LLM + fixuri conversație
+
+- **B10 — Programări multi-serviciu**: `BookingIntent.serviceId` → `serviceIds[]` (compat cu `serviceId` string vechi; dedup, max 10). Tabel nou **`appointment_items`** (FK cascade la appointment, product_id, service_name, unit_price_bani) + `appointments.total_bani`. Fluxul de booking propune toate serviciile cerute pentru aceeași programare („A + B"), total calculat în cod, creează liniile, notifică owner-ul cu servicii + total. Anti-dublură pe **mulțimea** de servicii (set sortat) + slot. Dashboard `/appointments` afișează liniile + total (fallback la `serviceName` pt programări vechi).
+- **B11 — Date livrare structurate**: `OrderIntent.delivery {method:'pickup'|'delivery'|'', address}` (validat la listă închisă). Coloane noi `orders.delivery_method/delivery_address`. Notificarea owner = structurată AWB-ready (👤nume 📞telefon 🚚metodă 📍adresă 📝detalii). Dashboard orders afișează blocul de livrare. Alternativă ieftină la integrarea de curierat (V8 = decis NU acum).
+- **B1 — Red-flag alerts** (prompt platformă INTACT): `detectRedFlags(text)` determinist (diacritic-insensitive + compact) — reclamație, rambursare, avocat/instanță, ANPC/ANAF, GDPR, fraudă. La detecție: alertă owner pe WhatsApp (throttle 30min) + `redFlagNote` în prompt (răspunde calm, fără promisiuni/consultanță juridică, anunță owner). `redFlagNote` = doar etichete statice (fără text client în prompt).
+- **B5 — Afișare furnizor LLM**: `getActiveLLMProvider()` (sursă unică din env), endpoint `GET /ai/llm-provider` (autenticat + abonament), inclus în `/admin/stats`. UI: indicator în Setări→Agent + card în Admin.
+- **Fixuri conversație (CB1-3)**: (1) salut nu mai e clasificat ca rămas-bun („Vă salut" → nu mai răspunde „La revedere") — regulă mereu injectată „salut = deschidere". (2) Nota de colectare booking nu mai re-enumeră hardcodat câmpurile la fiecare tură (bătea istoricul) → folosește doar `missingInfo` real + guard anti-re-ask în ambele note (booking + order). (3) `classifyScopeLLM` nu mai marchează „ce rol aveți?" ca INJECTION (definiție restrânsă la manipulare reală + carve-out întrebări despre asistent = BUSINESS); `businessScopeReply` mascat (deviere naturală, fără „Nu pot schimba rolul conversației").
+- **Email**: redesign template Resend (`utils/email.ts`) — header dark gradient, badge, card, footer cu linkuri, param `preheader`. Toate valorile user trec prin `escapeHtml` (probă XSS dură trecută).
+- **UI**: editare produs inline în `/products` (formularul apare la rândul editat, nu mereu sus); fixuri `emailVerified` în răspunsul de login, ștergere `systemPrompt` (fallback pe DEFAULT_PROMPT), tab Setări persistat în hash URL.
+
+### Security (2026-06-08) — Audit integral rute: APROBAT, 0 CRITIC/HIGH
+
+- Audit complet (60+ rute): toate publicele justificate, IDOR/BOLA închis (scoping `userId` + `id` pe read/update/delete), gating abonament consecvent, preț în cod nu în LLM. 3 findings minore rezolvate: **M-1** `admin.routes.ts` — 2 rute admin fără Zod → scheme stricte; **L-2** `verifyAdminToken` mutat din corpul handler-ului în `preHandler` `adminGuard` pe toate rutele (`/auth` rămâne public); **L-1** `GET /ai/llm-provider` primit `requireActiveSubscription` (consecvență cu `/ai/*`).
+- Reziduuri ACCEPTATE declarate (nu se renumără): prompt-injection strat 2 fail-open, deps majore Fastify5/Next15, alerting runtime, `bodyLimit` edge, L5/L6/L9/L12 — toate în `BACKLOG.md` B8.
+
 ### Added (2026-06-07) — 2FA (TOTP) pe login-ul admin
 
 - **De ce**: panoul `/admin` era protejat cu un singur factor (`ADMIN_SECRET`). Filtrele de rețea (IP allowlist, Cloudflare Zero Trust) au fost respinse — Zero Trust cere plan plătit, iar IP allowlist e inutil pentru un operator mobil care se loghează din locuri diferite. Soluția corectă = autentificare care „călătorește cu operatorul": 2FA cu TOTP.

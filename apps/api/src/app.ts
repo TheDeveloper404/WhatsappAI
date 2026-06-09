@@ -158,6 +158,17 @@ export async function buildApp() {
     app.log.warn('ADMIN_SESSION_SECRET nesetat — sesiunea admin se derivă din JWT_ACCESS_SECRET (M5). Setează un secret dedicat în prod.')
   }
 
+  // Fastify 5 respinge cu 400 (FST_ERR_CTP_EMPTY_JSON_BODY) orice cerere cu `content-type:
+  // application/json` și body gol — inclusiv DELETE-urile fără body trimise de client (ștergere
+  // user/produs/blacklist, disconnect-wa etc.), care în Fastify 4 treceau. Restaurăm comportamentul
+  // de dinainte: body gol → undefined; restul merge prin parser-ul JSON securizat default (păstrăm
+  // protecția anti proto/constructor-poisoning, deci fără regresie de securitate).
+  const defaultJsonParser = app.getDefaultJsonParser('error', 'error')
+  app.addContentTypeParser('application/json', { parseAs: 'string' }, (req, body, done) => {
+    if (body === '') return done(null, undefined)
+    defaultJsonParser(req, body as string, done)
+  })
+
   await app.register(cookie)
   const allowedOrigins = new Set([
     env.APP_URL.replace(/\/$/, ''),

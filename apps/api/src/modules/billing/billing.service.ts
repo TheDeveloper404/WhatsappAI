@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from 'uuid'
+import { randomUUID } from 'crypto'
 import { stripe } from '../../config/stripe.js'
 import { env } from '../../config/env.js'
 import { billingRepository } from './billing.repository.js'
@@ -40,7 +40,7 @@ export const billingService = {
     if (!existing) {
       const now = Date.now()
       await billingRepository.create({
-        id: uuidv4(),
+        id: randomUUID(),
         userId,
         stripeCustomerId: customerId,
         stripeSubscriptionId: null,

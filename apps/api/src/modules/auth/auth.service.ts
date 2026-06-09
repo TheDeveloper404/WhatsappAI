@@ -1,5 +1,4 @@
-import { v4 as uuidv4 } from 'uuid'
-import { createHmac } from 'crypto'
+import { createHmac, randomUUID } from 'crypto'
 import { logger } from '../../utils/logger.js'
 import { authRepository } from './auth.repository.js'
 import { hashPassword, verifyPassword, verifyPasswordDummy } from '../../utils/password.js'
@@ -46,7 +45,7 @@ export const authService = {
     let user
     try {
       user = await authRepository.createUser({
-        id: uuidv4(),
+        id: randomUUID(),
         name: input.name,
         email: input.email,
         passwordHash,
@@ -85,13 +84,13 @@ export const authService = {
       // Timp constant (M6): rulăm un bcrypt „dummy" de aceeași durată ca o verificare reală, ca
       // diferența de timing să nu trădeze că emailul nu are cont.
       await verifyPasswordDummy(input.password)
-      await authRepository.logLoginAttempt(uuidv4(), input.email, ip)
+      await authRepository.logLoginAttempt(randomUUID(), input.email, ip)
       throw Errors.unauthorized('Email sau parolă incorectă.')
     }
 
     const valid = await verifyPassword(input.password, user.passwordHash)
     if (!valid) {
-      await authRepository.logLoginAttempt(uuidv4(), input.email, ip)
+      await authRepository.logLoginAttempt(randomUUID(), input.email, ip)
       throw Errors.unauthorized('Email sau parolă incorectă.')
     }
 
@@ -105,7 +104,7 @@ export const authService = {
 
     // Fiecare autentificare pornește o familie nouă de refresh tokens (L10). Rotațiile ulterioare
     // moștenesc același familyId, ca un reuse detectat să poată revoca tot lanțul.
-    await authRepository.saveRefreshToken(uuidv4(), user.id, tokenHash, refreshTokenExpiresAt(), uuidv4())
+    await authRepository.saveRefreshToken(randomUUID(), user.id, tokenHash, refreshTokenExpiresAt(), randomUUID())
 
     return {
       user: { id: user.id, name: user.name, email: user.email, role: user.role, emailVerified: user.emailVerified },
@@ -149,7 +148,7 @@ export const authService = {
 
     // Tokenul nou moștenește familyId-ul lanțului (fallback la id-ul propriu pentru sesiuni legacy
     // create înainte de migrare, unde familyId putea fi null deși backfill-ul îl setează).
-    await authRepository.saveRefreshToken(uuidv4(), user.id, newHash, refreshTokenExpiresAt(), claimed.familyId ?? uuidv4())
+    await authRepository.saveRefreshToken(randomUUID(), user.id, newHash, refreshTokenExpiresAt(), claimed.familyId ?? randomUUID())
 
     return { accessToken: newAccessToken, refreshToken: newRefreshToken }
   },

@@ -6,6 +6,22 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Security (2026-06-10) — 0.7: hardening login cu Turnstile după N eșecuri (anti account-lockout DoS)
+
+Lockout-ul per-email (10 eșecuri/15min) bloca login-ul **și pentru owner-ul real** → un atacator care știe emailul victimei putea face DoS de login 15 min. Înlocuit cu **challenge Turnstile după 3 eșecuri** (varianta C, gold-standard):
+- **Backend** (`auth.service.login`): când `TURNSTILE_SECRET` e setat (prod), la `attempts >= 3` cerem token Turnstile valid (verificat **înainte** de `findUserByEmail` → fără enumerare, aliniat M8); lipsă/invalid → eroare nouă `CAPTCHA_REQUIRED` (cod distinct de 401 generic, `utils/errors.ts`). Hard-lockout-ul la 10 **scos în prod** (dispare DoS-ul) și **păstrat ca fallback** când Turnstile nu e configurat (dev/test/E2E). `loginSchema` + `turnstileToken?` opțional.
+- **Frontend** (`login/page.tsx`, `lib/api.ts`): flux **reactiv** — la `CAPTCHA_REQUIRED` afișăm widget-ul `<Turnstile>` (refolosit din register), butonul devine „verificare…" cât se rezolvă challenge-ul, apoi trimitem token-ul. Token single-use → remontăm widget-ul după fiecare încercare. Fără endpoint de probe → zero leak de enumerare.
+- Brute-force-ul automat e oprit de challenge + rate-limit per-IP; omul real nu e blocat niciodată (rezolvă challenge-ul, de regulă invizibil în mod managed).
+- Teste: 2 cazuri noi în `auth.integration.test.ts` (mock `verifyTurnstile`, `env.TURNSTILE_SECRET` activat doar pe blocul respectiv) — după 3 eșecuri parola corectă e gated fără token (dovedește anti-DoS), token valid deblochează, token invalid → `CAPTCHA_REQUIRED`. Verificat: API tsc, web eslint/tsc/build verzi.
+
+### Fixed (2026-06-10) — `setErrorHandler` ocolit pe TOT API-ul (envelope-ul de eroare nu se aplica)
+
+Bug latent prins la rularea testelor 0.7 (cele 2 cazuri captcha picau cu `error.code === undefined` deși statusul era corect 401). Cauză în `apps/api/src/app.ts`: `app.setErrorHandler(...)` era apelat **după** `await app.register(...rute...)`. Cu `await` pe fiecare `register`, fiecare plugin de rută se boot-ează pe loc și **moștenește error handler-ul existent atunci** — adică cel **default** al lui Fastify. Efect pe întreg API-ul: erorile ieșeau în forma plată `{statusCode, code, error, message}` în loc de envelope-ul nostru `{error:{code, message}}`. Toate testele de până acum verificau doar `statusCode` (corect din `error.statusCode`), deci bug-ul a trecut neobservat; cele 2 teste captcha au fost primele care asertează `error.code`.
+- **Fix:** `setErrorHandler` mutat **înainte** de orice `register` (pattern-ul documentat Fastify: handler întâi, apoi rute) → toate rutele moștenesc envelope-ul corect.
+- **Bonus securitate (anti-info-leak):** înainte, erorile necontrolate (500) ieșeau prin serializatorul default Fastify, care trimite **mesajul real al erorii** în răspuns; acum trec prin handler-ul nostru care maschează (`INTERNAL_ERROR` / „An unexpected error occurred."). Mai puțin leak, nu mai mult.
+- **Impact / compat:** schimbă forma erorii pe TOT API-ul (plată → nested). Singurul consumator e frontend-ul, care tratează deja ambele forme defensiv (`lib/api.ts`) — fără regresie.
+- Verificat: suită API completă **287/287 verde** (auth captcha incl.), forma envelope confirmată nested prin log de diagnostic temporar (scos după).
+
 ### Changed (2026-06-10) — 0.5: curățenie reguli „React Compiler" (eslint-plugin-react-hooks v6) → pe `error`
 
 Cele 20 de findings din 13 fișiere `apps/web` (intrate cu eslint-config-next 16) rezolvate; cele 4 reguli (`set-state-in-effect`, `purity`, `refs`, `immutability`) readuse de pe `warn` pe **`error`** (orice regresie sparge build-ul). Abordare hibridă — refactor real unde fix-ul era curat, `eslint-disable` documentat unde efectul e pattern-ul SSR-corect:

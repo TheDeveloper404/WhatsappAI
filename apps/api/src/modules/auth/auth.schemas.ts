@@ -20,6 +20,9 @@ export const registerSchema = z.object({
 export const loginSchema = z.object({
   email: z.string().email().transform(v => v.toLowerCase()),
   password: z.string().min(1),
+  // Token Turnstile, trimis DOAR când serverul a cerut challenge după N login-uri eșuate (0.7). Opțional
+  // în restul cazurilor. Max generos — token-urile Turnstile sunt ~sub 2KB.
+  turnstileToken: z.string().max(2048).optional(),
 })
 
 export const forgotPasswordSchema = z.object({

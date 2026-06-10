@@ -28,6 +28,10 @@ export const Errors = {
     new AppError(422, 'UNPROCESSABLE', msg),
   rateLimited: () =>
     new AppError(429, 'RATE_LIMITED', 'Too many requests, slow down.'),
+  // Challenge anti-bot la login după N eșecuri (0.7, varianta C — anti account-lockout DoS). Cod distinct
+  // de 401 generic: frontend-ul îl mapează la „arată widget-ul Turnstile și reîncearcă", NU la „parolă greșită".
+  captchaRequired: (msg = 'Verificare de securitate necesară. Confirmă că nu ești robot și reîncearcă.') =>
+    new AppError(401, 'CAPTCHA_REQUIRED', msg),
   internal: (msg = 'An unexpected error occurred') =>
     new AppError(500, 'INTERNAL_ERROR', msg),
 }

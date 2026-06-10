@@ -158,6 +158,25 @@ export async function buildApp() {
     app.log.warn('ADMIN_SESSION_SECRET nesetat — sesiunea admin se derivă din JWT_ACCESS_SECRET (M5). Setează un secret dedicat în prod.')
   }
 
+  // Error handler-ul TREBUIE setat ÎNAINTE de a înregistra rutele. Cu `await app.register(...)`,
+  // fiecare plugin de rută se boot-ează pe loc și moștenește error handler-ul EXISTENT atunci; dacă
+  // îl setam după rute, plugin-urile prindeau handler-ul DEFAULT al lui Fastify (forma plată
+  // `{statusCode, code, error, message}`) → envelope-ul nostru `{error:{code}}` era ignorat.
+  app.setErrorHandler((error: FastifyError, _req, reply) => {
+    if (error instanceof AppError) {
+      const body: Record<string, unknown> = {
+        error: { code: error.code, message: error.message },
+      }
+      if (error.details) (body.error as Record<string, unknown>).details = error.details
+      return reply.status(error.statusCode).send(body)
+    }
+    if (error.statusCode === 429) {
+      return reply.status(429).send({ error: { code: 'RATE_LIMITED', message: 'Too many requests.' } })
+    }
+    app.log.error(error)
+    return reply.status(500).send({ error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred.' } })
+  })
+
   // Fastify 5 respinge cu 400 (FST_ERR_CTP_EMPTY_JSON_BODY) orice cerere cu `content-type:
   // application/json` și body gol — inclusiv DELETE-urile fără body trimise de client (ștergere
   // user/produs/blacklist, disconnect-wa etc.), care în Fastify 4 treceau. Restaurăm comportamentul
@@ -256,21 +275,6 @@ export async function buildApp() {
 
   // Health check exceptat de la rate limit (monitorizare/uptime probes).
   app.get('/health', { config: { rateLimit: false } }, async () => ({ status: 'ok' }))
-
-  app.setErrorHandler((error: FastifyError, _req, reply) => {
-    if (error instanceof AppError) {
-      const body: Record<string, unknown> = {
-        error: { code: error.code, message: error.message },
-      }
-      if (error.details) (body.error as Record<string, unknown>).details = error.details
-      return reply.status(error.statusCode).send(body)
-    }
-    if (error.statusCode === 429) {
-      return reply.status(429).send({ error: { code: 'RATE_LIMITED', message: 'Too many requests.' } })
-    }
-    app.log.error(error)
-    return reply.status(500).send({ error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred.' } })
-  })
 
   return app
 }

@@ -121,7 +121,7 @@ export const api = {
     register: (body: { name: string; email: string; password: string; website?: string; turnstileToken?: string }) =>
       request('/api/v1/auth/register', { method: 'POST', body: JSON.stringify(body) }),
 
-    login: (body: { email: string; password: string }) =>
+    login: (body: { email: string; password: string; turnstileToken?: string }) =>
       sameOriginRequest<{ user: User; accessToken: string }>('/api/v1/auth/login', {
         method: 'POST',
         body: JSON.stringify(body),

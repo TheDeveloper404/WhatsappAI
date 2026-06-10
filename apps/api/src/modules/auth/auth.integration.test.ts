@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
+import { describe, it, expect, vi, beforeAll, afterAll, afterEach } from 'vitest'
 import type { FastifyInstance } from 'fastify'
 import { buildApp } from '../../app.js'
 
@@ -12,8 +12,15 @@ vi.mock('../../utils/email.js', () => ({
   sendAlreadyRegisteredEmail: vi.fn().mockResolvedValue(undefined),
 }))
 
+vi.mock('../../utils/turnstile.js', () => ({
+  // Mock anti-bot (0.7): token === 'valid-token' trece; orice altceva (inclusiv lipsă) pică.
+  // Evită apelul real la Cloudflare în teste.
+  verifyTurnstile: vi.fn(async (_secret: string, token?: string) => token === 'valid-token'),
+}))
+
 // Import after mock so the service uses the mocked version
 import { sendVerificationEmail, sendPasswordResetEmail, sendAlreadyRegisteredEmail } from '../../utils/email.js'
+import { env } from '../../config/env.js'
 import { db } from '../../config/database.js'
 import { refreshTokens } from '../../db/schema.js'
 import { and, eq, isNotNull } from 'drizzle-orm'
@@ -168,6 +175,56 @@ describe('POST /auth/login', () => {
   it('401 — non-existent email returns same 401 (no enumeration)', async () => {
     const res = await login('nobody@example.com', 'Password123!')
     expect(res.statusCode).toBe(401)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// POST /auth/login — challenge Turnstile după N eșecuri (0.7, anti account-lockout DoS)
+// ---------------------------------------------------------------------------
+
+describe('POST /auth/login — captcha după N eșecuri (Turnstile activ)', () => {
+  // ATENȚIE: `/register` gateează ȘI el pe TURNSTILE_SECRET. Deci creăm userul cu Turnstile OPRIT
+  // (registerAndVerify), apoi îl PORNIM doar pentru partea de login. afterEach îl oprește la loc, ca
+  // restul suitei să rămână pe fallback-ul hard-lockout (neatins de teste).
+  afterEach(() => { env.TURNSTILE_SECRET = undefined })
+
+  async function loginWith(email: string, password: string, turnstileToken?: string) {
+    return app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      payload: turnstileToken ? { email, password, turnstileToken } : { email, password },
+    })
+  }
+
+  it('după 3 eșecuri cere captcha; chiar și parola corectă e blocată fără token (anti-DoS), iar token-ul valid deblochează', async () => {
+    const { email, password } = await registerAndVerify('captcha@example.com')
+    env.TURNSTILE_SECRET = 'test-secret' // pornim Turnstile DOAR pentru login (după ce userul e creat)
+
+    // Sub prag: 3 încercări cu parolă greșită → 401 normal, fără captcha.
+    for (let i = 0; i < 3; i++) {
+      const res = await loginWith(email, 'WrongPassword1!')
+      expect(res.statusCode).toBe(401)
+      expect(res.json().error.code).toBe('UNAUTHORIZED')
+    }
+
+    // La prag, chiar cu parola CORECTĂ dar fără token → gate captcha (asta oprește account-lockout DoS-ul).
+    const gated = await loginWith(email, password)
+    expect(gated.statusCode).toBe(401)
+    expect(gated.json().error.code).toBe('CAPTCHA_REQUIRED')
+
+    // Token Turnstile valid + parolă corectă → trece.
+    const ok = await loginWith(email, password, 'valid-token')
+    expect(ok.statusCode).toBe(200)
+    expect(ok.json().accessToken).toBeTruthy()
+  })
+
+  it('token invalid la prag → tot CAPTCHA_REQUIRED', async () => {
+    const { email } = await registerAndVerify('captcha2@example.com')
+    env.TURNSTILE_SECRET = 'test-secret' // pornim Turnstile DOAR pentru login (după ce userul e creat)
+    for (let i = 0; i < 3; i++) await loginWith(email, 'WrongPassword1!')
+    const res = await loginWith(email, 'WrongPassword1!', 'bad-token')
+    expect(res.statusCode).toBe(401)
+    expect(res.json().error.code).toBe('CAPTCHA_REQUIRED')
   })
 })
 

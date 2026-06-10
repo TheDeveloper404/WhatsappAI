@@ -13,11 +13,16 @@ import {
 import { sendVerificationEmail, sendPasswordResetEmail, sendAlreadyRegisteredEmail } from '../../utils/email.js'
 import { notifyAdmin } from '../admin/notifications.service.js'
 import { Errors } from '../../utils/errors.js'
+import { verifyTurnstile } from '../../utils/turnstile.js'
 import { env } from '../../config/env.js'
 import type { RegisterInput, LoginInput } from './auth.schemas.js'
 
 const MAX_LOGIN_ATTEMPTS = 10
 const LOGIN_WINDOW_MS = 15 * 60 * 1000
+// După atâtea login-uri eșuate pe un email (în fereastra de mai sus), cerem un challenge Turnstile în loc
+// să blocăm emailul (0.7, varianta C). Oprește brute-force-ul automat fără să blocheze omul real →
+// elimină account-lockout DoS-ul (un atacator nu mai poate închide login-ul unui owner real cu eșecuri).
+const LOGIN_CAPTCHA_AFTER = 3
 // Fereastra în care reutilizarea unui token deja rotat e tratată ca retry concurent benign (L13),
 // nu ca furt. Peste ea, un token rotat reprezentat = reuse suspect → revocare de familie (L10).
 const REFRESH_REUSE_GRACE_MS = 30 * 1000
@@ -75,7 +80,18 @@ export const authService = {
   async login(input: LoginInput, ip: string) {
     const since = new Date(Date.now() - LOGIN_WINDOW_MS)
     const attempts = await authRepository.countRecentLoginAttempts(input.email, since)
-    if (attempts >= MAX_LOGIN_ATTEMPTS) {
+
+    if (env.TURNSTILE_SECRET) {
+      // Prod (Turnstile configurat): după N eșecuri cerem un challenge în loc de hard-lockout (varianta C).
+      // Verificat ÎNAINTE de findUserByEmail → challenge-ul apare la fel pentru orice email hărțuit, deci
+      // nu trădează existența contului (anti-enumerare, aliniat cu M8). Token valid → continuăm normal;
+      // lipsă/invalid → CAPTCHA_REQUIRED, iar frontend-ul afișează widget-ul și reîncearcă.
+      if (attempts >= LOGIN_CAPTCHA_AFTER) {
+        const ok = await verifyTurnstile(env.TURNSTILE_SECRET, input.turnstileToken, ip)
+        if (!ok) throw Errors.captchaRequired()
+      }
+    } else if (attempts >= MAX_LOGIN_ATTEMPTS) {
+      // Dev/test/E2E fără Turnstile configurat: păstrăm hard-lockout-ul ca fallback de protecție.
       throw Errors.unauthorized('Prea multe încercări eșuate. Încearcă din nou peste 15 minute.')
     }
 

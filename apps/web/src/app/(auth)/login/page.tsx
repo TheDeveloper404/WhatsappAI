@@ -5,7 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { Alert } from '@/components/ui/Alert'
-import { api } from '@/lib/api'
+import { Turnstile } from '@/components/Turnstile'
+import { api, ApiRequestError } from '@/lib/api'
 import { useAuthStore } from '@/store/auth'
 
 function LoginContent() {
@@ -21,16 +22,34 @@ function LoginContent() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const passwordRef = useRef<HTMLInputElement>(null)
+  // Anti account-lockout DoS (0.7): după N login-uri eșuate, API-ul răspunde `CAPTCHA_REQUIRED`. Afișăm
+  // widget-ul Turnstile, iar la următoarea încercare trimitem token-ul. Token-ul e single-use → după
+  // fiecare încercare îl resetăm și remontăm widget-ul (bump pe `captchaKey`) ca să obținem unul proaspăt.
+  const [captchaRequired, setCaptchaRequired] = useState(false)
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null)
+  const [captchaKey, setCaptchaKey] = useState(0)
+  const waitingForCaptcha = captchaRequired && !captchaToken
 
   async function doLogin() {
     setError('')
     setLoading(true)
     try {
-      const { user, accessToken } = await api.auth.login({ email, password })
+      const { user, accessToken } = await api.auth.login({
+        email,
+        password,
+        turnstileToken: captchaToken ?? undefined,
+      })
       setAuth(user, accessToken)
       router.push('/dashboard')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'A apărut o eroare. Încearcă din nou.')
+      if (err instanceof ApiRequestError && err.code === 'CAPTCHA_REQUIRED') {
+        setCaptchaRequired(true)
+      } else {
+        setError(err instanceof Error ? err.message : 'A apărut o eroare. Încearcă din nou.')
+      }
+      // Token-ul Turnstile e de unică folosință → după orice încercare cerem unul nou.
+      setCaptchaToken(null)
+      setCaptchaKey(k => k + 1)
     } finally {
       setLoading(false)
     }
@@ -75,7 +94,7 @@ function LoginContent() {
           type="password"
           value={password}
           onChange={e => setPassword(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter' && !loading) { e.preventDefault(); doLogin() } }}
+          onKeyDown={e => { if (e.key === 'Enter' && !loading && !waitingForCaptcha) { e.preventDefault(); doLogin() } }}
           ref={passwordRef}
           autoComplete="current-password"
           required
@@ -87,8 +106,19 @@ function LoginContent() {
           </Link>
         </div>
 
-        <Button type="submit" loading={loading} className="w-full mt-2 h-11 text-[14px]">
-          intră în cont →
+        {captchaRequired && (
+          <div className="mt-1">
+            <Alert
+              type="info"
+              message="Verificare de securitate după mai multe încercări. Așteaptă confirmarea, apoi apasă din nou."
+              className="mb-3"
+            />
+            <Turnstile key={captchaKey} onToken={setCaptchaToken} onExpire={() => setCaptchaToken(null)} />
+          </div>
+        )}
+
+        <Button type="submit" loading={loading} disabled={waitingForCaptcha} className="w-full mt-2 h-11 text-[14px]">
+          {waitingForCaptcha ? 'verificare…' : 'intră în cont →'}
         </Button>
       </form>
 

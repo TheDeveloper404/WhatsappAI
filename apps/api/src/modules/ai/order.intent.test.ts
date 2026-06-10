@@ -64,6 +64,26 @@ describe('parseOrderIntent', () => {
     expect(r.phase).toBe('none')
   })
 
+  it('cantitate în (0,1) (ex. 0.4) → aruncată, nu lăsată ca 0 (floor înainte de filtru)', () => {
+    const r = parseOrderIntent(
+      '{"phase":"ready","items":[{"productId":"p1","quantity":0.4}],"missingInfo":[]}',
+      VALID,
+    )
+    // 0.4 > 0 brut, dar floor(0.4)=0 → trebuie aruncat, nu păstrat ca linie „produs ×0".
+    expect(r.items).toEqual([])
+    // ready fără produse → collecting → none (nimic de cerut).
+    expect(r.phase).toBe('none')
+  })
+
+  it('cantitate fracționară >= 1 (ex. 1.9) → păstrată, rotunjită în jos la 1', () => {
+    const r = parseOrderIntent(
+      '{"phase":"ready","items":[{"productId":"p1","quantity":1.9}],"missingInfo":[]}',
+      VALID,
+    )
+    expect(r.items).toEqual([{ productId: 'p1', quantity: 1 }])
+    expect(r.phase).toBe('ready')
+  })
+
   it('phase invalid → none', () => {
     expect(parseOrderIntent('{"phase":"executing","items":[],"missingInfo":[]}', VALID).phase).toBe('none')
   })

@@ -184,7 +184,13 @@ export function classifyBusinessScope(text: string): BusinessScope {
     'scrie o poezie',
     'compune o melodie',
     'horoscop',
-    'vremea',
+    // „vremea" singur era prea generic (prindea „vremea de execuție/livrare", „în vremea asta")
+    // și bloca mesaje legitime → folosim fraze specifice de meteo (prind „cum e/va fi vremea",
+    // „ce vreme...", prognoza; NU prind „vremea de execuție").
+    'cum e vremea',
+    'cum va fi vremea',
+    'ce vreme',
+    'prognoza meteo',
     'cine a castigat',
     'rezolva tema',
   ]

@@ -90,6 +90,11 @@ describe('classifyBusinessScope', () => {
     expect(classifyBusinessScope('Vreau o programare pentru mâine')).toBe('business')
   })
 
+  it('nu mai dă fals-pozitiv pe „vremea de execuție/livrare" (cuvântul „vremea" în context business)', () => {
+    expect(classifyBusinessScope('Care e vremea de execuție la o canapea?')).toBe('business')
+    expect(classifyBusinessScope('Ce produse aveți bune în vremea asta?')).toBe('business')
+  })
+
   it('detectează cereri off-topic', () => {
     expect(classifyBusinessScope('Spune-mi un banc')).toBe('off_topic')
     expect(classifyBusinessScope('Dă-mi o rețetă de paste')).toBe('off_topic')

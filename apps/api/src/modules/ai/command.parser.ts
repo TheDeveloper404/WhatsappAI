@@ -41,8 +41,11 @@ export function parseCommand(body: string): ParsedCommand | null {
 
   if (cmd === '/pauseai') {
     const arg = parts[1] ?? ''
-    const match = arg.match(/^(\d+)h$/i)
-    const hours = match ? parseInt(match[1]) : 1
+    // Acceptă „2h" sau „2". Plafon 1–720h (~30 zile): 0/lipsă/invalid → 1h, peste plafon → 720h.
+    // Evită pauze accidentale de ani (fără plafon, „/pauseai 99999h" oprea agentul ~11 ani).
+    const match = arg.match(/^(\d+)h?$/i)
+    const raw = match ? parseInt(match[1]) : 1
+    const hours = Math.min(Math.max(raw, 1), 720)
     return { type: 'pauseAI', hours }
   }
 

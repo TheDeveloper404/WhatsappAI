@@ -23,23 +23,26 @@ function tzOffsetMs(at: number, tz: string): number {
   return asUTC - at
 }
 
-// Epoch ms pentru miezul nopții (ora locală tz) din ziua lui `now`
-function startOfDayInTz(now: number, tz: string): number {
+// Epoch ms pentru miezul nopții (ora locală tz) din ziua lui `now`.
+// DST: offset-ul se ia la miezul nopții CANDIDAT, nu la `now` — altfel pe zilele de tranziție
+// (când `now` e de cealaltă parte a schimbării de oră) granița iese cu 1h greșită. Exportat pt test.
+export function startOfDayInTz(now: number, tz: string): number {
   const ymd = new Intl.DateTimeFormat('en-CA', {
     timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
   }).format(new Date(now))
   const midnightUTC = new Date(`${ymd}T00:00:00Z`).getTime()
-  return midnightUTC - tzOffsetMs(now, tz)
+  return midnightUTC - tzOffsetMs(midnightUTC, tz)
 }
 
-// Epoch ms pentru prima zi a lunii calendaristice curente (ora locală tz), 00:00
-function startOfMonthInTz(now: number, tz: string): number {
+// Epoch ms pentru prima zi a lunii calendaristice curente (ora locală tz), 00:00.
+// Același fix DST: offset la prima zi candidată, nu la `now`. Exportat pt test.
+export function startOfMonthInTz(now: number, tz: string): number {
   const ymd = new Intl.DateTimeFormat('en-CA', {
     timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
   }).format(new Date(now))
   const [y, m] = ymd.split('-')
   const firstUTC = new Date(`${y}-${m}-01T00:00:00Z`).getTime()
-  return firstUTC - tzOffsetMs(now, tz)
+  return firstUTC - tzOffsetMs(firstUTC, tz)
 }
 
 export const aiRepository = {

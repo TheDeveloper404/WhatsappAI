@@ -6,6 +6,58 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed (2026-06-10) — 0.2: statistici greșite cu 1h pe zilele de tranziție DST
+
+Debugging activ (Etapa 0.2). `startOfDayInTz`/`startOfMonthInTz` (`ai.repository.ts`, folosite de `getStats`) luau offset-ul de fus la `now`, nu la miezul nopții candidat → pe cele 2 zile de schimbare a orei/an, granița „azi/săptămână/lună" ieșea cu ±1h (ex. spring-forward 2026-03-29: 28T21:00Z în loc de 28T22:00Z). Fix: offset calculat la instanța candidat (miezul nopții / prima zi a lunii) — dovedit prin execuție (diff=0 pe toate zilele). Helpere exportate + test nou `stats.tz.test.ts` (4 zile + 2 luni, inclusiv tranzițiile). Impact era LOW (statistici aproximative dashboard, nu bani/securitate). `parseLeadClassification` verificat — curat (deja excelent acoperit).
+
+### Fixed (2026-06-10) — 0.2: gatekeeper / import CSV / comenzi owner (4 defecte găsite prin execuție)
+
+Debugging activ (Etapa 0.2), dovedit prin scripturi standalone pe funcțiile reale:
+- **Import CSV — preț cu separator de mii** (`apps/web/src/lib/csv.ts`): `"1.299,00"` se parsa ca `1.299`, `"2.500 lei"` ca `2.5` (`.replace(',','.')` doar prima virgulă → `parseFloat` se oprea la al 2-lea punct). Helper nou `parsePriceLei`: zecimala = ULTIMUL separator, celălalt = mii → `"1.299,00"→1299`, `"1,299.00"→1299`, `"49,99"→49.99`. (Un singur separator cu 3 cifre, ex. `"2.500"`, rămâne ambiguu — preview-ul de import îl arată.)
+- **Import CSV — newline în câmp citat** (`parseCsv`): rescris ca mașină de stări pe tot textul (nu mai face `split('\n')` înainte de parsarea ghilimelelor) → câmpurile citate pot conține virgule ȘI newline-uri interne, cum promitea comentariul.
+- **Gatekeeper `classifyBusinessScope`** (`message.handler.ts`): keyword-ul „vremea" era prea generic și bloca mesaje legitime („vremea de execuție/livrare") ca `off_topic`. Înlocuit cu fraze meteo specifice („cum e/va fi vremea", „ce vreme", „prognoza meteo").
+- **Comandă owner `/pauseAI`** (`command.parser.ts`): fără plafon (`/pauseAI 99999h` oprea agentul ~11 ani; `0h` = no-op tăcut). Plafon 1–720h + acceptă „5" fără „h".
+- Teste de regresie: `command.parser.test.ts` (pauseAI) + `message.handler.test.ts` (vremea). NOTĂ: `csv.ts` e în `apps/web`, care NU are runner de unit-teste (vitest) → fix-urile A/B sunt verificate prin execuție, nu prin suită.
+
+### Fixed (2026-06-10) — 0.2: `parseOrderIntent` lăsa o linie cu cantitate 0 (floor după filtru)
+
+Debugging activ prin execuție (Etapa 0.2, calea banilor). O cantitate în intervalul `(0,1)` (ex. `0.4`) trecea de filtrul `quantity > 0` (verificat pe valoarea brută) și abia apoi `Math.floor` o făcea `0` → rămânea o linie „produs ×0" într-o comandă `ready`. Fix: floor ÎNAINTE de filtru (`floor` apoi aruncă `<= 0`), deci `0.4→aruncat`, `1.9→1`, `-3→aruncat`. Impact era LOW (totalul rămânea corect — `0×preț`; `decrementStock(0)` inofensiv), dar plasa de validare strictă trebuia să-l prindă. + 2 cazuri de regresie în `order.intent.test.ts`. (Observație necorectată: id duplicat în `items` → linii separate fără dedup — de evaluat la o iterație viitoare.)
+
+### Security (2026-06-10) — 0.1b: exploatare LIVE pe prod (`api.waai.ro`) → APPROVED (0 crit / 0 high)
+
+Pentest autorizat live, scripturi `pentest/` (gitignored). **Faza anonimă** (`recon.py`): 37 PASS, 0 crit/high/med — rute protejate→401, rute test→404 (excluse din build), **Stripe webhook** no-sig/fake-sig→400 (raw buffer parser ține post-Fastify 5), **JWT forjat** (alg=none/garbage)→401 (fără alg-confusion live), **CORS** origine atacator→403 ne-reflectat / legit→204, headere (HSTS/nosniff/X-Frame) prezente, bodyLimit (1MB→413), DELETE ne-blocat de WAF. **Faza autentificată** (`attack.py`, 2 conturi entitled): 16 PASS, 0 crit/high/med — gate abonament C1/C2 (200 pe entitled), date scoped pe userId, **IDOR/BOLA live** (user B încearcă DELETE+PATCH pe produsul lui A → 404, produs supraviețuiește neschimbat, verificat prin re-listare), refuz admin (401, schemă de sesiune separată), DELETE /me inexistent (double opt-in by-design). **4 LOW** informaționale (admin 401-vs-403; DELETE /me 404 by-design). **Verdict APPROVED — suprafața B13 ține și la atac real pe prod.** Nou item BACKLOG 0.7 (LOW): hardening login cu CAPTCHA-după-N-eșecuri (anti account-lockout DoS pe lockout-ul per-email).
+
+### Security (2026-06-10) — 0.1a: review static adversarial post-upgrade B13 → APPROVED (0 crit / 0 high)
+
+Review DRASTIC pe suprafața schimbată de upgrade (NU audit de la zero pe logica aprobată 08-06). Verificat pe fiecare axă: body parser JSON Fastify 5 (delegă la `getDefaultJsonParser('error','error')` → protecție anti proto/constructor-poisoning păstrată); Stripe webhook raw `buffer` izolat în scope `/webhooks` + semnătură pe raw + dedup `stripe_events`; CORS/rate-limit/trustProxy Fastify 5 (`methods` explicit vs default v11 strâns, hops fix, key pe `CF-Connecting-IP`); CSP nonce Next 16 (per-request, `strict-dynamic`, fără `'unsafe-inline'` în `script-src`); proxy `[action]` Next 16 (`params` await-uit, `action` allowlistat → fără SSRF); scheme zod 4 (`safeParse`+`.issues`); JWT HMAC fix (fără alg-confusion, constant-time) + CSRF `assertTrustedOrigin`; 2FA admin otplib 13 migrat corect (`verify({…epochTolerance})→{valid}`, fail-closed). **Verdict APPROVED.** 2 note LOW pre-existente (ne din B13): handlere admin cu `req.params/body as` brut (query-uri parametrizate downstream, scope admin); `login` fără `assertTrustedOrigin` (CSRF login = impact mic).
+
+### Changed (2026-06-09) — B13: upgrade major de pachete (Fastify 5, Next 16, React 19, Tailwind 4, ESLint 9, zod 4, Drizzle 0.45)
+
+Upgrade pe clustere izolate (un major pe branch → `tsc`+lint local → suită rulată de owner → preview → merge squash). Lecție de proces: branch-urile stivuite produc conflicte pe `pnpm-lock.yaml` → fiecare branch se ramifică de pe `main` proaspăt.
+
+**Backend:**
+- **Cluster 0** — `stripe` 22.1→22.2 (+`apiVersion 2026-05-27.dahlia`), `vitest`+`@vitest/coverage-v8`→4.1.8, `tsx`→4.22.4, scos `@types/node-cache`.
+- **Cluster 1** — `uuid` SCOS complet (→`crypto.randomUUID()` în `auth.service`/`billing.service`), `bcryptjs` 2→3 (hash-uri `$2b$` compatibile, zero cod), `dotenv` 16→17.
+- **Cluster 2** — `resend` 3→6 (`^6.12.4`), zero cod (folosim doar `html`, nu `react`).
+- **Cluster 3** — `zod` 3→4 (`^4.4.3`): breaking real `ZodError.errors`→`.issues` reparat în 7 rute + `parseBody` (`auth.controller`) rescris pe tipul real `ZodType<T>`. `.email()/.url()/.uuid()/message:` deprecate dar funcționale (nemigrate, diff mic).
+- **Cluster 4** — `drizzle-orm` 0.30→0.45 (`^0.45.2`), ZERO cod (folosit doar ca query builder: `sql/eq/and`, `pg-core`, `node-postgres`; fără RQB/`relations()`, fără `drizzle-kit` — migrările = SQL brut).
+- **Cluster 5** — `fastify` 4→5 (`^5.8.5`) + plugin-urile @fastify (`cookie`→11, `cors`→11, `helmet`→13, `multipart`→10, `rate-limit`→10). Cod: `setErrorHandler` tipat explicit (`FastifyError`). OPS: `"engines":{"node":">=20"}` în `package.json` rădăcină. Post-deploy au apărut 2 regresii (reparate, vezi „Fixed 2026-06-09 — DELETE/Fastify 5" mai jos).
+
+**Frontend (apps/web):**
+- **web-1** — `lucide-react` 0.378→1.17 (zero cod; niciuna din cele 42 icoane folosite nu e brand).
+- **web-2** — `zustand` 4→5 (`^5.0.14`), zero cod (`import { create }`, fără `shallow`, `persist` standard).
+- **web-3 + web-4** (merge împreună — combinația React19+Next14 e nesuportată) — `react`+`react-dom` 18→19 (`^19.2.7`, `@types/react`+`dom`→19) + `next` 14→16 (`16.2.7`). Fixuri: `useRef(undefined)` (types 19), `layout.tsx` `async`+`await headers()`, `auth/[action]/route` params `Promise`+await, `BackButton` eslint-disable țintit. `next build` (Turbopack) verde. `next lint` ELIMINAT în Next 16.
+- **web-5** — `tailwindcss` 3→4 (`^4.3.0`) via `npx @tailwindcss/upgrade`: `globals.css`→`@import 'tailwindcss'`+`@custom-variant dark`+`@theme{}` (token-uri mapate), `@tailwindcss/postcss`, `tailwind.config.ts` ȘTERS (config în CSS); 16 fișiere template redenumiri (`outline-none`→`outline-hidden` etc.). ⚠️ v4 cere Safari 16.4+/Chrome 111+.
+- **web-6** — `eslint` 8→9 (`^9`, flat config) + `eslint-config-next` 15.5.19→16.2.7. `.eslintrc.json` ȘTERS → `eslint.config.mjs` (exporturi native flat `eslint-config-next/core-web-vitals`+`/typescript`, fără FlatCompat); script `lint`: `--ext`→`eslint src`. eslint 10 blocat de peer-urile plugin-urilor (`<=9`). Reguli noi „React Compiler" (`eslint-plugin-react-hooks` v6): 20 findings lăsate pe `warn` → curățenie în `BACKLOG.md` B13.1.
+
+**Colateral web:** `@vercel/speed-insights@^2` adăugat în `layout.tsx`. **DEFER:** `@whiskeysockets/baileys` 6→7 (încă RC), `typescript` 5→6 (beneficiu mic) — `BACKLOG.md` B13.
+
+### Fixed (2026-06-09) — DELETE-uri în prod după Fastify 5 (CORS + body gol) + latență + hydration #418
+
+- **Toate DELETE-urile (ștergere user admin/produs/blacklist, clear conversație, disconnect-wa) picau în prod** după cluster-5. Două cauze suprapuse: (1) `@fastify/cors` v11 a strâns default-ul `methods` la `GET,HEAD,POST` → preflight respingea DELETE/PUT/PATCH → `app.ts` declară explicit `methods: ['GET','HEAD','POST','PUT','PATCH','DELETE']`; (2) **cauza reală mascată** — Fastify 5 respinge cu 400 `FST_ERR_CTP_EMPTY_JSON_BODY` orice cerere cu `content-type: application/json` și body gol (clientul trimite Content-Type pe DELETE-uri fără body). Fix: parser custom `application/json` în `app.ts` (body gol → `undefined`, restul prin `getDefaultJsonParser` securizat). ⚠️ Gotcha: `addContentTypeParser` aruncă `FST_ERR_CTP_ALREADY_PRESENT` peste parser-ul existent → `removeContentTypeParser` întâi; idem în `stripe.webhook.ts` (scope încapsulat moștenește parser-ul de la root → și acolo `removeContentTypeParser` înainte de parser-ul buffer). `tsc` verde + repro standalone.
+- **„Lent peste tot, mereu" (frontend)**: funcțiile Vercel rulau în US East (`iad1`) deși userii + API-ul (Railway `europe-west4`) sunt în Europa → fiecare randare dinamică = drum transatlantic. Fix: regiunea funcțiilor mutată în Frankfurt (`fra1`) din dashboard Vercel. Confirmat live `X-Vercel-Id: fra1::fra1`.
+- **React hydration error #418 + emailuri afișate `[email protected]`**: cauza = **Cloudflare Email Obfuscation** (Scrape Shield) rescria `support@waai.ro` în HTML în tranzit → HTML livrat ≠ ce randa React (mismatch text), iar `email-decode.min.js` era blocat de CSP. Fix: dezactivat Email Address Obfuscation în Cloudflare (nu e cod). Confirmat live: HTML fără `__cf_email__`, consolă 0 erori.
+
 ### Removed (2026-06-09) — Email confirmare comandă către client (securitate L9 + branding)
 
 - **Scos** emailul automat de confirmare comandă către client din `message.handler.ts` (+ `sendOrderConfirmationEmail`/`OrderEmailSummary` din `utils/email.ts`, plus codul mort aferent: `extractEmail`, throttle `lastOrderEmail`, `emailNote`, importurile `z`/email).

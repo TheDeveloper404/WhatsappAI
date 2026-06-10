@@ -47,6 +47,12 @@ describe('parseCommand', () => {
     expect(parseCommand('/pauseAI invalid')).toEqual({ type: 'pauseAI', hours: 1 })
   })
 
+  it('/pauseAI plafonat 1–720h și acceptă număr fără „h"', () => {
+    expect(parseCommand('/pauseAI 0h')).toEqual({ type: 'pauseAI', hours: 1 })       // 0 → min 1
+    expect(parseCommand('/pauseAI 99999h')).toEqual({ type: 'pauseAI', hours: 720 }) // peste plafon → 720
+    expect(parseCommand('/pauseAI 5')).toEqual({ type: 'pauseAI', hours: 5 })        // fără „h" → acceptat
+  })
+
   it('/setTimer cu număr valid', () => {
     expect(parseCommand('/setTimer 5')).toEqual({ type: 'setTimer', minutes: 5 })
     expect(parseCommand('/setTimer 5min')).toEqual({ type: 'setTimer', minutes: 5 })

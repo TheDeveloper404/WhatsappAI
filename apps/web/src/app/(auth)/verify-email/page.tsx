@@ -8,15 +8,12 @@ import { CheckCircle2, XCircle, Loader2 } from 'lucide-react'
 function VerifyEmailContent() {
   const params = useSearchParams()
   const token = params.get('token')
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
-  const [message, setMessage] = useState('')
+  // Stare inițială derivată din prezența token-ului (nu setState sincron în efect → react-hooks/set-state-in-effect).
+  const [status, setStatus] = useState<'loading' | 'success' | 'error'>(token ? 'loading' : 'error')
+  const [message, setMessage] = useState(token ? '' : 'Link invalid. Solicită un email nou de verificare.')
 
   useEffect(() => {
-    if (!token) {
-      setStatus('error')
-      setMessage('Link invalid. Solicită un email nou de verificare.')
-      return
-    }
+    if (!token) return
     api.auth.verifyEmail(token)
       .then(() => setStatus('success'))
       .catch(err => {

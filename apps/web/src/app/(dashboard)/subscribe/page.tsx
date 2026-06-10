@@ -52,7 +52,7 @@ export default function SubscribePage() {
     setError('')
     try {
       const { url } = await api.billing.createCheckout(accessToken, plan)
-      window.location.href = url
+      window.location.assign(url)
     } catch {
       setError('A apărut o eroare. Încearcă din nou.')
       setLoading(null)

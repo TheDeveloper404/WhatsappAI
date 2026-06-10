@@ -32,7 +32,11 @@ function buildCsp(nonce: string): string {
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://va.vercel-scripts.com https://challenges.cloudflare.com`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "img-src 'self' data: blob:",
-    "connect-src 'self' https:",
+    // Dev-only: în development API-ul rulează pe `http://localhost:3001` (cross-origin HTTP), care nu e
+    // nici `'self'`, nici `https:` → fetch-urile din `lib/api.ts` (request()) ar fi blocate de CSP și
+    // dashboard-ul ar cădea pe /subscribe. În PROD API-ul e `https://api.waai.ro` → acoperit de `https:`,
+    // deci ramura asta NU se activează (NODE_ENV=production) → CSP-ul de prod rămâne neschimbat.
+    `connect-src 'self' https:${process.env.NODE_ENV !== 'production' ? ' http://localhost:3001' : ''}`,
     "font-src 'self' https://fonts.gstatic.com",
     "frame-src https://challenges.cloudflare.com",
     "frame-ancestors 'none'",

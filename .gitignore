@@ -22,6 +22,9 @@ apps/api/data/
 /scripts
 catalog-barber-test.csv
 
+# Artefacte Playwright MCP (snapshot-uri/log-uri de debug din sesiuni browser — throwaway)
+.playwright-mcp/
+
 # Build cache
 *.tsbuildinfo
 

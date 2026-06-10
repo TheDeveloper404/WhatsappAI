@@ -144,6 +144,8 @@ function EmailModal({ user, token, onClose }: { user: AdminUser; token: string; 
 // ─── Modal extindere trial ────────────────────────────────────────────────────
 function TrialModal({ user, token, onClose, onDone }: { user: AdminUser; token: string; onClose: () => void; onDone: () => void }) {
   const [days, setDays] = useState(7)
+  // Capturat o dată la mount — `Date.now()` în render nu e idempotent (react-hooks/purity).
+  const [now] = useState(() => Date.now())
   const [loading, setLoading] = useState(false)
 
   async function extend() {
@@ -169,7 +171,7 @@ function TrialModal({ user, token, onClose, onDone }: { user: AdminUser; token: 
             <p className="font-mono-ui text-xs text-dimmer mt-2">
               Expiră acum: {formatDate(user.trialEndsAt)}
               {' → '}
-              {formatDate(Math.max(user.trialEndsAt, Date.now()) + days * 86_400_000)}
+              {formatDate(Math.max(user.trialEndsAt, now) + days * 86_400_000)}
             </p>
           )}
         </div>
@@ -431,6 +433,8 @@ export default function AdminDashboard() {
   const [deletingNotification, setDeletingNotification] = useState<string | null>(null)
   const [modal, setModal] = useState<ModalState>(null)
   const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'activity' | 'config'>('overview')
+  // Capturat o dată la mount — `Date.now()` în render nu e idempotent (react-hooks/purity).
+  const [now] = useState(() => Date.now())
 
   const loadAll = useCallback(async (t: string, silent = false) => {
     if (!silent) setLoading(true)
@@ -456,9 +460,11 @@ export default function AdminDashboard() {
     }
   }, [router])
 
+  // sessionStorage e client-only (token admin) → bootstrap în efect; setState intenționat.
   useEffect(() => {
     const t = sessionStorage.getItem('admin_token')
     if (!t) { router.replace('/admin'); return }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setToken(t)
     loadAll(t)
   }, [loadAll, router])
@@ -541,7 +547,7 @@ export default function AdminDashboard() {
     u.agentAdminDisabled ||
     (u.agentActive && u.sessionStatus !== 'connected') ||
     ((u.subscriptionStatus === 'active' || u.subscriptionStatus === 'trialing') && u.sessionStatus !== 'connected') ||
-    (u.subscriptionStatus === 'trialing' && u.trialEndsAt && u.trialEndsAt - Date.now() <= 2 * 86_400_000)
+    (u.subscriptionStatus === 'trialing' && u.trialEndsAt && u.trialEndsAt - now <= 2 * 86_400_000)
   )
 
   const healthCards = stats ? [
@@ -701,7 +707,7 @@ export default function AdminDashboard() {
                       u.agentAdminDisabled ? 'agent blocat admin' : null,
                       u.agentActive && u.sessionStatus !== 'connected' ? 'agent activ fără WhatsApp' : null,
                       (u.subscriptionStatus === 'active' || u.subscriptionStatus === 'trialing') && u.sessionStatus !== 'connected' ? 'client fără WhatsApp conectat' : null,
-                      u.subscriptionStatus === 'trialing' && u.trialEndsAt && u.trialEndsAt - Date.now() <= 2 * 86_400_000 ? 'trial expiră curând' : null,
+                      u.subscriptionStatus === 'trialing' && u.trialEndsAt && u.trialEndsAt - now <= 2 * 86_400_000 ? 'trial expiră curând' : null,
                     ].filter(Boolean).join(' · ')
                     return (
                       <button key={u.id} onClick={() => setModal({ type: 'details', user: u })} className="w-full flex items-center justify-between gap-4 px-5 py-3 text-left hover:bg-cardhi transition-colors">

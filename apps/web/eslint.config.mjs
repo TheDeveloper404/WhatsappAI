@@ -14,14 +14,15 @@ export default defineConfig([
         varsIgnorePattern: '^_',
         destructuredArrayIgnorePattern: '^_',
       }],
-      // Reguli NOI „React Compiler" din eslint-plugin-react-hooks v6 (intrate odată cu eslint-config-next 16).
-      // ~20 findings pre-existente (setState în efect, ref/purity) — nu sunt bug-uri active (Next 16 nu lintează
-      // la build, runtime OK), ci pregătire pt React Compiler. Lăsate pe `warn` (ne-blocante) → curățenie țintită
-      // separată (vezi BACKLOG B13/web-6 follow-up). NU le seta pe error fără a repara întâi cele 13 fișiere.
-      'react-hooks/set-state-in-effect': 'warn',
-      'react-hooks/purity': 'warn',
-      'react-hooks/refs': 'warn',
-      'react-hooks/immutability': 'warn',
+      // Reguli „React Compiler" din eslint-plugin-react-hooks v6 (intrate cu eslint-config-next 16).
+      // Curățenia 0.5 (livrată): cele 20 findings rezolvate — refactor real unde era curat (theme via
+      // useSyncExternalStore, derivare în render, lazy-init) + `eslint-disable` documentat unde efectul e
+      // pattern-ul SSR-corect (citire localStorage/sessionStorage/hash la mount, fetch on mount cu setState
+      // post-await, auth-gate). Acum pe `error` → orice regresie sparge build-ul.
+      'react-hooks/set-state-in-effect': 'error',
+      'react-hooks/purity': 'error',
+      'react-hooks/refs': 'error',
+      'react-hooks/immutability': 'error',
     },
   },
   globalIgnores([

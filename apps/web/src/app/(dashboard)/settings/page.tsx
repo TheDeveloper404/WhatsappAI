@@ -86,8 +86,10 @@ export default function SettingsPage() {
   }, [accessToken])
 
   // Persistă tab-ul activ în hash-ul URL → refresh-ul rămâne pe același tab (nu mai sare la „Agent").
+  // Hash-ul URL NU ajunge la server → init în efect (lazy-init din window ar da hydration mismatch). Intenționat.
   useEffect(() => {
     const hash = window.location.hash.replace('#', '')
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (TABS.some(t => t.id === hash)) setActiveTab(hash as Tab)
   }, [])
 

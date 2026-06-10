@@ -1,5 +1,6 @@
 'use client'
 import React, { useState, useEffect, useRef } from 'react'
+import { useDarkMode, toggleTheme } from '@/lib/useTheme'
 import Link from 'next/link'
 import {
   Moon, Sun, Menu, X, ArrowRight, Check, Play, ChevronUp,
@@ -7,16 +8,11 @@ import {
 } from 'lucide-react'
 
 // ─── THEME HOOK ───────────────────────────────────────────────────────────────
+// Citește tema prin store-ul partajat (useSyncExternalStore pe clasa `dark` de pe <html>) — fără
+// setState în efect, fără hydration mismatch. Vezi `@/lib/useTheme`.
 function useTheme() {
-  const [dark, setDark] = useState(false)
-  useEffect(() => { setDark(document.documentElement.classList.contains('dark')) }, [])
-  const toggle = () => {
-    const next = !dark
-    setDark(next)
-    document.documentElement.classList.toggle('dark', next)
-    try { localStorage.setItem('wa-ai-theme', next ? 'dark' : 'light') } catch {}
-  }
-  return { dark, toggle }
+  const dark = useDarkMode()
+  return { dark, toggle: () => toggleTheme(!dark) }
 }
 
 // ─── WA ICON ─────────────────────────────────────────────────────────────────

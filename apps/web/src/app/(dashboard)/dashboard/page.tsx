@@ -62,8 +62,11 @@ function DashboardContent() {
   const waPollRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined)
 
   const checkoutSuccess = searchParams.get('checkout') === 'success'
-  const [showCheckoutSuccess, setShowCheckoutSuccess] = useState(false)
+  // Init din param (știut pe server → fără hydration mismatch); rămâne true și după ce efectul curăță URL-ul.
+  const [showCheckoutSuccess] = useState(checkoutSuccess)
   const [showTrialPopup, setShowTrialPopup] = useState(false)
+  // Capturat o dată la mount (lazy init) — `Date.now()` în render nu e idempotent (react-hooks/purity).
+  const [now] = useState(() => Date.now())
 
   useEffect(() => {
     if (!accessToken) return
@@ -78,7 +81,6 @@ function DashboardContent() {
 
   useEffect(() => {
     if (!checkoutSuccess) return
-    setShowCheckoutSuccess(true)
     router.replace('/dashboard', { scroll: false })
   }, [checkoutSuccess, router])
 
@@ -90,6 +92,8 @@ function DashboardContent() {
     if (msLeft <= 0 || daysLeft > 3) return
     const todayKey = `wa-ai-trial-popup-${new Date().toISOString().slice(0, 10)}`
     if (localStorage.getItem(todayKey)) return
+    // localStorage client-only + depinde de `sub` (async) → efectul e corect; setState intenționat.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setShowTrialPopup(true)
   }, [sub])
 
@@ -225,7 +229,7 @@ function DashboardContent() {
     return { value: '7 zile', label: 'trial disponibil' }
   })()
 
-  const trialPopupDays = sub?.trialEndsAt ? Math.ceil((sub.trialEndsAt - Date.now()) / 86_400_000) : 0
+  const trialPopupDays = sub?.trialEndsAt ? Math.ceil((sub.trialEndsAt - now) / 86_400_000) : 0
 
   return (
     <div>

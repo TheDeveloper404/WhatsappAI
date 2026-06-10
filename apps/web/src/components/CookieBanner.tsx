@@ -7,8 +7,11 @@ const CONSENT_KEY = 'wa-ai-cookie-consent'
 export function CookieBanner() {
   const [visible, setVisible] = useState(false)
 
+  // localStorage e client-only → citire la mount; server-ul nu poate ști consimțământul (efectul evită
+  // hydration mismatch — banner-ul nu apare la SSR). setState intenționat aici.
   useEffect(() => {
     try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (!localStorage.getItem(CONSENT_KEY)) setVisible(true)
     } catch {}
   }, [])

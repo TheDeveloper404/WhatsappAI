@@ -6,6 +6,17 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed (2026-06-10) — 0.5: curățenie reguli „React Compiler" (eslint-plugin-react-hooks v6) → pe `error`
+
+Cele 20 de findings din 13 fișiere `apps/web` (intrate cu eslint-config-next 16) rezolvate; cele 4 reguli (`set-state-in-effect`, `purity`, `refs`, `immutability`) readuse de pe `warn` pe **`error`** (orice regresie sparge build-ul). Abordare hibridă — refactor real unde fix-ul era curat, `eslint-disable` documentat unde efectul e pattern-ul SSR-corect:
+- **`refs` (2, `Turnstile`):** atribuirea `cbToken/cbExpire.current` mutată din render într-un efect fără deps (pattern latest-callback corect).
+- **`purity` (4, `dashboard`+`admin`):** `Date.now()` în render → capturat o dată la mount cu `useState(() => Date.now())` (lazy init).
+- **`immutability` (1, `subscribe`):** `window.location.href = url` → `window.location.assign(url)`.
+- **`set-state-in-effect` — refactor curat (6):** temă (`ThemeToggle` + landing `useTheme`) mutată într-un hook partajat nou `lib/useTheme.ts` cu **`useSyncExternalStore`** (server snapshot `false` + MutationObserver pe clasa `dark` → fără hydration mismatch); `verify-email` (stare inițială derivată din token); `login` (params din `useSearchParams` + graniță `Suspense` în loc de citire `window` în efect); `dashboard` (flag checkout lazy-init din param); `layout` (închidere drawer pe schimbare rută via pattern „ajustează state în render", nu efect).
+- **`set-state-in-effect` — `eslint-disable` documentat (7):** citiri browser-only la mount unde efectul evită hydration mismatch (`CookieBanner`/`dashboard` trial-popup → localStorage; `settings` → hash URL; `admin` → sessionStorage); fetch-on-mount unde setState e DUPĂ `await` dar regula flaghează conservativ funcția apelată (`conversations`, `leads`); efectul de auth-gate din `layout` (setState lifecycle, block-scoped disable).
+
+Verificat: `eslint src` curat (0), `tsc --noEmit` curat, `next build` verde. Zero schimbare de comportament vizibil (temă/cookie/login/tab-uri identice).
+
 ### Fixed (2026-06-10) — 0.2: statistici greșite cu 1h pe zilele de tranziție DST
 
 Debugging activ (Etapa 0.2). `startOfDayInTz`/`startOfMonthInTz` (`ai.repository.ts`, folosite de `getStats`) luau offset-ul de fus la `now`, nu la miezul nopții candidat → pe cele 2 zile de schimbare a orei/an, granița „azi/săptămână/lună" ieșea cu ±1h (ex. spring-forward 2026-03-29: 28T21:00Z în loc de 28T22:00Z). Fix: offset calculat la instanța candidat (miezul nopții / prima zi a lunii) — dovedit prin execuție (diff=0 pe toate zilele). Helpere exportate + test nou `stats.tz.test.ts` (4 zile + 2 luni, inclusiv tranzițiile). Impact era LOW (statistici aproximative dashboard, nu bani/securitate). `parseLeadClassification` verificat — curat (deja excelent acoperit).

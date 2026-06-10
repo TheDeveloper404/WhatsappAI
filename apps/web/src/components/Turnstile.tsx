@@ -43,11 +43,15 @@ interface Props {
 export function Turnstile({ onToken, onExpire }: Props) {
   const ref = useRef<HTMLDivElement>(null)
   const widgetId = useRef<string | null>(null)
-  // Ref-uri la callback-uri ca efectul să ruleze O SINGURĂ dată (altfel re-randăm widget-ul la fiecare render).
+  // Ref-uri la callback-uri ca efectul de montare să ruleze O SINGURĂ dată (altfel re-randăm widget-ul
+  // la fiecare render). Atribuirea se face într-un efect fără deps (rulează după fiecare render) — nu în
+  // timpul randării — ca să respecte regula `react-hooks/refs` (nu scriem în ref.current în render).
   const cbToken = useRef(onToken)
-  cbToken.current = onToken
   const cbExpire = useRef(onExpire)
-  cbExpire.current = onExpire
+  useEffect(() => {
+    cbToken.current = onToken
+    cbExpire.current = onExpire
+  })
 
   useEffect(() => {
     let cancelled = false

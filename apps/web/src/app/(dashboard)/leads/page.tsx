@@ -43,7 +43,10 @@ export default function LeadsPage() {
     }
   }, [accessToken])
 
+  // Fetch on mount. setState-urile din `load` sunt DUPĂ `await` (async), nu sincrone — regula e conservativă
+  // pe funcția apelată și nu urmărește granița await. Disable documentat (vezi BACKLOG 0.5).
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     load()
   }, [load])
 

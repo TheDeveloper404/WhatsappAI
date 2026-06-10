@@ -1,29 +1,26 @@
 'use client'
-import { useState, useEffect, useRef, FormEvent } from 'react'
+import { Suspense, useState, useRef, FormEvent } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { Alert } from '@/components/ui/Alert'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/store/auth'
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter()
   const setAuth = useAuthStore(s => s.setAuth)
+  // Query params știute și pe server → derivate în render (nu setState în efect). `useSearchParams`
+  // cere o graniță Suspense (vezi `LoginPage` mai jos).
+  const params = useSearchParams()
+  const passwordReset = params.get('reset') === '1'
+  const emailVerified = params.get('verified') === '1'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [passwordReset, setPasswordReset] = useState(false)
-  const [emailVerified, setEmailVerified] = useState(false)
   const passwordRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    setPasswordReset(params.get('reset') === '1')
-    setEmailVerified(params.get('verified') === '1')
-  }, [])
 
   async function doLogin() {
     setError('')
@@ -102,5 +99,13 @@ export default function LoginPage() {
         </Link>
       </p>
     </>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginContent />
+    </Suspense>
   )
 }

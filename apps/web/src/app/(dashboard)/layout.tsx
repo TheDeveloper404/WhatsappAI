@@ -237,9 +237,18 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const subVerified = useRef(false)
 
-  // Închide meniul (drawer mobil) la schimbarea paginii
-  useEffect(() => { setMenuOpen(false) }, [pathname])
+  // Închide meniul (drawer mobil) la schimbarea paginii. Pattern oficial React „ajustează state la
+  // schimbare de prop în timpul randării" (nu efect) → fără setState sincron în efect.
+  const [prevPath, setPrevPath] = useState(pathname)
+  if (pathname !== prevPath) {
+    setPrevPath(pathname)
+    setMenuOpen(false)
+  }
 
+  // Auth-gate: verifică hidratare + sesiune + entitlement și redirecționează. `setChecking()` marchează
+  // „verificare terminată" și e parte din lifecycle-ul de auth (depinde de refresh async + redirect-uri,
+  // nu e derivabil în render) → dezactivăm `set-state-in-effect` pe TOT efectul (block scoped, re-activat jos).
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!_hasHydrated) return
 
@@ -293,6 +302,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
       router.replace('/subscribe')
     })
   }, [isAuthenticated, accessToken, user, pathname, searchParams, router, _hasHydrated, setAuth, clearAuth])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   async function handleLogout() {
     try { await api.auth.logout() } catch {}

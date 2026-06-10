@@ -11,39 +11,47 @@ function detectDelimiter(headerLine: string): ',' | ';' {
   return semis > commas ? ';' : ','
 }
 
-function parseLine(line: string, delim: string): string[] {
-  const out: string[] = []
-  let cur = ''
-  let inQuotes = false
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i]
-    if (inQuotes) {
-      if (ch === '"') {
-        if (line[i + 1] === '"') { cur += '"'; i++ }
-        else inQuotes = false
-      } else cur += ch
-    } else {
-      if (ch === '"') inQuotes = true
-      else if (ch === delim) { out.push(cur); cur = '' }
-      else cur += ch
-    }
-  }
-  out.push(cur)
-  return out.map(s => s.trim())
-}
-
 export function parseCsv(text: string): Record<string, string>[] {
   // Normalizează newline-urile și elimină BOM-ul (Excel adaugă ﻿ la început)
   const clean = text.replace(/^﻿/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n')
-  const lines = clean.split('\n').filter(l => l.trim() !== '')
-  if (lines.length < 2) return []
 
-  const delim = detectDelimiter(lines[0])
-  const headers = parseLine(lines[0], delim).map(h => h.toLowerCase().trim())
+  // Delimitator: detectat din prima linie LOGICĂ (până la primul newline din afara ghilimelelor).
+  let q = false, firstLineEnd = clean.length
+  for (let i = 0; i < clean.length; i++) {
+    if (clean[i] === '"') q = !q
+    else if (clean[i] === '\n' && !q) { firstLineEnd = i; break }
+  }
+  const delim = detectDelimiter(clean.slice(0, firstLineEnd))
 
+  // Mașină de stări pe TOT textul: un newline contează ca sfârșit de rând DOAR în afara ghilimelelor,
+  // deci câmpurile citate pot conține virgule ȘI newline-uri interne (ce promitea comentariul vechi).
+  const records: string[][] = []
+  let row: string[] = []
+  let cur = ''
+  let inQuotes = false
+  for (let i = 0; i < clean.length; i++) {
+    const ch = clean[i]
+    if (inQuotes) {
+      if (ch === '"') {
+        if (clean[i + 1] === '"') { cur += '"'; i++ } // ghilimea escapată prin dublare
+        else inQuotes = false
+      } else cur += ch
+    } else if (ch === '"') inQuotes = true
+    else if (ch === delim) { row.push(cur); cur = '' }
+    else if (ch === '\n') { row.push(cur); cur = ''; records.push(row); row = [] }
+    else cur += ch
+  }
+  row.push(cur)
+  records.push(row)
+
+  // Ignoră rândurile complet goale (inclusiv un newline final).
+  const nonEmpty = records.filter(r => r.some(c => c.trim() !== ''))
+  if (nonEmpty.length < 2) return []
+
+  const headers = nonEmpty[0].map(h => h.trim().toLowerCase())
   const rows: Record<string, string>[] = []
-  for (let i = 1; i < lines.length; i++) {
-    const cells = parseLine(lines[i], delim)
+  for (let i = 1; i < nonEmpty.length; i++) {
+    const cells = nonEmpty[i].map(c => c.trim())
     const row: Record<string, string> = {}
     headers.forEach((h, idx) => { row[h] = cells[idx] ?? '' })
     rows.push(row)
@@ -62,6 +70,27 @@ function pick(row: Record<string, string>, keys: string[]): string {
   return ''
 }
 
+// Parsează un preț tolerant la formate RO/EU/EN. Regula: zecimala = ULTIMUL separator (. sau ,)
+// care apare; celălalt e separator de mii și se elimină. Așa „1.299,00"→1299, „1,299.00"→1299,
+// „49,99"→49.99, „49.99"→49.99. NOTĂ: un singur separator cu 3 cifre după (ex. „2.500") rămâne
+// AMBIGUU (2.5 sau 2500?) — nu-l putem dezambigua fără locale; preview-ul de import îl arată owner-ului.
+export function parsePriceLei(raw: string): number {
+  const s = raw.replace(/[^\d.,-]/g, '')
+  const lastComma = s.lastIndexOf(',')
+  const lastDot = s.lastIndexOf('.')
+  let normalized: string
+  if (lastComma > lastDot) {
+    // virgula e zecimala (EU): scoate punctele (mii), virgula → punct
+    normalized = s.replace(/\./g, '').replace(',', '.')
+  } else if (lastDot > lastComma) {
+    // punctul e zecimala (EN/simplu): scoate virgulele (mii)
+    normalized = s.replace(/,/g, '')
+  } else {
+    normalized = s // niciun separator
+  }
+  return parseFloat(normalized)
+}
+
 export function rowsToProducts(rows: Record<string, string>[]): { products: ParsedProduct[]; errors: string[] } {
   const products: ParsedProduct[] = []
   const errors: string[] = []
@@ -74,7 +103,7 @@ export function rowsToProducts(rows: Record<string, string>[]): { products: Pars
     if (!name) { errors.push(`Rândul ${lineNo}: lipsește numele.`); return }
     if (!priceRaw) { errors.push(`Rândul ${lineNo}: lipsește prețul.`); return }
 
-    const priceLei = parseFloat(priceRaw.replace(/[^\d.,-]/g, '').replace(',', '.'))
+    const priceLei = parsePriceLei(priceRaw)
     if (isNaN(priceLei) || priceLei < 0) { errors.push(`Rândul ${lineNo}: preț invalid ("${priceRaw}").`); return }
 
     const availRaw = pick(row, ['disponibil', 'available', 'stoc', 'activ']).toLowerCase()

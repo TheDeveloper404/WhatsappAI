@@ -289,9 +289,13 @@ export function parseOrderIntent(raw: string, validIds: Set<string>): OrderInten
     return EMPTY_INTENT
   }
 
+  // Floor ÎNAINTE de filtrul „> 0": altfel o cantitate în (0,1) (ex. 0.4) trece de „brut > 0",
+  // apoi floor o face 0 → ar rămâne o linie cu cantitate 0 într-o comandă „ready". Floor întâi,
+  // apoi aruncă tot ce e <= 0 (0.4→0→aruncat, 1.9→1→păstrat, -3→aruncat).
   const items = (Array.isArray(parsed.items) ? parsed.items : [])
-    .filter(it => it && validIds.has(it.productId) && Number.isFinite(it.quantity) && it.quantity > 0)
+    .filter(it => it && validIds.has(it.productId) && Number.isFinite(it.quantity))
     .map(it => ({ productId: it.productId, quantity: Math.min(Math.floor(it.quantity), 999) }))
+    .filter(it => it.quantity > 0)
 
   const missingInfo = (Array.isArray(parsed.missingInfo) ? parsed.missingInfo : [])
     .filter((s): s is string => typeof s === 'string' && s.trim().length > 0)

@@ -6,6 +6,31 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed (2026-06-10) — 0.2: statistici greșite cu 1h pe zilele de tranziție DST
+
+Debugging activ (Etapa 0.2). `startOfDayInTz`/`startOfMonthInTz` (`ai.repository.ts`, folosite de `getStats`) luau offset-ul de fus la `now`, nu la miezul nopții candidat → pe cele 2 zile de schimbare a orei/an, granița „azi/săptămână/lună" ieșea cu ±1h (ex. spring-forward 2026-03-29: 28T21:00Z în loc de 28T22:00Z). Fix: offset calculat la instanța candidat (miezul nopții / prima zi a lunii) — dovedit prin execuție (diff=0 pe toate zilele). Helpere exportate + test nou `stats.tz.test.ts` (4 zile + 2 luni, inclusiv tranzițiile). Impact era LOW (statistici aproximative dashboard, nu bani/securitate). `parseLeadClassification` verificat — curat (deja excelent acoperit).
+
+### Fixed (2026-06-10) — 0.2: gatekeeper / import CSV / comenzi owner (4 defecte găsite prin execuție)
+
+Debugging activ (Etapa 0.2), dovedit prin scripturi standalone pe funcțiile reale:
+- **Import CSV — preț cu separator de mii** (`apps/web/src/lib/csv.ts`): `"1.299,00"` se parsa ca `1.299`, `"2.500 lei"` ca `2.5` (`.replace(',','.')` doar prima virgulă → `parseFloat` se oprea la al 2-lea punct). Helper nou `parsePriceLei`: zecimala = ULTIMUL separator, celălalt = mii → `"1.299,00"→1299`, `"1,299.00"→1299`, `"49,99"→49.99`. (Un singur separator cu 3 cifre, ex. `"2.500"`, rămâne ambiguu — preview-ul de import îl arată.)
+- **Import CSV — newline în câmp citat** (`parseCsv`): rescris ca mașină de stări pe tot textul (nu mai face `split('\n')` înainte de parsarea ghilimelelor) → câmpurile citate pot conține virgule ȘI newline-uri interne, cum promitea comentariul.
+- **Gatekeeper `classifyBusinessScope`** (`message.handler.ts`): keyword-ul „vremea" era prea generic și bloca mesaje legitime („vremea de execuție/livrare") ca `off_topic`. Înlocuit cu fraze meteo specifice („cum e/va fi vremea", „ce vreme", „prognoza meteo").
+- **Comandă owner `/pauseAI`** (`command.parser.ts`): fără plafon (`/pauseAI 99999h` oprea agentul ~11 ani; `0h` = no-op tăcut). Plafon 1–720h + acceptă „5" fără „h".
+- Teste de regresie: `command.parser.test.ts` (pauseAI) + `message.handler.test.ts` (vremea). NOTĂ: `csv.ts` e în `apps/web`, care NU are runner de unit-teste (vitest) → fix-urile A/B sunt verificate prin execuție, nu prin suită.
+
+### Fixed (2026-06-10) — 0.2: `parseOrderIntent` lăsa o linie cu cantitate 0 (floor după filtru)
+
+Debugging activ prin execuție (Etapa 0.2, calea banilor). O cantitate în intervalul `(0,1)` (ex. `0.4`) trecea de filtrul `quantity > 0` (verificat pe valoarea brută) și abia apoi `Math.floor` o făcea `0` → rămânea o linie „produs ×0" într-o comandă `ready`. Fix: floor ÎNAINTE de filtru (`floor` apoi aruncă `<= 0`), deci `0.4→aruncat`, `1.9→1`, `-3→aruncat`. Impact era LOW (totalul rămânea corect — `0×preț`; `decrementStock(0)` inofensiv), dar plasa de validare strictă trebuia să-l prindă. + 2 cazuri de regresie în `order.intent.test.ts`. (Observație necorectată: id duplicat în `items` → linii separate fără dedup — de evaluat la o iterație viitoare.)
+
+### Security (2026-06-10) — 0.1b: exploatare LIVE pe prod (`api.waai.ro`) → APPROVED (0 crit / 0 high)
+
+Pentest autorizat live, scripturi `pentest/` (gitignored). **Faza anonimă** (`recon.py`): 37 PASS, 0 crit/high/med — rute protejate→401, rute test→404 (excluse din build), **Stripe webhook** no-sig/fake-sig→400 (raw buffer parser ține post-Fastify 5), **JWT forjat** (alg=none/garbage)→401 (fără alg-confusion live), **CORS** origine atacator→403 ne-reflectat / legit→204, headere (HSTS/nosniff/X-Frame) prezente, bodyLimit (1MB→413), DELETE ne-blocat de WAF. **Faza autentificată** (`attack.py`, 2 conturi entitled): 16 PASS, 0 crit/high/med — gate abonament C1/C2 (200 pe entitled), date scoped pe userId, **IDOR/BOLA live** (user B încearcă DELETE+PATCH pe produsul lui A → 404, produs supraviețuiește neschimbat, verificat prin re-listare), refuz admin (401, schemă de sesiune separată), DELETE /me inexistent (double opt-in by-design). **4 LOW** informaționale (admin 401-vs-403; DELETE /me 404 by-design). **Verdict APPROVED — suprafața B13 ține și la atac real pe prod.** Nou item BACKLOG 0.7 (LOW): hardening login cu CAPTCHA-după-N-eșecuri (anti account-lockout DoS pe lockout-ul per-email).
+
+### Security (2026-06-10) — 0.1a: review static adversarial post-upgrade B13 → APPROVED (0 crit / 0 high)
+
+Review DRASTIC pe suprafața schimbată de upgrade (NU audit de la zero pe logica aprobată 08-06). Verificat pe fiecare axă: body parser JSON Fastify 5 (delegă la `getDefaultJsonParser('error','error')` → protecție anti proto/constructor-poisoning păstrată); Stripe webhook raw `buffer` izolat în scope `/webhooks` + semnătură pe raw + dedup `stripe_events`; CORS/rate-limit/trustProxy Fastify 5 (`methods` explicit vs default v11 strâns, hops fix, key pe `CF-Connecting-IP`); CSP nonce Next 16 (per-request, `strict-dynamic`, fără `'unsafe-inline'` în `script-src`); proxy `[action]` Next 16 (`params` await-uit, `action` allowlistat → fără SSRF); scheme zod 4 (`safeParse`+`.issues`); JWT HMAC fix (fără alg-confusion, constant-time) + CSRF `assertTrustedOrigin`; 2FA admin otplib 13 migrat corect (`verify({…epochTolerance})→{valid}`, fail-closed). **Verdict APPROVED.** 2 note LOW pre-existente (ne din B13): handlere admin cu `req.params/body as` brut (query-uri parametrizate downstream, scope admin); `login` fără `assertTrustedOrigin` (CSRF login = impact mic).
+
 ### Changed (2026-06-09) — B13: upgrade major de pachete (Fastify 5, Next 16, React 19, Tailwind 4, ESLint 9, zod 4, Drizzle 0.45)
 
 Upgrade pe clustere izolate (un major pe branch → `tsc`+lint local → suită rulată de owner → preview → merge squash). Lecție de proces: branch-urile stivuite produc conflicte pe `pnpm-lock.yaml` → fiecare branch se ramifică de pe `main` proaspăt.

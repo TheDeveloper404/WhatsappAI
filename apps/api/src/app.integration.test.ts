@@ -38,3 +38,13 @@ describe('CORS (F5)', () => {
     expect(res.statusCode).toBe(200)
   })
 })
+
+// F3 — 404-urile răspund în ACELAȘI envelope `{error:{code}}` ca restul API-ului (nu forma plată
+// default Fastify). setNotFoundHandler în app.ts.
+describe('404 (F3)', () => {
+  it('404 — rută inexistentă răspunde cu envelope-ul nostru { error: { code: NOT_FOUND } }', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/v1/ruta-care-nu-exista' })
+    expect(res.statusCode).toBe(404)
+    expect(res.json().error.code).toBe('NOT_FOUND')
+  })
+})

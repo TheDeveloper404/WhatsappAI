@@ -170,11 +170,24 @@ export async function buildApp() {
       if (error.details) (body.error as Record<string, unknown>).details = error.details
       return reply.status(error.statusCode).send(body)
     }
-    if (error.statusCode === 429) {
-      return reply.status(429).send({ error: { code: 'RATE_LIMITED', message: 'Too many requests.' } })
+    // Erorile Fastify-interne cu status de CLIENT (4xx) — JSON malformat (400), bodyLimit (413),
+    // media-type nesuportat (415), rate-limit (429) — sunt „vina clientului": păstrăm statusul lor
+    // nativ (NU le forțăm 500), doar le normalizăm în envelope-ul nostru. Mesajul lor e generic
+    // (despre cererea clientului), nu logică internă → safe de expus.
+    const sc = error.statusCode
+    if (typeof sc === 'number' && sc >= 400 && sc < 500) {
+      return reply.status(sc).send({ error: { code: error.code ?? 'BAD_REQUEST', message: error.message } })
     }
+    // 5xx și restul: mascat — NU scurgem mesajul/stack-ul real al erorii (logat doar server-side).
     app.log.error(error)
     return reply.status(500).send({ error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred.' } })
+  })
+
+  // 404-urile NU trec prin setErrorHandler → handler dedicat ca să răspundă în ACELAȘI envelope
+  // `{error:{code}}` ca restul API-ului (înainte ieșeau pe forma plată default Fastify). Setat tot
+  // înainte de rute, din același motiv de moștenire la boot ca error handler-ul de mai sus.
+  app.setNotFoundHandler((_req, reply) => {
+    return reply.status(404).send({ error: { code: 'NOT_FOUND', message: 'Resursa cerută nu există.' } })
   })
 
   // Fastify 5 respinge cu 400 (FST_ERR_CTP_EMPTY_JSON_BODY) orice cerere cu `content-type:

@@ -66,8 +66,11 @@ export default defineConfig({
     {
       command: 'npx tsx src/index.ts',
       cwd: '../api',
-      url: 'http://localhost:3001/health',
-      reuseExistingServer: true,
+      url: 'http://127.0.0.1:3001/health',
+      // NU refolosi un server existent: un `dev:api` pornit manual rulează FĂRĂ E2E_MODE/E2E_SECRET și pe
+      // DB-ul de development → rutele `/api/v1/test/*` lipsesc / dau 401 și testele pică „din mediu, nu din cod".
+      // Cu `false`, Playwright pornește mereu un API cu env-ul corect de E2E. (Oprește `dev:api` înainte de E2E.)
+      reuseExistingServer: false,
       timeout: 30_000,
       env: {
         // NODE_ENV explicit: default-ul API-ului e acum 'production' (fail-closed, H5). E2E are
@@ -75,15 +78,17 @@ export default defineConfig({
         NODE_ENV: 'development',
         E2E_MODE: 'true',
         E2E_SECRET,
-        DATABASE_URL: 'postgresql://localhost/whatsapp_ai_e2e',
+        // Host 127.0.0.1 EXPLICIT (nu `localhost`): pe Windows `localhost` rezolvă întâi la IPv6 ::1,
+        // iar Postgres ascultă pe IPv4 → connection timeout. (Aceeași capcană ca în restul proiectului.)
+        DATABASE_URL: 'postgresql://127.0.0.1:5432/whatsapp_ai_e2e',
         ADMIN_SECRET: E2E_ADMIN_SECRET,
       },
     },
     {
       command: 'npx next dev --port 3000',
       cwd: '../web',
-      url: 'http://localhost:3000',
-      reuseExistingServer: true,
+      url: 'http://127.0.0.1:3000',
+      reuseExistingServer: false,
       timeout: 60_000,
     },
   ],

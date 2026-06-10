@@ -6,6 +6,15 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added (2026-06-10) — tooling E2E local + fix mediu Playwright (parte din 0.6)
+
+Suita E2E pica „din mediu, nu din cod". Cauze găsite și reparate în `apps/e2e/playwright.config.ts`:
+- **`DATABASE_URL` pe `127.0.0.1:5432`** (era `localhost` → pe Windows rezolvă la IPv6 ::1 → connection timeout). Același fix în `helpers/api.ts`.
+- **`reuseExistingServer: false`** (API + web): nu mai refolosește un `dev:api` pornit manual (care rulează FĂRĂ `E2E_MODE`/`E2E_SECRET`/DB e2e → rutele `/api/v1/test/*` lipsesc/dau 401).
+- **`dashboard.spec` test navigare** rescris pe sidebar-ul fix de desktop (hamburger-ul „Deschide meniul" e `lg:hidden`, deci absent pe viewport-ul Desktop Chrome al Playwright).
+- **Scripturi PowerShell noi** (`scripts/`): `stop-dev.ps1` (eliberează porturile 3000/3001), `db-reset-e2e.ps1` (recreează baza E2E curată, doar ea), `e2e.ps1` (stop dev → reset opțional → Playwright → `e2e-results.txt`).
+- *Restul aducerii specs-urilor la zi (0.6) rămâne — se țintește pe eșecurile reale după prima rulare cu mediul reparat.*
+
 ### Security (2026-06-10) — 0.7: hardening login cu Turnstile după N eșecuri (anti account-lockout DoS)
 
 Lockout-ul per-email (10 eșecuri/15min) bloca login-ul **și pentru owner-ul real** → un atacator care știe emailul victimei putea face DoS de login 15 min. Înlocuit cu **challenge Turnstile după 3 eșecuri** (varianta C, gold-standard):

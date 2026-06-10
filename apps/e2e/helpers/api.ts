@@ -1,6 +1,8 @@
 // Helper pentru apeluri directe la API în setup-ul testelor
 
-const API = 'http://localhost:3001'
+// 127.0.0.1 explicit (nu `localhost`): pe Windows `localhost` rezolvă întâi la IPv6 ::1, iar
+// fetch-ul din Node poate da ECONNREFUSED/timeout dacă API-ul ascultă pe IPv4.
+const API = 'http://127.0.0.1:3001'
 const ADMIN_SECRET = process.env.E2E_ADMIN_SECRET ?? 'test_admin_secret_minimum_32_chars_here'
 const E2E_SECRET = process.env.E2E_SECRET ?? ''
 

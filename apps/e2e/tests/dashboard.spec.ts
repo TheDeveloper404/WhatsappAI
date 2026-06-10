@@ -77,22 +77,18 @@ test.describe('Dashboard', () => {
     await expect(page.getByText(/Conectare WhatsApp/i)).toBeVisible()
   })
 
-  test('navigarea funcționează prin meniul hamburger: Conversații → Setări → Dashboard', async ({ page }) => {
+  test('navigarea funcționează prin sidebar: Conversații → Setări → Dashboard', async ({ page }) => {
     await createUser({ email: 'nav@example.com', withSubscription: true })
     await loginAs(page, 'nav@example.com')
 
-    // Nav-ul e într-un drawer deschis prin butonul „Deschide meniul". Se închide la navigare.
-    const openMenu = () => page.getByRole('button', { name: /Deschide meniul/i }).click()
-
-    await openMenu()
+    // Pe viewport-ul desktop al Playwright (≥lg) nav-ul e un SIDEBAR FIX (link-uri direct vizibile);
+    // hamburger-ul „Deschide meniul" e `lg:hidden`, deci NU există aici. Click pe link-urile din sidebar.
     await page.getByRole('link', { name: /Conversații/i }).click()
     await expect(page).toHaveURL(/\/conversations/)
 
-    await openMenu()
     await page.getByRole('link', { name: /Setări/i }).click()
     await expect(page).toHaveURL(/\/settings/)
 
-    await openMenu()
     await page.getByRole('link', { name: /Dashboard/i }).click()
     await expect(page).toHaveURL(/\/dashboard/)
   })

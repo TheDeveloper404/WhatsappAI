@@ -22,6 +22,14 @@ Bug latent prins la rularea testelor 0.7 (cele 2 cazuri captcha picau cu `error.
 - **Impact / compat:** schimbă forma erorii pe TOT API-ul (plată → nested). Singurul consumator e frontend-ul, care tratează deja ambele forme defensiv (`lib/api.ts`) — fără regresie.
 - Verificat: suită API completă **287/287 verde** (auth captcha incl.), forma envelope confirmată nested prin log de diagnostic temporar (scos după).
 
+### Security (2026-06-10) — mini-audit pe schimbarea de envelope erori → 0 crit/high (F1/F2/F3 reparate)
+
+Audit țintit pe blast radius-ul fix-ului de mai sus (acum handler-ul prinde TOATE erorile rutelor; înainte le servea default-ul Fastify). Verdict: net pozitiv pe securitate (500 nu mai scurge `message`/stack; envelope consistent cu răspunsurile manuale din `ai.routes.ts`). 3 regresii funcționale reparate, F4/F5 → reziduuri acceptate în BACKLOG.
+- **F1 (mediu, funcțional):** `ai.service.ts` arunca `throw new Error(<mesaj util>)` pe „minim 5 mesaje" (analyze-style) și „fără conversație" (analyze-lead) — mesaje care înainte ajungeau la user prin 500-ul leaky, acum mascate. Convertite în `Errors.unprocessable()` (**422 `UNPROCESSABLE`**) → mesaj livrat intenționat. + 2 teste.
+- **F2 (low):** erorile Fastify-interne cu status de client (JSON malformat 400, bodyLimit 413, media-type 415, rate-limit 429) cădeau pe 500. Handler-ul păstrează acum statusul nativ în [400,500), normalizat în envelope; doar 5xx rămân mascate. (Ramura 429 dedicată devenită redundantă — scoasă.)
+- **F3 (low):** lipsea `setNotFoundHandler` → 404-urile ieșeau pe forma plată default. Adăugat handler dedicat → `{error:{code:'NOT_FOUND'}}`, consistent cu restul. + 1 test.
+- Verificat: `tsc --noEmit` verde. Teste noi: 2× `ai.integration.test.ts` (422), 1× `app.integration.test.ts` (404). Suită completă de rulat de owner.
+
 ### Changed (2026-06-10) — 0.5: curățenie reguli „React Compiler" (eslint-plugin-react-hooks v6) → pe `error`
 
 Cele 20 de findings din 13 fișiere `apps/web` (intrate cu eslint-config-next 16) rezolvate; cele 4 reguli (`set-state-in-effect`, `purity`, `refs`, `immutability`) readuse de pe `warn` pe **`error`** (orice regresie sparge build-ul). Abordare hibridă — refactor real unde fix-ul era curat, `eslint-disable` documentat unde efectul e pattern-ul SSR-corect:

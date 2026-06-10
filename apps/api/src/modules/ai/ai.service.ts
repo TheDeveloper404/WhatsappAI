@@ -1,6 +1,7 @@
 import { aiRepository } from './ai.repository.js'
 import { extractWritingStyle, classifyLead } from './groq.client.js'
 import { logger } from '../../utils/logger.js'
+import { Errors } from '../../utils/errors.js'
 import type { AiSettings } from '../../db/schema.js'
 
 // Plafon pentru recalcularea în masă a lead-urilor — limitează costul LLM și durata
@@ -20,7 +21,7 @@ export const aiService = {
 
   async analyzeAndSaveWritingStyle(userId: string): Promise<string> {
     const messages = await aiRepository.getOwnerMessages(userId, 60)
-    if (messages.length < 5) throw new Error('Nu există suficiente mesaje trimise pentru analiză (minim 5).')
+    if (messages.length < 5) throw Errors.unprocessable('Nu există suficiente mesaje trimise pentru analiză (minim 5).')
     const style = await extractWritingStyle(messages)
     await aiRepository.updateSettings(userId, { writingStyle: style })
     return style
@@ -72,7 +73,7 @@ export const aiService = {
       aiRepository.getSettings(userId),
       aiRepository.getMessagesForContact(userId, contactPhone),
     ])
-    if (messages.length === 0) throw new Error('Nu există conversație pentru acest contact.')
+    if (messages.length === 0) throw Errors.unprocessable('Nu există conversație pentru acest contact.')
     const result = await classifyLead(settings.leadCriteria, messages.map(m => ({ fromMe: m.fromMe, body: m.body })))
     await aiRepository.upsertLeadInsight(userId, contactPhone, result)
     return result

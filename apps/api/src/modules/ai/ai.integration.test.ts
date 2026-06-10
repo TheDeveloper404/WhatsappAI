@@ -525,4 +525,27 @@ describe('POST /ai/leads/analyze', () => {
     })
     expect(res.statusCode).toBe(400)
   })
+
+  it('422 — phone valid dar contact fără conversație → UNPROCESSABLE (nu 500)', async () => {
+    const token = await registerAndLogin('leads-analyze-noconv@test.com')
+    const res = await app.inject({
+      method: 'POST', url: '/api/v1/ai/leads/analyze',
+      payload: { phone: '40712345678' },
+      headers: { authorization: `Bearer ${token}` },
+    })
+    expect(res.statusCode).toBe(422)
+    expect(res.json().error.code).toBe('UNPROCESSABLE')
+  })
+})
+
+describe('POST /ai/analyze-style', () => {
+  it('422 — sub 5 mesaje owner → UNPROCESSABLE (nu 500 generic)', async () => {
+    const token = await registerAndLogin('analyze-style-fewmsgs@test.com')
+    const res = await app.inject({
+      method: 'POST', url: '/api/v1/ai/analyze-style',
+      headers: { authorization: `Bearer ${token}` },
+    })
+    expect(res.statusCode).toBe(422)
+    expect(res.json().error.code).toBe('UNPROCESSABLE')
+  })
 })

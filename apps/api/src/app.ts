@@ -16,6 +16,7 @@ import { productsRoutes } from './modules/orders/products.routes.js'
 import { ordersRoutes } from './modules/orders/orders.routes.js'
 import { appointmentsRoutes } from './modules/orders/appointments.routes.js'
 import { knowledgeRoutes } from './modules/knowledge/knowledge.routes.js'
+import { notificationsRoutes } from './modules/notifications/notifications.routes.js'
 import { AppError } from './utils/errors.js'
 import { isEncryptionConfigured } from './utils/crypto.js'
 
@@ -277,6 +278,7 @@ export async function buildApp() {
   await app.register(ordersRoutes, { prefix: '/api/v1/orders' })
   await app.register(appointmentsRoutes, { prefix: '/api/v1/appointments' })
   await app.register(knowledgeRoutes, { prefix: '/api/v1/knowledge' })
+  await app.register(notificationsRoutes, { prefix: '/api/v1/notifications' })
 
   // Rutele de test (inclusiv /test/reset care șterge toată baza) sunt apărate pe MAI multe straturi:
   //  1. EXCLUSE FIZIC din build-ul de producție (vezi `exclude` în tsconfig.json) → nici nu există

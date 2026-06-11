@@ -6,6 +6,23 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed (2026-06-11) — audit coerență UI↔cod: bypass gating `/setTimer` + copy onest
+
+Audit de coerență „ce promite UI-ul vs. ce facem real" pe landing + comenzi (cerut de user). Verificat că promisiunile majore au acoperire reală (comenzi WA, RAG PDF/DOCX/TXT, comenzi+stoc atomic, transcriere, blacklist, memorie, red-flag, date în UE). Patru nepotriviri corectate:
+- **UI-1 (gating gap, COD):** comanda WhatsApp `/setTimer` salva `timerMinutes` **fără** verificarea de tier pe care o face ruta `PATCH /ai/settings` → un user **Pro** putea seta timer 1 min (pârghie Max-only) prin WhatsApp. Adăugat același gate `minTimerMinutes(tier)` în handler-ul `/setTimer` (`message.handler.ts`), fail-closed: sub minimul tier-ului → refuz cu mesaj „treci pe Max", nu salvează. Corectat și copy-ul indus în eroare: HELP_TEXT WhatsApp + landing feature 01 (spuneau „1–60 min" pentru toți). Enforcement pe calea comenzii = verificat **manual** (fără harness mock WA socket); `minTimerMinutes` pur are deja teste.
+- **UI-2 (honesty, COPY):** scos statistica inventată „sub 3% din conversații sunt detectate ca automate" (FAQ landing) → reformulare necuantificată.
+- **UI-3 (cosmetic):** „uptime 99.97% · lat. 142ms" hardcodate în consola demo de pe landing → marcate „interfață demo" (nu mai afișează metrici nereale).
+- **UI-4 (minor):** lead-scoring (diferențiatorul §03) e Max-only dar era prezentat fără notă → tag „LEAD-URI · MAX".
+- **PATH-1 → HARD WALL pe calea de comenzi WhatsApp (gating, COD):** audit exhaustiv de căi pe TOATĂ aplicația (rute API + comenzi WhatsApp + webhook + admin). Comenzile WhatsApp (`fromMe` → `executeCommand`) intră direct prin socket, sărind gate-ul global de abonament (linia 831) → un owner cu abonament expirat putea încă interacționa cu calea de comenzi. **Decizie de produs: fără abonament activ = NICIO funcție a aplicației** (consecvent cu dashboard-ul, care redirecționează la `/subscribe`). Implementat ca **hard wall** la intrarea în `executeCommand`: orice comandă de la un cont fără `userHasEntitlement` primește un singur mesaj de reactivare și se oprește — **fără excepții** (nici control `/activateAI`/`/status`/`/help`, nici booking). La expirare agentul e oricum auto-dezactivat de webhook, deci nicio comandă nu e necesară. Pârghia de TIER pe `/setTimer` (Pro vs Max) rămâne separat, relevantă doar pt conturi entitled. Restul aplicației = consecvent gate-uit. (Generarea AI e acoperită oricum de choke point-ul din `sendAiResponse`.)
+
+### Added (2026-06-11) — B15: notificare în dashboard la prelungirea trial-ului
+
+Admin-ul putea extinde trial-ul unui user, dar userul nu afla în app. Adăugat canalul de notificări **user-facing** (tabela `notifications` exista deja, generică; până acum o foloseau doar rutele admin):
+- **Modul nou `apps/api/src/modules/notifications/`** (repository + routes). `GET /api/v1/notifications` (listă max 50 desc + `unreadCount`) și `POST /api/v1/notifications/read` (marchează tot citit). preHandler doar `authenticate` — intenționat **fără** `requireActiveSubscription` (userul trebuie să-și vadă notificările chiar cu trial/abonament expirat). Scopate pe `req.user!.id` → IDOR-safe.
+- **`POST /admin/users/:userId/extend-trial`**: după extindere, inserează o notificare `trial_extended` pentru userul țintă (best-effort — un eșec la notificare nu ratează extinderea, deja făcută).
+- **Frontend:** componentă `NotificationBell` (clopoțel + badge necitite + dropdown) montată în `TopBar` din `(dashboard)/layout.tsx`; la deschidere marchează tot citit (optimist pe UI). `api.notifications` (era cod mort spre `/admin/notifications`) repointat pe endpoint-ul user. Oglindește pattern-ul clopoțelului din admin (clase design-system, închidere click-out/ESC).
+- **Teste:** `notifications.integration.test.ts` — auth 401, listă goală user nou, extindere trial → notificare necitită → mark-read, IDOR (notificarea lui A nu apare la B). `tsc --noEmit` verde pe api + web, lint web verde. Generalizabil ulterior la alte evenimente de cont (abonament expiră, plată eșuată).
+
 ### Changed (2026-06-11) — corecție copy planuri UI (nepotriviri promisiune↔realitate)
 
 Audit de coerență „ce promite UI-ul vs. ce e enforce-uit în cod" (toate pârghiile de tier confirmate real-enforce-uite, fail-closed). Două nepotriviri **doar de afișaj** corectate în `apps/web/src/lib/plans.ts`:

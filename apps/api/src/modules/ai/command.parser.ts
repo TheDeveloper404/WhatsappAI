@@ -69,7 +69,7 @@ export const HELP_TEXT = `*Comenzi WhatsApp AI:*
 /deactivateAI — dezactivează agentul
 /pauseAI 2h — pauză X ore
 /resumeAI — scoate din pauză
-/setTimer 5min — timer inactivitate (1-60 min)
+/setTimer 5min — timer inactivitate (min. 5 pe Pro · 1 pe Max, max 60)
 /clearHistory — șterge istoricul conversației curente
 /status — stare curentă agent
 

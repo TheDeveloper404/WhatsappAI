@@ -15,7 +15,7 @@ lista completă de funcționalități și stack.
 Monorepo pnpm workspaces:
 - `apps/api` — backend Fastify + TypeScript + Drizzle, organizat pe module
   (`modules/<x>/<x>.routes.ts` → `.service.ts` → `.repository.ts` + `.schemas.ts`).
-- `apps/web` — frontend Next.js 14 App Router + Tailwind + Zustand.
+- `apps/web` — frontend Next.js 16 App Router + Tailwind + Zustand.
 - `apps/e2e` — teste Playwright.
 - `docs/` — `ARCHITECTURE.md` (decizii non-evidente), `BACKLOG.md`, `CHANGELOG.md`,
   `FLUX_APLICATIE.md`, `DEV_SETUP.md`, `RUNBOOK.md`, `ENV_VARS.md`, `SECURITY.md`.
@@ -44,6 +44,13 @@ Conține deciziile care te-ar surprinde dacă le-ai deduce singur. Cele mai impo
   cu verificare de proprietate înainte de update/delete (IDOR-safe).
 - **Gating abonament:** rutele care consumă AI trec prin `middleware/requireSubscription.ts` /
   `billing/entitlement.ts`. Fail-closed pentru funcții plătite.
+- **Pârghiile de tier/abonament se verifică pe TOATE căile, nu doar pe rute.** Comenzile WhatsApp
+  (`fromMe` în `message.handler.ts` → `executeCommand`) intră direct prin socket, **NU** prin
+  `authenticate`/`requireActiveSubscription`. Decizie de produs: **fără abonament activ = nicio
+  funcție** → `executeCommand` are un **hard wall** de entitlement la intrare (orice comandă →
+  mesaj de reactivare, fără excepții). Pârghia de TIER pe `/setTimer` (Pro vs Max) e separată,
+  relevantă doar pt conturi entitled. Vezi `ARCHITECTURE.md §17`. La orice comandă WhatsApp nouă:
+  gate-ul global NU se aplică pe `fromMe` → verifică LOCAL.
 - **Rute de test dublu-gated:** `NODE_ENV !== 'production'` **și** header `x-e2e-secret`. Nu slăbi
   niciodată una dintre condiții.
 - **Fail-open doar unde e intenționat** (RAG embeddings, vision fără cheie) — nu generaliza

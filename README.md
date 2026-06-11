@@ -16,16 +16,16 @@ SaaS platform care conectează WhatsApp-ul unui business cu un agent AI. Agentul
 - **Programări** — servicii rezervabile (frizerie, clinică): agentul strânge serviciul + intervalul + numele, creează o programare și predă owner-ului confirmarea intervalului (pagina Programări)
 - **Calificare lead-uri** — fiecare contact e clasificat automat hot/warm/cold (scor + justificare) după criteriile owner-ului; AI-ul doar clasifică, validarea output-ului e în cod (pagina Lead-uri)
 - **Vision (citește poze)** — clientul trimite o imagine (ex. captură de comandă); agentul extrage datele relevante (Gemini vision, procesare in-memory)
-- **Email confirmare comandă** — la cerere, clientul primește un email cu rezumatul comenzii (Resend); datele sunt pre-formatate în cod, nu de LLM
 - **Gatekeeper business-only** — refuză cereri off-topic (bancuri, rețete) și prompt injection (keyword + LLM)
 - **Statistici & metrici** — activitate AI (azi/7z/lună) + performanță agent (rată rezolvare, escaladări, grafic 7 zile)
 - **Transcriere vocale** — mesajele audio sunt transcrise automat (Groq Whisper)
 - **Detecție sentiment** — mesajele urgente sau frustrante primesc răspunsuri adaptate
-- **Timer de inactivitate** — configurabil, implicit 5 minute
+- **Timer de inactivitate** — configurabil (min. 5 min pe Pro, 1 min pe Max; implicit 5)
 - **Blacklist contacte** — exclude anumiți clienți de la răspunsuri automate
 - **Pauză temporară** — agent oprit X ore fără a-l dezactiva complet
+- **Notificări în-app** — clopoțel în dashboard cu evenimente de cont (ex. prelungire trial de către admin); badge necitite + marcare „citit"
 - **Admin panel** — gestionare utilizatori, subscripții, configurare platformă
-- **Subscripții Stripe** — plan lunar și anual cu perioadă de trial
+- **Subscripții Stripe** — două tiere (**Pro** / **Max**), plan lunar și anual cu perioadă de trial; plafoanele și funcțiile premium (vision, calificare lead-uri, statistici avansate, timer sub 5 min, volum AI/RAG) sunt enforce-uite fail-closed pe tier
 - **GDPR** — ștergere cont self-service în 48h din pagina `/gdpr`
 
 ## Securitate
@@ -39,7 +39,8 @@ SaaS platform care conectează WhatsApp-ul unui business cu un agent AI. Agentul
 - E2E_MODE blocat în producție (rute de test dublu-gated: `NODE_ENV !== 'production'` + header `x-e2e-secret`)
 - IDOR-safe: toate resursele scopate pe `userId`, cu verificare de proprietate înainte de update/delete
 - Stripe webhook cu verificare de semnătură (raw body) + deduplicare evenimente
-- Audit securitate (2026-06-02): Semgrep (~200 reguli OWASP/secrets/security-audit) + review manual → 0 vulnerabilități
+- Pârghiile de tier/abonament enforce-uite fail-closed pe **toate căile** (rute API + comenzi WhatsApp)
+- Audit securitate: Semgrep (~200 reguli OWASP) + pentest live + review manual → 0 vulnerabilități critice/high; re-audituri post-upgrade și de coerență (vezi `docs/SECURITY.md`)
 
 ## Comenzi WhatsApp
 
@@ -50,7 +51,7 @@ Controlezi agentul direct din WhatsApp, trimițindu-ți ție însuți comenzi:
 /deactivateAI     — dezactivează agentul
 /pauseAI 2h       — pauză temporară X ore
 /resumeAI         — scoate din pauză
-/setTimer 10min   — schimbă timerul de inactivitate (1-60 min)
+/setTimer 10min   — schimbă timerul de inactivitate (min. 5 pe Pro · 1 pe Max, max 60)
 /clearHistory     — șterge istoricul conversației curente
 /status           — stare curentă agent
 /help             — lista tuturor comenzilor
@@ -60,8 +61,8 @@ Controlezi agentul direct din WhatsApp, trimițindu-ți ție însuți comenzi:
 
 | Layer | Tehnologie |
 |---|---|
-| Backend | Fastify 4, Node.js 24, TypeScript |
-| Frontend | Next.js 14 App Router, Tailwind CSS, Zustand |
+| Backend | Fastify 5, Node.js 20+, TypeScript |
+| Frontend | Next.js 16 App Router, Tailwind CSS, Zustand |
 | Bază de date | PostgreSQL, Drizzle ORM |
 | AI | Groq (Llama 3.3 70B) sau Gemini 2.5 Flash — comutabil via `LLM_PROVIDER`; voce mereu pe Groq Whisper; vision + embeddings (RAG) pe Gemini |
 | WhatsApp | Baileys (`@whiskeysockets/baileys`) |

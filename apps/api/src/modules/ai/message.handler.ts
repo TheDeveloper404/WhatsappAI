@@ -7,7 +7,7 @@ import { ordersRepository } from '../orders/orders.repository.js'
 import { appointmentsRepository } from '../orders/appointments.repository.js'
 import { setAppointmentStatus } from '../orders/appointments.service.js'
 import { knowledgeService } from '../knowledge/knowledge.service.js'
-import { userHasEntitlement, userTier, monthlyAiLimit, visionAllowed, multiServiceAllowed } from '../billing/entitlement.js'
+import { userHasEntitlement, userTier, monthlyAiLimit, visionAllowed, multiServiceAllowed, minTimerMinutes } from '../billing/entitlement.js'
 import { allowIncomingMessage } from './incoming.rate-limiter.js'
 import { parseCommand, HELP_TEXT } from './command.parser.js'
 import { recordOwnerReply, isOwnerActive } from './inactivity.tracker.js'
@@ -969,6 +969,16 @@ async function processMessage(userId: string, sock: WASocket, msg: any): Promise
 async function executeCommand(userId: string, sock: WASocket, jid: string, contactPhone: string, cmd: ReturnType<typeof parseCommand>): Promise<void> {
   if (!cmd) return
 
+  // HARD WALL — fără abonament activ, ÎNTREAGA cale de comenzi e închisă (consecvent cu dashboard-ul,
+  // care redirecționează la /subscribe). La expirare agentul e oricum auto-dezactivat de webhook, deci
+  // NICIO comandă nu e necesară — nici control (activate/deactivate/pauză/status/help), nici cu efect
+  // (booking). Un singur mesaj de reactivare. Calea `fromMe` sare gate-ul global (linia 831), deci gate-ul
+  // de abonament stă AICI, local. (Pârghia de TIER pe `/setTimer` rămâne separat, mai jos — Pro vs Max.)
+  if (!(await userHasEntitlement(userId))) {
+    await sock.sendMessage(jid, { text: '🔒 Abonamentul tău nu mai este activ. Reactivează-l din dashboard ca să folosești agentul.' })
+    return
+  }
+
   let reply = ''
 
   switch (cmd.type) {
@@ -1004,10 +1014,18 @@ async function executeCommand(userId: string, sock: WASocket, jid: string, conta
       break
     }
 
-    case 'setTimer':
+    case 'setTimer': {
+      // Plafon timer minim pe tier — ACELAȘI gate ca ruta `PATCH /ai/settings` (Etapa 2.2a, pas 3).
+      // Fără asta, comanda WhatsApp ocolea pârghia Max-only (Pro min 5 / Max min 1). Fail-closed.
+      const min = minTimerMinutes(await userTier(userId))
+      if (cmd.minutes < min) {
+        reply = `⏱️ Timer-ul minim pe planul tău este *${min} min*. Pentru valori mai mici, treci pe planul Max din dashboard.`
+        break
+      }
       await aiRepository.updateSettings(userId, { timerMinutes: cmd.minutes })
       reply = `⏱️ Timer inactivitate setat la *${cmd.minutes} min*.`
       break
+    }
 
     case 'clearHistory':
       await aiRepository.clearHistoryForChat(userId, contactPhone, jid)
@@ -1023,6 +1041,8 @@ async function executeCommand(userId: string, sock: WASocket, jid: string, conta
     case 'confirmBooking':
     case 'cancelBooking':
     case 'completeBooking': {
+      // Gate de abonament: acoperit de HARD WALL-ul de la intrarea în executeCommand (un cont fără
+      // abonament activ nu ajunge până aici). Ownership rămâne scopat pe userId în findByPublicRef.
       const statusMap = { confirmBooking: 'confirmed', cancelBooking: 'cancelled', completeBooking: 'completed' } as const
       const statusRo = { confirmed: 'confirmată', cancelled: 'anulată', completed: 'finalizată' } as const
       const appt = await appointmentsRepository.findByPublicRef(userId, cmd.ref)

@@ -7,7 +7,7 @@ import { ordersRepository } from '../orders/orders.repository.js'
 import { appointmentsRepository } from '../orders/appointments.repository.js'
 import { setAppointmentStatus } from '../orders/appointments.service.js'
 import { knowledgeService } from '../knowledge/knowledge.service.js'
-import { userHasEntitlement, userTier, monthlyAiLimit, visionAllowed, multiServiceAllowed } from '../billing/entitlement.js'
+import { userHasEntitlement, userTier, monthlyAiLimit, visionAllowed, multiServiceAllowed, minTimerMinutes } from '../billing/entitlement.js'
 import { allowIncomingMessage } from './incoming.rate-limiter.js'
 import { parseCommand, HELP_TEXT } from './command.parser.js'
 import { recordOwnerReply, isOwnerActive } from './inactivity.tracker.js'
@@ -1004,10 +1004,18 @@ async function executeCommand(userId: string, sock: WASocket, jid: string, conta
       break
     }
 
-    case 'setTimer':
+    case 'setTimer': {
+      // Plafon timer minim pe tier — ACELAȘI gate ca ruta `PATCH /ai/settings` (Etapa 2.2a, pas 3).
+      // Fără asta, comanda WhatsApp ocolea pârghia Max-only (Pro min 5 / Max min 1). Fail-closed.
+      const min = minTimerMinutes(await userTier(userId))
+      if (cmd.minutes < min) {
+        reply = `⏱️ Timer-ul minim pe planul tău este *${min} min*. Pentru valori mai mici, treci pe planul Max din dashboard.`
+        break
+      }
       await aiRepository.updateSettings(userId, { timerMinutes: cmd.minutes })
       reply = `⏱️ Timer inactivitate setat la *${cmd.minutes} min*.`
       break
+    }
 
     case 'clearHistory':
       await aiRepository.clearHistoryForChat(userId, contactPhone, jid)
@@ -1023,6 +1031,14 @@ async function executeCommand(userId: string, sock: WASocket, jid: string, conta
     case 'confirmBooking':
     case 'cancelBooking':
     case 'completeBooking': {
+      // PATH-1: gate de abonament — consecvent cu ruta web `PATCH /appointments/:id/status`
+      // (subscription-gated). Owner `fromMe` sare gate-ul global (linia 831), deci îl repunem aici.
+      // Doar comenzile cu EFECT spre client (schimbă status + notifică) cer abonament; cele de CONTROL
+      // (activate/deactivate/pauză/status/help) rămân libere ca owner-ul să-și poată opri agentul oricând.
+      if (!(await userHasEntitlement(userId))) {
+        reply = '🔒 Abonamentul tău nu mai este activ. Reactivează-l din dashboard ca să gestionezi programări.'
+        break
+      }
       const statusMap = { confirmBooking: 'confirmed', cancelBooking: 'cancelled', completeBooking: 'completed' } as const
       const statusRo = { confirmed: 'confirmată', cancelled: 'anulată', completed: 'finalizată' } as const
       const appt = await appointmentsRepository.findByPublicRef(userId, cmd.ref)

@@ -440,13 +440,13 @@ export const api = {
 
   notifications: {
     list: (accessToken: string) =>
-      request<{ notifications: AppNotification[]; unreadCount: number }>('/api/v1/admin/notifications', {
+      request<{ notifications: AppNotification[]; unreadCount: number }>('/api/v1/notifications', {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
         credentials: 'include',
       }),
 
     markAllRead: (accessToken: string) =>
-      request<{ ok: boolean }>('/api/v1/admin/notifications/read', {
+      request<{ ok: boolean }>('/api/v1/notifications/read', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
         credentials: 'include',

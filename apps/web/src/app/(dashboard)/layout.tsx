@@ -6,6 +6,7 @@ import { useAuthStore } from '@/store/auth'
 import { api, type Subscription } from '@/lib/api'
 import { Loader2, LayoutDashboard, MessageSquare, Settings, User, LogOut, ShoppingCart, Menu, X } from 'lucide-react'
 import { ThemeToggle } from '@/components/ThemeToggle'
+import { NotificationBell } from '@/components/NotificationBell'
 
 // Oglindă pe client a lui `isEntitled` din API (apps/api/.../billing/entitlement.ts). Doar
 // defense-in-depth pe UI — granița reală e API-ul (C1/C2). Fail-closed: orice ambiguitate = fără acces.
@@ -214,6 +215,7 @@ function TopBar({ onMenu, onLogout }: { onMenu: () => void; onLogout: () => void
         </div>
 
         <div className="flex items-center gap-3 ml-auto">
+          <NotificationBell />
           <ThemeToggle />
           <button
             onClick={onLogout}

@@ -244,7 +244,7 @@ function OperatorConsole() {
               <span className="w-2 h-2 rounded-full bg-acid pulse-dot shrink-0" />
               <span className="font-mono-ui text-[11px] text-acid truncate">whatsapp.ai · operator console</span>
             </div>
-            <div className="font-mono-ui text-[10.5px] text-dimmer shrink-0">uptime <span className="text-ink">99.97%</span> · lat. <span className="text-ink">142ms</span></div>
+            <div className="font-mono-ui text-[10.5px] text-dimmer shrink-0">interfață <span className="text-ink">demo</span></div>
           </div>
 
           {/* Console body — 3 coloane egale */}
@@ -404,7 +404,7 @@ const HIGHLIGHTS = [
   },
   {
     icon: Flame,
-    tag: 'LEAD-URI',
+    tag: 'LEAD-URI · MAX',
     title: 'califică automat contactele',
     desc: 'Fiecare client primește un scor hot / warm / cold după criteriile tale. Vezi instant cine merită un telefon acum și cine poate aștepta.',
     detail: (
@@ -727,7 +727,7 @@ function HowItWorks() {
 const FEATURES = [
   {
     no: '01', title: 'răspunde 24/7, fără excepții',
-    desc: 'Timer 1–60 min. Dacă nu răspunzi în acel interval, agentul preia automat conversația.',
+    desc: 'Timer reglabil (de la 5 min pe Pro, 1 min pe Max). Dacă nu răspunzi în acel interval, agentul preia automat conversația.',
     visual: <div className="flex items-end gap-0.5 h-5">{[40,70,50,90,65,85,55,100,75].map((h,i)=><div key={i} className="w-1 rounded-xs" style={{height:`${h}%`,background:'var(--acid)'}}/>)}</div>,
   },
   {
@@ -946,7 +946,7 @@ const FAQ_ITEMS: { q: string; a: React.ReactNode }[] = [
   },
   {
     q: 'clienții vor ști că vorbesc cu un bot?',
-    a: 'Dacă ți-ai configurat corect stilul — nu. Agentul analizează cum scrii tu și reproduce fidel. În teste, sub 3% din conversații sunt detectate ca automate.',
+    a: 'Dacă ți-ai configurat corect stilul — cel mai probabil nu. Agentul analizează cum scrii tu (din arhiva ta de mesaje) și reproduce fidel tonul, expresiile și ritmul. Majoritatea clienților nu sesizează diferența.',
   },
   {
     q: 'ce se întâmplă când sunt online și răspund eu?',

@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 import { adminRepository } from './admin.repository.js'
+import { notificationsRepository } from '../notifications/notifications.repository.js'
 import { env } from '../../config/env.js'
 import { Errors } from '../../utils/errors.js'
 import { sendCustomEmail } from '../../utils/email.js'
@@ -117,6 +118,18 @@ export async function adminRoutes(app: FastifyInstance) {
     const { days } = req.body as { days: number }
     if (!days || days < 1 || days > 365) throw Errors.validation([{ field: 'days', message: 'Zile invalide (1-365).' }])
     await adminRepository.extendTrial(userId, days)
+    // B15 — anunță userul în dashboard că i s-a prelungit trial-ul (best-effort: un eșec aici nu
+    // trebuie să rateze extinderea, care e deja făcută).
+    try {
+      await notificationsRepository.create(
+        userId,
+        'trial_extended',
+        'Trial prelungit',
+        `Echipa waai.ro ți-a prelungit perioada de trial cu ${days} ${days === 1 ? 'zi' : 'zile'}.`,
+      )
+    } catch (err) {
+      logger.error('[admin] notificare prelungire trial eșuată', { err: String(err) })
+    }
     await audit(req, 'user.extend_trial', userId, { days })
     return reply.send({ ok: true })
   })

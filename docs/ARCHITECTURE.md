@@ -4,7 +4,7 @@
 
 | Layer | Tehnologie |
 |-------|-----------|
-| Frontend | Next.js 14 App Router, Tailwind CSS, Zustand |
+| Frontend | Next.js 16 App Router, Tailwind CSS, Zustand |
 | Backend | Fastify, TypeScript, Drizzle ORM |
 | Database | PostgreSQL (Railway) |
 | WhatsApp | Baileys (Signal Protocol) |
@@ -172,3 +172,9 @@ Conversația cu clientul e orchestrată în `message.handler.ts`, care ramifică
 
 ### 16. Navigare dashboard (web)
 - Meniu **fix pe desktop (sidebar) / drawer pe mobil**, grupat în 5 intrări: Principal (Dashboard · Conversații · Vânzări) + Cont (Setări · Profil). „Conversații" și „Vânzări" sunt **tab-uri pe bază de rută** (`ConversationsTabs` → conversations/leads; `SalesTabs` → products/orders/appointments) — paginile rămân rute independente, doar grupate vizual. Conectarea WhatsApp e inline în pagina Dashboard (nu mai există rută `/connect`).
+
+### 17. Comenzi WhatsApp (`executeCommand`) — calea `fromMe` sare gate-urile globale
+Owner-ul își controlează agentul trimițându-și comenzi pe propriul WhatsApp (`/activateAI`, `/setTimer`, `/confirma prg_xxx` etc.). Aceste mesaje au `fromMe=true` și intră în `message.handler.ts` **direct prin socket-ul Baileys** — NU prin aplicația web, deci **NU trec prin `authenticate`/`requireActiveSubscription`**. Ramura `fromMe` sare gate-ul global de abonament. **Decizie de produs: fără abonament activ = NICIO funcție a aplicației** (ca dashboard-ul, care redirecționează la `/subscribe`). De aceea `executeCommand` are un **HARD WALL** la intrare: orice comandă de la un cont fără `userHasEntitlement` primește un singur mesaj de reactivare și se oprește — **fără excepții** (nici control, nici booking). La expirare agentul e oricum auto-dezactivat de webhook, deci nicio comandă nu e necesară. **Regulă pt comenzi noi:** gate-ul global NU se aplică pe `fromMe`, deci verificarea de abonament stă LOCAL (hard wall-ul o acoperă). Pârghia de **TIER** (`/setTimer` = `minTimerMinutes`, Pro vs Max) e separată, relevantă doar pt conturi entitled. Generarea AI propriu-zisă e acoperită separat de **choke point-ul unic** din `sendAiResponse` (`userHasEntitlement` + plafon lunar), care prinde ambele căi (răspuns imediat + programat).
+
+### 18. Notificări în-app (`modules/notifications/`)
+Tabela `notifications` (generică, scopată pe `userId`) alimentează atât notificările admin (modulul `admin`), cât și pe cele user-facing (clopoțelul din dashboard, B15). Rutele user (`GET /notifications`, `POST /notifications/read`) au DOAR `authenticate` (intenționat fără `requireActiveSubscription` — userul trebuie să-și vadă notificările chiar cu trial/abonament expirat, ex. „trial prelungit"). Primul producător de notificări user = extinderea trial-ului din admin.

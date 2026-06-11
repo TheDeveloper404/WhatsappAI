@@ -969,6 +969,16 @@ async function processMessage(userId: string, sock: WASocket, msg: any): Promise
 async function executeCommand(userId: string, sock: WASocket, jid: string, contactPhone: string, cmd: ReturnType<typeof parseCommand>): Promise<void> {
   if (!cmd) return
 
+  // HARD WALL — fără abonament activ, ÎNTREAGA cale de comenzi e închisă (consecvent cu dashboard-ul,
+  // care redirecționează la /subscribe). La expirare agentul e oricum auto-dezactivat de webhook, deci
+  // NICIO comandă nu e necesară — nici control (activate/deactivate/pauză/status/help), nici cu efect
+  // (booking). Un singur mesaj de reactivare. Calea `fromMe` sare gate-ul global (linia 831), deci gate-ul
+  // de abonament stă AICI, local. (Pârghia de TIER pe `/setTimer` rămâne separat, mai jos — Pro vs Max.)
+  if (!(await userHasEntitlement(userId))) {
+    await sock.sendMessage(jid, { text: '🔒 Abonamentul tău nu mai este activ. Reactivează-l din dashboard ca să folosești agentul.' })
+    return
+  }
+
   let reply = ''
 
   switch (cmd.type) {
@@ -1031,14 +1041,8 @@ async function executeCommand(userId: string, sock: WASocket, jid: string, conta
     case 'confirmBooking':
     case 'cancelBooking':
     case 'completeBooking': {
-      // PATH-1: gate de abonament — consecvent cu ruta web `PATCH /appointments/:id/status`
-      // (subscription-gated). Owner `fromMe` sare gate-ul global (linia 831), deci îl repunem aici.
-      // Doar comenzile cu EFECT spre client (schimbă status + notifică) cer abonament; cele de CONTROL
-      // (activate/deactivate/pauză/status/help) rămân libere ca owner-ul să-și poată opri agentul oricând.
-      if (!(await userHasEntitlement(userId))) {
-        reply = '🔒 Abonamentul tău nu mai este activ. Reactivează-l din dashboard ca să gestionezi programări.'
-        break
-      }
+      // Gate de abonament: acoperit de HARD WALL-ul de la intrarea în executeCommand (un cont fără
+      // abonament activ nu ajunge până aici). Ownership rămâne scopat pe userId în findByPublicRef.
       const statusMap = { confirmBooking: 'confirmed', cancelBooking: 'cancelled', completeBooking: 'completed' } as const
       const statusRo = { confirmed: 'confirmată', cancelled: 'anulată', completed: 'finalizată' } as const
       const appt = await appointmentsRepository.findByPublicRef(userId, cmd.ref)

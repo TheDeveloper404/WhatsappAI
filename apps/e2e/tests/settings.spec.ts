@@ -5,6 +5,12 @@ test.beforeEach(async ({ page }) => {
   await resetDb()
   await page.context().clearCookies()
   await page.evaluate(() => localStorage.clear()).catch(() => {})
+  // Sădim consimțământul de cookie ÎNAINTE de scriptul paginii (rulează la fiecare navigare ulterioară,
+  // deci supraviețuiește lui clear() de mai sus). Altfel CookieBanner-ul (fixed bottom-0, z-50) acoperă
+  // partea de jos a paginii și interceptează click-ul pe butonul „Șterge" din blacklist.
+  await page.addInitScript(() => {
+    try { localStorage.setItem('wa-ai-cookie-consent', 'necessary') } catch {}
+  })
 })
 
 async function loginAndGoTo(page: any, email: string, path: string) {

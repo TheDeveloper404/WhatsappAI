@@ -20,8 +20,13 @@ const envSchema = z.object({
   API_URL: z.string().url(),
 
   STRIPE_SECRET_KEY: z.string().min(1),
-  STRIPE_PRICE_MONTHLY_ID: z.string().min(1),
-  STRIPE_PRICE_ANNUAL_ID: z.string().min(1),
+  // Etapa 2.2a — price ID-uri pe tier (Pro 79/790, Max 129/1290). Required: misconfig pe billing
+  // = fail-fast la boot, nu eroare tăcută la checkout. Creează-le în Stripe, pune-le în Railway.
+  // (Vechile STRIPE_PRICE_MONTHLY/ANNUAL_ID au fost scoase — plan unic 49/399 retras, fără clienți de grandfather.)
+  STRIPE_PRICE_PRO_MONTHLY: z.string().min(1),
+  STRIPE_PRICE_PRO_ANNUAL: z.string().min(1),
+  STRIPE_PRICE_MAX_MONTHLY: z.string().min(1),
+  STRIPE_PRICE_MAX_ANNUAL: z.string().min(1),
   STRIPE_WEBHOOK_SECRET: z.string().min(1),
 
   GROQ_API_KEY: z.string().min(1),

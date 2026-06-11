@@ -252,4 +252,8 @@ export const migrationStatements = [
     unit_price_bani INTEGER NOT NULL DEFAULT 0
   )`,
   `CREATE INDEX IF NOT EXISTS idx_appointment_items_appt ON appointment_items(appointment_id)`,
+  // Etapa 2.2a — tier de abonament (Pro/Max). NULL = abonament legacy (49/399) tratat ca Pro
+  // în cod (grandfathering). CHECK acceptă NULL în Postgres, deci nu strică rândurile existente.
+  // `plan` rămâne facturarea (monthly/annual); `tier` e nivelul de valoare — dimensiuni separate.
+  `ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS tier TEXT CHECK(tier IN ('pro','max'))`,
 ]

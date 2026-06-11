@@ -35,8 +35,10 @@ API_URL=http://localhost:3001
 
 # ─── STRIPE ───────────────────────────────────────────
 STRIPE_SECRET_KEY=sk_test_XXXXXXXXXXXXXXXXXXXXXXXXXXXX
-STRIPE_PRICE_MONTHLY_ID=price_XXXXXXXXXXXXXXXXXXXX
-STRIPE_PRICE_ANNUAL_ID=price_XXXXXXXXXXXXXXXXXXXX
+STRIPE_PRICE_PRO_MONTHLY=price_XXXXXXXXXXXXXXXXXXXX  # tier Pro 79
+STRIPE_PRICE_PRO_ANNUAL=price_XXXXXXXXXXXXXXXXXXXX   # tier Pro 790
+STRIPE_PRICE_MAX_MONTHLY=price_XXXXXXXXXXXXXXXXXXXX  # tier Max 129
+STRIPE_PRICE_MAX_ANNUAL=price_XXXXXXXXXXXXXXXXXXXX   # tier Max 1290
 STRIPE_WEBHOOK_SECRET=whsec_XXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 # ─── AI ───────────────────────────────────────────────
@@ -83,8 +85,10 @@ WHATSAPP_ENC_KEY=SCHIMBA_CU_openssl_rand_hex_32
 | `APP_URL` | **Da** | URL-ul aplicației web (ex: `https://app.domeniultau.com`) |
 | `API_URL` | **Da** | URL-ul API-ului (ex: `https://api.domeniultau.com`) |
 | `STRIPE_SECRET_KEY` | **Da** | Secret key din dashboard Stripe |
-| `STRIPE_PRICE_MONTHLY_ID` | **Da** | ID-ul price-ului lunar din Stripe |
-| `STRIPE_PRICE_ANNUAL_ID` | **Da** | ID-ul price-ului anual din Stripe |
+| `STRIPE_PRICE_PRO_MONTHLY` | **Da** | Price ID tier Pro lunar (79). Boot-ul eșuează dacă lipsește |
+| `STRIPE_PRICE_PRO_ANNUAL` | **Da** | Price ID tier Pro anual (790) |
+| `STRIPE_PRICE_MAX_MONTHLY` | **Da** | Price ID tier Max lunar (129) |
+| `STRIPE_PRICE_MAX_ANNUAL` | **Da** | Price ID tier Max anual (1290) |
 | `STRIPE_WEBHOOK_SECRET` | **Da** | Secret pentru validarea webhook-urilor Stripe. Serverul nu pornește fără el. |
 | `GROQ_API_KEY` | **Da** | API key de la [console.groq.com](https://console.groq.com). Necesar mereu (LLM + transcriere vocală Whisper), chiar dacă `LLM_PROVIDER=gemini` |
 | `GEMINI_API_KEY` | Nu | Cheie Google Gemini. Necesară doar dacă `LLM_PROVIDER=gemini` |

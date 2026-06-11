@@ -37,3 +37,22 @@ export async function userHasEntitlement(userId: string): Promise<boolean> {
   const sub = await billingRepository.findByUserId(userId)
   return isEntitled(sub)
 }
+
+// Tier-ul de valoare al unui abonament (Pro/Max) — dimensiune SEPARATĂ de `isEntitled`
+// (care spune doar „are/n-are drept"). Pur, fără DB, la fel ca `isEntitled`.
+//   - fără abonament            → null (nu există tier de evaluat)
+//   - coloana `tier` = 'max'    → 'max'
+//   - altfel ('pro', NULL, orice valoare neașteptată) → 'pro' (grandfathering pt legacy 49/399;
+//     fail-closed pentru funcțiile Max-only: orice nu e explicit 'max' nu primește Max).
+// NB: NU verifică entitlement-ul — apelantul gateuiește separat dreptul de acces (isEntitled);
+// `subTier` răspunde doar „CE nivel are abonamentul ăsta", presupunând că dreptul e deja stabilit.
+export function subTier(sub: Subscription | undefined | null): 'pro' | 'max' | null {
+  if (!sub) return null
+  return sub.tier === 'max' ? 'max' : 'pro'
+}
+
+// Varianta async, scoped pe user — citește abonamentul curent și aplică `subTier`.
+export async function userTier(userId: string): Promise<'pro' | 'max' | null> {
+  const sub = await billingRepository.findByUserId(userId)
+  return subTier(sub)
+}

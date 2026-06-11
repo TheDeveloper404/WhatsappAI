@@ -30,6 +30,8 @@ async function runStartupMigrations() {
     `ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS cancel_at_period_end BOOLEAN NOT NULL DEFAULT FALSE`,
     `ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS cancel_at BIGINT`,
     `ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS last_event_at BIGINT`,
+    // Etapa 2.2a — tier (Pro/Max); NULL = legacy → tratat ca Pro în cod. CHECK trece pe NULL.
+    `ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS tier TEXT CHECK(tier IN ('pro','max'))`,
     `ALTER TABLE conversation_messages ADD COLUMN IF NOT EXISTS is_ai BOOLEAN NOT NULL DEFAULT FALSE`,
     // Refresh token reuse detection / family revocation (L10).
     `ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS family_id TEXT`,

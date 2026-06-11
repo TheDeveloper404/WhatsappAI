@@ -199,6 +199,64 @@ describe('checkout.session.completed', () => {
     })
     expect(res.statusCode).toBe(200)
   })
+
+  it("200 — salvează tier='max' din metadata pe abonament (webhook autoritativ)", async () => {
+    const { user } = await registerAndLogin('webhook-tier-max@test.com')
+    await createSubscription(user.id, {
+      stripeCustomerId: 'cus_tier_max',
+      stripeSubscriptionId: null as any,
+      status: 'incomplete',
+    })
+
+    vi.mocked(stripe.subscriptions.retrieve).mockResolvedValueOnce({
+      id: 'sub_tier_max', status: 'trialing',
+      trial_end: Math.floor(Date.now() / 1000) + 7 * 86400,
+      billing_cycle_anchor: Math.floor(Date.now() / 1000) + 30 * 86400,
+    } as any)
+
+    const res = await sendWebhook({
+      type: 'checkout.session.completed',
+      data: {
+        object: {
+          mode: 'subscription', subscription: 'sub_tier_max', customer: 'cus_tier_max',
+          metadata: { userId: user.id, plan: 'annual', tier: 'max' },
+        },
+      },
+    })
+    expect(res.statusCode).toBe(200)
+
+    const rows = await db.select().from(subscriptions).where(eq(subscriptions.userId, user.id))
+    expect(rows[0].tier).toBe('max')
+  })
+
+  it("200 — fără tier în metadata → fail-closed 'pro'", async () => {
+    const { user } = await registerAndLogin('webhook-tier-missing@test.com')
+    await createSubscription(user.id, {
+      stripeCustomerId: 'cus_tier_missing',
+      stripeSubscriptionId: null as any,
+      status: 'incomplete',
+    })
+
+    vi.mocked(stripe.subscriptions.retrieve).mockResolvedValueOnce({
+      id: 'sub_tier_missing', status: 'trialing',
+      trial_end: Math.floor(Date.now() / 1000) + 7 * 86400,
+      billing_cycle_anchor: Math.floor(Date.now() / 1000) + 30 * 86400,
+    } as any)
+
+    const res = await sendWebhook({
+      type: 'checkout.session.completed',
+      data: {
+        object: {
+          mode: 'subscription', subscription: 'sub_tier_missing', customer: 'cus_tier_missing',
+          metadata: { userId: user.id, plan: 'monthly' }, // fără tier
+        },
+      },
+    })
+    expect(res.statusCode).toBe(200)
+
+    const rows = await db.select().from(subscriptions).where(eq(subscriptions.userId, user.id))
+    expect(rows[0].tier).toBe('pro')
+  })
 })
 
 // ---------------------------------------------------------------------------

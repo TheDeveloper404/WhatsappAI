@@ -2,7 +2,8 @@ import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { authenticate } from '../../middleware/authenticate.js'
 import { requireActiveSubscription } from '../../middleware/requireSubscription.js'
-import { userHasEntitlement } from '../billing/entitlement.js'
+import { requireTier } from '../../middleware/requireTier.js'
+import { userHasEntitlement, userTier, minTimerMinutes } from '../billing/entitlement.js'
 import { aiService } from './ai.service.js'
 import { getActiveLLMProvider } from './groq.client.js'
 import { Errors } from '../../utils/errors.js'
@@ -30,6 +31,13 @@ export async function aiRoutes(app: FastifyInstance) {
     })
     const result = schema.safeParse(req.body)
     if (!result.success) throw Errors.validation(result.error.issues.map(e => ({ field: String(e.path[0]), message: e.message })))
+    // Timer minim pe tier (Etapa 2.2a, pas 3): Pro min 5 min, Max min 1 min. Fail-closed: legacy/null → Pro.
+    if (result.data.timerMinutes !== undefined) {
+      const min = minTimerMinutes(await userTier(req.user!.id))
+      if (result.data.timerMinutes < min) {
+        throw Errors.validation([{ field: 'timerMinutes', message: `Timer-ul minim pe planul tău este ${min} min. Treci pe Max pentru valori mai mici.` }])
+      }
+    }
     const settings = await aiService.updateSettings(req.user!.id, result.data)
     return reply.send({ settings })
   })
@@ -69,7 +77,8 @@ export async function aiRoutes(app: FastifyInstance) {
     return reply.send({ stats })
   })
 
-  app.get('/stats/advanced', { preHandler: [authenticate, requireActiveSubscription]}, async (req, reply) => {
+  // Statistici avansate = Max only (matricea Pro/Max, docs/SUBSCRIPTION_PLAN.md §1).
+  app.get('/stats/advanced', { preHandler: [authenticate, requireActiveSubscription, requireTier('max')]}, async (req, reply) => {
     const stats = await aiService.getAdvancedStats(req.user!.id)
     return reply.send({ stats })
   })
@@ -79,9 +88,9 @@ export async function aiRoutes(app: FastifyInstance) {
     return reply.send({ leads })
   })
 
-  // Recalculare scor: tot lotul (fără body) sau un singur contact ({ phone }).
+  // Recalculare scor (scoring AI lead-uri) = Max only. `/leads` GET (lista simplă) rămâne Pro+.
   // Rate limit strict — fiecare contact e un apel LLM (cost real).
-  app.post('/leads/analyze', { config: { rateLimit: { max: 5, timeWindow: '1 minute' } }, preHandler: [authenticate, requireActiveSubscription]}, async (req, reply) => {
+  app.post('/leads/analyze', { config: { rateLimit: { max: 5, timeWindow: '1 minute' } }, preHandler: [authenticate, requireActiveSubscription, requireTier('max')]}, async (req, reply) => {
     const schema = z.object({ phone: z.string().min(7).max(20).optional() })
     const result = schema.safeParse(req.body ?? {})
     if (!result.success) throw Errors.validation(result.error.issues.map(e => ({ field: String(e.path[0]), message: e.message })))

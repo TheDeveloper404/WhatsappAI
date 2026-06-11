@@ -2,6 +2,7 @@ import { PDFParse } from 'pdf-parse'
 import mammoth from 'mammoth'
 import { embedTexts } from '../ai/groq.client.js'
 import { knowledgeRepository, type ChunkInput } from './knowledge.repository.js'
+import { userTier, ragChunkLimit } from '../billing/entitlement.js'
 import type { Document } from '../../db/schema.js'
 
 // MIME-uri acceptate. Validarea „hard" (whitelist + mărime) se face în rută; aici e dublată defensiv.
@@ -14,7 +15,9 @@ export const SUPPORTED_MIMES = new Set([
 const CHUNK_SIZE = 2000        // caractere per chunk (~500 tokens)
 const CHUNK_OVERLAP = 200      // suprapunere ca să nu tăiem o frază relevantă fix la graniță
 const MAX_CHUNKS = 400         // plafon per document (anti-abuz; ~800k caractere)
-const MAX_USER_CHUNKS = 2000   // plafon TOTAL per user (L17) — mărginește costul O(n) al RAG/mesaj
+// Plafon TOTAL fragmente per user (L17) — mărginește costul O(n) al RAG/mesaj. Per tier (Etapa 2.2a,
+// pas 3): Pro 500 / Max 2.000, din `entitlement.ragChunkLimit`. MAX_EXTRACTED_CHARS folosește MAX_CHUNKS,
+// nu acest plafon, deci anti-DoS-ul la parsing rămâne neschimbat.
 const MIN_TEXT_LEN = 20        // sub atât = document fără conținut util → respins
 const RETRIEVE_TOP_K = 3
 const RETRIEVE_MIN_SCORE = 0.5 // prag cosine: sub atât considerăm irelevant și nu injectăm
@@ -127,10 +130,12 @@ export const knowledgeService = {
     }
 
     // Plafon total per user (L17) — verificat ÎNAINTE de embedding (costul real), ca să nu lăsăm
-    // un user să umfle baza de cunoștințe și să încarce retrieval-ul pe fiecare mesaj.
+    // un user să umfle baza de cunoștințe și să încarce retrieval-ul pe fiecare mesaj. Per tier
+    // (fail-closed: legacy/null → limita Pro).
+    const maxUserChunks = ragChunkLimit(await userTier(userId))
     const existingChunks = await knowledgeRepository.countChunksForUser(userId)
-    if (existingChunks + chunks.length > MAX_USER_CHUNKS) {
-      throw new UnprocessableDocumentError(`Ai atins limita bazei de cunoștințe (${MAX_USER_CHUNKS} fragmente). Șterge documente vechi înainte de a adăuga altele.`)
+    if (existingChunks + chunks.length > maxUserChunks) {
+      throw new UnprocessableDocumentError(`Ai atins limita bazei de cunoștințe (${maxUserChunks} fragmente) a planului tău. Șterge documente vechi sau treci pe Max pentru mai mult spațiu.`)
     }
 
     const vectors = await embedTexts(chunks, 'RETRIEVAL_DOCUMENT')

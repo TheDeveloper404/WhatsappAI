@@ -37,7 +37,7 @@ afterAll(async () => {
 // Helpers
 // ---------------------------------------------------------------------------
 
-async function registerAndLogin(email = 'aiuser@test.com') {
+async function registerAndLogin(email = 'aiuser@test.com', tier: 'pro' | 'max' = 'max') {
   vi.mocked(sendVerificationEmail).mockClear()
   await app.inject({
     method: 'POST',
@@ -54,11 +54,11 @@ async function registerAndLogin(email = 'aiuser@test.com') {
   const body = res.json()
   // Gate de abonament (C1): rutele premium cer abonament activ. Seedăm unul ca testul să ajungă
   // la logica testată, nu să fie oprit la 402.
-  await seedActiveSubscription(body.user.id)
+  await seedActiveSubscription(body.user.id, tier)
   return body.accessToken as string
 }
 
-async function seedActiveSubscription(userId: string) {
+async function seedActiveSubscription(userId: string, tier: 'pro' | 'max' = 'max') {
   const now = Date.now()
   await db.insert(subscriptions).values({
     id: randomUUID(),
@@ -66,6 +66,7 @@ async function seedActiveSubscription(userId: string) {
     stripeCustomerId: `cus_${userId}`,
     stripeSubscriptionId: `sub_${userId}`,
     plan: 'monthly',
+    tier,
     status: 'active',
     trialEndsAt: now + 7 * 86_400_000,
     currentPeriodEndsAt: now + 30 * 86_400_000,
@@ -219,6 +220,29 @@ describe('PATCH /ai/settings', () => {
       headers: { authorization: `Bearer ${token}` },
     })
     expect(res.statusCode).toBe(400)
+  })
+
+  // Timer minim pe tier (Etapa 2.2a, pas 3): Pro min 5, Max min 1.
+  it('400 — tier Pro nu poate seta timer sub 5 min', async () => {
+    const token = await registerAndLogin('timer-pro-low@test.com', 'pro')
+    const res = await app.inject({
+      method: 'PATCH', url: '/api/v1/ai/settings',
+      payload: { timerMinutes: 2 },
+      headers: { authorization: `Bearer ${token}` },
+    })
+    expect(res.statusCode).toBe(400)
+    expect(res.json().error.code).toBe('VALIDATION_ERROR')
+  })
+
+  it('200 — tier Max poate seta timer la 1 min', async () => {
+    const token = await registerAndLogin('timer-max-low@test.com', 'max')
+    const res = await app.inject({
+      method: 'PATCH', url: '/api/v1/ai/settings',
+      payload: { timerMinutes: 1 },
+      headers: { authorization: `Bearer ${token}` },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(res.json().settings.timerMinutes).toBe(1)
   })
 
   it('200 — patch parțial (doar un câmp) nu alterează celelalte', async () => {
@@ -535,6 +559,48 @@ describe('POST /ai/leads/analyze', () => {
     })
     expect(res.statusCode).toBe(422)
     expect(res.json().error.code).toBe('UNPROCESSABLE')
+  })
+
+  it('403 — tier Pro respins (scoring lead = Max only)', async () => {
+    const token = await registerAndLogin('leads-analyze-pro@test.com', 'pro')
+    const res = await app.inject({
+      method: 'POST', url: '/api/v1/ai/leads/analyze',
+      payload: {},
+      headers: { authorization: `Bearer ${token}` },
+    })
+    expect(res.statusCode).toBe(403)
+    expect(res.json().error.code).toBe('TIER_REQUIRED')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// GET /ai/stats/advanced (Max only)
+// ---------------------------------------------------------------------------
+
+describe('GET /ai/stats/advanced', () => {
+  it('401 — fără token', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/v1/ai/stats/advanced' })
+    expect(res.statusCode).toBe(401)
+  })
+
+  it('403 — tier Pro respins (statistici avansate = Max only)', async () => {
+    const token = await registerAndLogin('stats-advanced-pro@test.com', 'pro')
+    const res = await app.inject({
+      method: 'GET', url: '/api/v1/ai/stats/advanced',
+      headers: { authorization: `Bearer ${token}` },
+    })
+    expect(res.statusCode).toBe(403)
+    expect(res.json().error.code).toBe('TIER_REQUIRED')
+  })
+
+  it('200 — tier Max primește statistici', async () => {
+    const token = await registerAndLogin('stats-advanced-max@test.com', 'max')
+    const res = await app.inject({
+      method: 'GET', url: '/api/v1/ai/stats/advanced',
+      headers: { authorization: `Bearer ${token}` },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(res.json().stats).toBeDefined()
   })
 })
 

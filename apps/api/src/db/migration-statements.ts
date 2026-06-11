@@ -256,4 +256,14 @@ export const migrationStatements = [
   // în cod (grandfathering). CHECK acceptă NULL în Postgres, deci nu strică rândurile existente.
   // `plan` rămâne facturarea (monthly/annual); `tier` e nivelul de valoare — dimensiuni separate.
   `ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS tier TEXT CHECK(tier IN ('pro','max'))`,
+  // Etapa 2.2a — contor consum AI per user și lună (ora RO), pentru plafonul de tier (Pro cap lunar,
+  // Max nelimitat). Separat de conversation_messages (care se curăță la 50/contact). PK compus = 1 rând/lună.
+  `CREATE TABLE IF NOT EXISTS ai_usage (
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    period_month TEXT NOT NULL,
+    count INTEGER NOT NULL DEFAULT 0,
+    created_at BIGINT NOT NULL,
+    updated_at BIGINT NOT NULL,
+    PRIMARY KEY (user_id, period_month)
+  )`,
 ]

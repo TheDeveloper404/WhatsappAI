@@ -6,6 +6,7 @@ import {
   Moon, Sun, Menu, X, ArrowRight, Check, Play, ChevronUp,
   FileText, Flame, ShoppingCart,
 } from 'lucide-react'
+import { TIERS, perMonthFromAnnual, annualSavings, type BillingPeriod } from '@/lib/plans'
 
 // ─── THEME HOOK ───────────────────────────────────────────────────────────────
 // Citește tema prin store-ul partajat (useSyncExternalStore pe clasa `dark` de pe <html>) — fără
@@ -808,21 +809,9 @@ function Features() {
 }
 
 // ─── §04 PRICING ──────────────────────────────────────────────────────────────
-const PLAN_LUNAR = [
-  'agent AI activ 24/7',
-  'mesaje nelimitate',
-  'stilul tău clonat din conversații',
-  'transcriere vocale & detecție sentiment',
-]
-
-const PLAN_ANUAL_EXTRA = [
-  'tot ce e în Lunar, plus:',
-  'suport prioritar < 2h',
-  'acces beta features',
-  'economisești 201 RON / an',
-]
-
+// Tierele + prețurile vin din `@/lib/plans` (sursă unică, partajată cu /subscribe).
 function Pricing() {
+  const [billing, setBilling] = useState<BillingPeriod>('annual')
   return (
     <section id="pricing" className="relative py-24 lg:py-32 border-b border-line">
       <div className="max-w-[1440px] mx-auto px-6 lg:px-8">
@@ -846,71 +835,95 @@ function Pricing() {
           </div>
         </div>
 
-        {/* Cards — 2 coloane */}
+        {/* Toggle facturare lunar / anual */}
+        <div className="flex mb-6">
+          <div className="inline-flex items-center gap-1 p-1 rounded-full border border-line bg-card">
+            {(['monthly', 'annual'] as const).map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setBilling(p)}
+                className={`font-mono-ui text-[11px] tracking-widest uppercase px-4 py-1.5 rounded-full transition-colors ${
+                  billing === p ? 'bg-acid text-white dark:text-black' : 'text-dim hover:text-ink'
+                }`}
+              >
+                {p === 'monthly' ? 'lunar' : 'anual'}
+                {p === 'annual' && <span className="ml-1.5 normal-case tracking-normal opacity-80">· 2 luni gratis</span>}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Cards — 2 tiere (Pro / Max) */}
         <div className="grid md:grid-cols-2 gap-4">
-            {/* Lunar */}
-            <div className="card-elevated rounded-2xl p-5 flex flex-col transition-shadow hover:shadow-lg hover:border-acid/30 border border-line cursor-default">
-              <div className="flex items-start justify-between mb-3">
-                <div>
-                  <div className="font-display text-[18px] text-ink">lunar</div>
-                  <div className="font-mono-ui text-[9px] text-dimmer tracking-widest uppercase mt-0.5">FLEXIBIL</div>
-                </div>
-                <div className="text-right">
-                  <div className="font-display text-[36px] text-ink leading-none">
-                    49<span className="text-[22px]">.99</span>
-                  </div>
-                  <div className="font-mono-ui text-[10px] text-dimmer">RON / lună</div>
-                </div>
-              </div>
-              <p className="text-[12px] text-dim mb-4">Facturat lunar. Anulezi oricând cu un click.</p>
-              <ul className="space-y-2 mb-5 flex-1">
-                {PLAN_LUNAR.map(f => (
-                  <li key={f} className="flex items-center gap-2 font-mono-ui text-[12px] text-dim">
-                    <Check className="w-3 h-3 text-acid shrink-0" strokeWidth={2.5} />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              <Link href="/signup" className="block text-center border border-line text-ink font-mono-ui font-medium text-[12px] py-2.5 rounded-full hover:bg-cardhi transition-colors">
-                Începe trialul de 7 zile
-              </Link>
-            </div>
+          {TIERS.map((tier) => {
+            const price = billing === 'monthly' ? tier.monthly : tier.annual
+            const period = billing === 'monthly' ? 'lună' : 'an'
+            const saved = annualSavings(tier.monthly, tier.annual)
 
-            {/* Anual */}
-            <div className="rounded-2xl p-5 flex flex-col relative transition-shadow hover:shadow-xl cursor-default" style={{ background: 'var(--acid)' }}>
-              <div className="absolute -top-3 right-5 font-mono-ui text-[9px] font-bold px-2.5 py-0.5 rounded-full"
-                style={{ background: 'var(--ink)', color: 'var(--on-acid)' }}>★ ECONOMISEȘTI 33%</div>
-              <div className="flex items-start justify-between mb-3">
-                <div>
-                  <div className="font-display text-[18px] leading-none" style={{ color: 'var(--on-acid)' }}>anual</div>
-                </div>
-                <div className="text-right">
-                  <div className="font-display text-[36px] leading-none" style={{ color: 'var(--on-acid)' }}>
-                    399<span className="text-[22px]">.99</span>
+            if (tier.recommended) {
+              return (
+                <div key={tier.id} className="rounded-2xl p-5 flex flex-col relative transition-shadow hover:shadow-xl cursor-default" style={{ background: 'var(--acid)' }}>
+                  <div className="absolute -top-3 right-5 font-mono-ui text-[9px] font-bold px-2.5 py-0.5 rounded-full"
+                    style={{ background: 'var(--ink)', color: 'var(--on-acid)' }}>★ RECOMANDAT</div>
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="font-display text-[18px] leading-none" style={{ color: 'var(--on-acid)' }}>{tier.name}</div>
+                    <div className="text-right">
+                      <div className="font-display text-[36px] leading-none" style={{ color: 'var(--on-acid)' }}>{price}</div>
+                      <div className="font-mono-ui text-[10px]" style={{ color: 'var(--on-acid-muted)' }}>RON / {period}</div>
+                    </div>
                   </div>
-                  <div className="font-mono-ui text-[10px]" style={{ color: 'var(--on-acid-muted)' }}>RON / an</div>
+                  {billing === 'annual' && (
+                    <p className="font-mono-ui text-[11px] mb-0.5" style={{ color: 'var(--on-acid)' }}>
+                      ~{perMonthFromAnnual(tier.annual)} RON / lună · economisești {saved} RON / an
+                    </p>
+                  )}
+                  <p className="font-mono-ui text-[10.5px] mb-4" style={{ color: 'var(--on-acid-muted)' }}>{tier.tagline}</p>
+                  <ul className="space-y-2 mb-5 flex-1">
+                    {tier.features.map((f, i) => (
+                      <li key={f} className={`flex items-center gap-2 font-mono-ui text-[12px] ${i === 0 ? 'font-semibold' : ''}`} style={{ color: 'var(--on-acid)' }}>
+                        <Check className="w-3 h-3 shrink-0" style={{ color: 'var(--on-acid)' }} strokeWidth={2.5} />
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+                  <Link href="/signup" className="block text-center font-mono-ui font-medium text-[12px] py-2.5 rounded-full transition-opacity hover:opacity-90"
+                    style={{ background: '#ffffff', color: '#0A0F0C' }}>
+                    Începe trialul de 7 zile
+                  </Link>
                 </div>
-              </div>
-              <p className="font-mono-ui text-[11px] mb-0.5" style={{ color: 'var(--on-acid)' }}>
-                Echivalent ~33.25 RON / lună
-              </p>
-              <p className="font-mono-ui text-[10.5px] mb-4" style={{ color: 'var(--on-acid-muted)' }}>
-                economisești 201 RON față de lunar
-              </p>
-              <ul className="space-y-2 mb-5 flex-1">
-                {PLAN_ANUAL_EXTRA.map((f, i) => (
-                  <li key={f} className={`flex items-center gap-2 font-mono-ui text-[12px] ${i === 0 ? 'font-semibold' : ''}`} style={{ color: 'var(--on-acid)' }}>
-                    <Check className="w-3 h-3 shrink-0" style={{ color: 'var(--on-acid)' }} strokeWidth={2.5} />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              <Link href="/signup" className="block text-center font-mono-ui font-medium text-[12px] py-2.5 rounded-full transition-opacity hover:opacity-90"
-                style={{ background: '#ffffff', color: '#0A0F0C' }}>
-                Începe trialul de 7 zile
-              </Link>
-            </div>
+              )
+            }
 
+            return (
+              <div key={tier.id} className="card-elevated rounded-2xl p-5 flex flex-col transition-shadow hover:shadow-lg hover:border-acid/30 border border-line cursor-default">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="font-display text-[18px] text-ink">{tier.name}</div>
+                  <div className="text-right">
+                    <div className="font-display text-[36px] text-ink leading-none">{price}</div>
+                    <div className="font-mono-ui text-[10px] text-dimmer">RON / {period}</div>
+                  </div>
+                </div>
+                {billing === 'annual' && (
+                  <p className="font-mono-ui text-[11px] text-acid mb-0.5">
+                    ~{perMonthFromAnnual(tier.annual)} RON / lună · economisești {saved} RON / an
+                  </p>
+                )}
+                <p className="text-[12px] text-dim mb-4">{tier.tagline}</p>
+                <ul className="space-y-2 mb-5 flex-1">
+                  {tier.features.map(f => (
+                    <li key={f} className="flex items-center gap-2 font-mono-ui text-[12px] text-dim">
+                      <Check className="w-3 h-3 text-acid shrink-0" strokeWidth={2.5} />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+                <Link href="/signup" className="block text-center border border-line text-ink font-mono-ui font-medium text-[12px] py-2.5 rounded-full hover:bg-cardhi transition-colors">
+                  Începe trialul de 7 zile
+                </Link>
+              </div>
+            )
+          })}
         </div>
 
         {/* Footer trust */}

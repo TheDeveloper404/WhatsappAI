@@ -20,6 +20,10 @@ export const Errors = {
   // 402 distinct de 401/403: clientul îl mapează la „du-te la /subscribe", nu la „sesiune expirată".
   subscriptionRequired: (msg = 'Active subscription required.') =>
     new AppError(402, 'SUBSCRIPTION_REQUIRED', msg),
+  // 403 (NU 402): userul ARE abonament valid, dar nu tier-ul cerut de funcția asta. Clientul îl
+  // mapează la „upgrade la Max", nu la „abonează-te".
+  tierRequired: (msg = 'This feature requires a higher plan.') =>
+    new AppError(403, 'TIER_REQUIRED', msg),
   notFound: (resource = 'Resource') =>
     new AppError(404, 'NOT_FOUND', `${resource} not found`),
   conflict: (msg: string) =>

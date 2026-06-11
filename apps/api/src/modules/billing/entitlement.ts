@@ -56,3 +56,34 @@ export async function userTier(userId: string): Promise<'pro' | 'max' | null> {
   const sub = await billingRepository.findByUserId(userId)
   return subTier(sub)
 }
+
+// Plafon de răspunsuri AI pe lună calendaristică, derivat din tier (Etapa 2.2a, pas 2).
+// Pro (și legacy/grandfathered, tratat ca Pro) = plafonat; Max = nelimitat.
+export const PRO_MONTHLY_AI_LIMIT = 1200
+
+// `null` = nelimitat (Max). Pentru orice altceva (Pro, legacy, fără tier) → plafonul Pro.
+// Fail-closed pe cost: doar 'max' explicit primește nelimitat.
+export function monthlyAiLimit(tier: 'pro' | 'max' | null): number | null {
+  return tier === 'max' ? null : PRO_MONTHLY_AI_LIMIT
+}
+
+// Pârghii de tier (Etapa 2.2a, pas 3), valori din docs/SUBSCRIPTION_PLAN.md §1. Toate fail-closed:
+// orice nu e 'max' explicit (Pro, legacy, null) primește limita Pro (cea mai restrictivă).
+
+// Plafon produse în catalog.
+export const PRODUCT_LIMIT = { pro: 100, max: 1000 } as const
+export function productLimit(tier: 'pro' | 'max' | null): number {
+  return tier === 'max' ? PRODUCT_LIMIT.max : PRODUCT_LIMIT.pro
+}
+
+// Plafon TOTAL fragmente RAG per user (bază de cunoștințe).
+export const RAG_CHUNK_LIMIT = { pro: 500, max: 2000 } as const
+export function ragChunkLimit(tier: 'pro' | 'max' | null): number {
+  return tier === 'max' ? RAG_CHUNK_LIMIT.max : RAG_CHUNK_LIMIT.pro
+}
+
+// Timer minim de inactivitate (minute). Max poate coborî la 1 min (răspuns AI mai rapid); Pro min 5.
+export const MIN_TIMER_MINUTES = { pro: 5, max: 1 } as const
+export function minTimerMinutes(tier: 'pro' | 'max' | null): number {
+  return tier === 'max' ? MIN_TIMER_MINUTES.max : MIN_TIMER_MINUTES.pro
+}

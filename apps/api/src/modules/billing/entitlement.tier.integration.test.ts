@@ -14,7 +14,11 @@ import { sendVerificationEmail } from '../../utils/email.js'
 import { db } from '../../config/database.js'
 import type { Subscription } from '../../db/schema.js'
 import { subscriptions } from '../../db/schema.js'
-import { subTier, userTier } from './entitlement.js'
+import {
+  subTier, userTier, monthlyAiLimit, PRO_MONTHLY_AI_LIMIT,
+  productLimit, ragChunkLimit, minTimerMinutes,
+  PRODUCT_LIMIT, RAG_CHUNK_LIMIT, MIN_TIMER_MINUTES,
+} from './entitlement.js'
 import { randomUUID } from 'crypto'
 
 let app: FastifyInstance
@@ -60,6 +64,49 @@ describe('subTier (pur) — nivelul de valoare al abonamentului', () => {
 
   it("valoare neașteptată → 'pro' (fail-closed: nu acordă Max)", () => {
     expect(subTier(makeSub('enterprise'))).toBe('pro')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// monthlyAiLimit — funcție PURĂ. Plafonul lunar de răspunsuri AI derivat din tier.
+// ---------------------------------------------------------------------------
+
+describe('monthlyAiLimit (pur) — plafon AI lunar pe tier', () => {
+  it("'max' → null (nelimitat)", () => {
+    expect(monthlyAiLimit('max')).toBeNull()
+  })
+
+  it("'pro' → PRO_MONTHLY_AI_LIMIT", () => {
+    expect(monthlyAiLimit('pro')).toBe(PRO_MONTHLY_AI_LIMIT)
+  })
+
+  it('null (fără tier / legacy) → plafonul Pro (fail-closed pe cost)', () => {
+    expect(monthlyAiLimit(null)).toBe(PRO_MONTHLY_AI_LIMIT)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Pârghii de tier (pas 3) — funcții PURE. Toate fail-closed: ≠'max' → limita Pro.
+// ---------------------------------------------------------------------------
+
+describe('pârghii de tier (pure) — plafoane pe tier', () => {
+  it('productLimit: max > pro, fail-closed pe pro', () => {
+    expect(productLimit('max')).toBe(PRODUCT_LIMIT.max)
+    expect(productLimit('pro')).toBe(PRODUCT_LIMIT.pro)
+    expect(productLimit(null)).toBe(PRODUCT_LIMIT.pro)
+  })
+
+  it('ragChunkLimit: max > pro, fail-closed pe pro', () => {
+    expect(ragChunkLimit('max')).toBe(RAG_CHUNK_LIMIT.max)
+    expect(ragChunkLimit('pro')).toBe(RAG_CHUNK_LIMIT.pro)
+    expect(ragChunkLimit(null)).toBe(RAG_CHUNK_LIMIT.pro)
+  })
+
+  it('minTimerMinutes: max coboară mai jos decât pro, fail-closed pe pro', () => {
+    expect(minTimerMinutes('max')).toBe(MIN_TIMER_MINUTES.max)
+    expect(minTimerMinutes('pro')).toBe(MIN_TIMER_MINUTES.pro)
+    expect(minTimerMinutes(null)).toBe(MIN_TIMER_MINUTES.pro)
+    expect(MIN_TIMER_MINUTES.max).toBeLessThan(MIN_TIMER_MINUTES.pro)
   })
 })
 

@@ -12,6 +12,12 @@ export const productsRepository = {
       .orderBy(asc(products.category), asc(products.name))
   },
 
+  // Numărul de produse ale userului (pentru plafonul de tier). Scopat pe userId.
+  async countForUser(userId: string): Promise<number> {
+    const res = await pool.query('SELECT COUNT(*)::int AS n FROM products WHERE user_id = $1', [userId])
+    return res.rows[0].n as number
+  },
+
   async findById(userId: string, id: string): Promise<Product | null> {
     const rows = await db.select()
       .from(products)

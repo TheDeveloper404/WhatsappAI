@@ -6,6 +6,16 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed (2026-06-11) — 0.6 E2E: suită verde (51/51), ultimele 7 eșecuri reparate
+
+După repararea mediului (2026-06-10) + CSP/Turnstile, rularea era `44 passed · 7 failed`. Triaj: 5 cauze, aproape toate pe partea de teste (selectori/timing), o singură corecție de cod sursă. Rezultat final: **51 passed · 0 failed**.
+- **API — gating E2E (`admin.routes.ts`):** `POST /admin/auth` avea rate-limit hard-codat `max:10/15min` **nedezactivat** în E2E (spre deosebire de restul rutelor admin) → suita (zeci de login-uri) lovea 429 la al 11-lea și pica pe `/admin`. Trecut prin helper-ul `rl()` → dezactivat în test/E2E, **prod neschimbat** (protecția anti brute-force pe codul admin rămâne intactă).
+- **E2E admin (`admin.spec`):** assert pe butonul „Salvat!" prin rol, nu `getByText(/salvat/i)` (care prindea și „Nicio configurare salvată" → strict mode).
+- **E2E dashboard (`dashboard.spec`):** `.first()` pe „Conectare WhatsApp" (apare în 2 locuri); testul de activare toggle AI așteaptă întâi „Inactiv" (încărcare completă) înainte de click — cursă de timing, aliniat cu testul-frate de dezactivare.
+- **E2E settings (`settings.spec`):** `addInitScript` sădește consimțământul cookie în `beforeEach` → `CookieBanner` (`fixed bottom-0 z-50`) nu mai acoperă butonul „Șterge" din blacklist.
+- **E2E auth (`auth.spec`):** `waitForTurnstile()` așteaptă tokenul (cheia de test `1x…AA` populează `cf-turnstile-response`) înainte de submit — altfel `/signup` făcea `return` devreme (token gol) și înregistrarea nu se trimitea.
+- **Follow-up notat:** testele `email duplicat` / `parolă slabă` din `auth.spec` sunt verzi dar prind alerta anti-bot din return-ul devreme, nu comportamentul real (duplicat → 201 generic anti-enumerare). De rescris fidel separat (vezi BACKLOG).
+
 ### Added (2026-06-10) — tooling E2E local + fix mediu Playwright (parte din 0.6)
 
 Suita E2E pica „din mediu, nu din cod". Cauze găsite și reparate în `apps/e2e/playwright.config.ts`:

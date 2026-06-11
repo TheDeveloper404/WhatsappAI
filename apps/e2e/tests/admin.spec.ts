@@ -89,7 +89,9 @@ test.describe('Admin — Dashboard', () => {
     if (await textarea.count() > 0) {
       await textarea.fill('Prompt nou de test pentru configurare platformă minim 10 caractere.')
       await page.getByRole('button', { name: /salvează/i }).click()
-      await expect(page.getByText(/salvat/i)).toBeVisible()
+      // Butonul devine „Salvat!" la succes. getByText(/salvat/i) ar prinde și „Nicio configurare
+      // salvată" (strict mode violation) → țintim butonul prin rol.
+      await expect(page.getByRole('button', { name: /salvat/i })).toBeVisible()
     }
   })
 

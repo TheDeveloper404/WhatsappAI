@@ -7,6 +7,13 @@ test.beforeEach(async ({ page }) => {
   await page.evaluate(() => localStorage.clear()).catch(() => {})
 })
 
+// Cheia de test Turnstile (1x…AA, din apps/web/.env.local) auto-trece și populează input-ul ascuns
+// `cf-turnstile-response`. Înainte ca tokenul să sosească, handleSubmit din /signup face return
+// devreme (turnstileToken gol) → înregistrarea nu se trimite. Așteptăm tokenul înainte de submit.
+async function waitForTurnstile(page: any) {
+  await expect(page.locator('input[name="cf-turnstile-response"]')).toHaveValue(/.+/, { timeout: 15_000 })
+}
+
 // ---------------------------------------------------------------------------
 // Pagina Register (ruta: /signup)
 // ---------------------------------------------------------------------------
@@ -27,6 +34,7 @@ test.describe('Register', () => {
     await page.getByLabel(/^email$/i).fill('ion@example.com')
     await page.getByLabel(/^parolă$/i).fill(DEFAULT_PASSWORD)
     await page.getByLabel(/confirmă parola/i).fill(DEFAULT_PASSWORD)
+    await waitForTurnstile(page)
     await page.getByRole('button', { name: /creează cont/i }).click()
     await expect(page.getByText(/verifică/i)).toBeVisible()
   })
@@ -74,6 +82,7 @@ test.describe('Verificare email', () => {
     await page.getByLabel(/^email$/i).fill('maria@example.com')
     await page.getByLabel(/^parolă$/i).fill(DEFAULT_PASSWORD)
     await page.getByLabel(/confirmă parola/i).fill(DEFAULT_PASSWORD)
+    await waitForTurnstile(page)
     await page.getByRole('button', { name: /creează cont/i }).click()
     await expect(page.getByText(/verifică/i)).toBeVisible()
 

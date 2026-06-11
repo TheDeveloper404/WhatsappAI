@@ -44,6 +44,9 @@ test.describe('Dashboard', () => {
     await createUser({ email: 'toggle@example.com', withSubscription: true })
     await loginAs(page, 'toggle@example.com')
 
+    // Așteptăm starea inițială „Inactiv" → garantează că dashboard-ul s-a încărcat (initialLoaded)
+    // și toggle-ul e enabled înainte de click (la fel ca testul de dezactivare de mai jos).
+    await expect(page.getByText('Inactiv', { exact: true })).toBeVisible()
     // Găsim toggle-ul (button cu rol switch sau button lângă "Agent AI")
     const toggleBtn = page.locator('button[class*="rounded-full"]').first()
     await toggleBtn.click()
@@ -74,7 +77,8 @@ test.describe('Dashboard', () => {
     await loginAs(page, 'connect@example.com')
     // "Conectează acum" deschide un panou inline (setShowWaPanel), nu mai navighează la /connect
     await page.getByRole('button', { name: /Conectează acum/i }).first().click()
-    await expect(page.getByText(/Conectare WhatsApp/i)).toBeVisible()
+    // „Conectare WhatsApp" apare în 2 locuri (titlu panou + pas) → .first() evită strict mode.
+    await expect(page.getByText(/Conectare WhatsApp/i).first()).toBeVisible()
   })
 
   test('navigarea funcționează prin sidebar: Conversații → Setări → Dashboard', async ({ page }) => {

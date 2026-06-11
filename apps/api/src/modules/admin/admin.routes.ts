@@ -71,7 +71,9 @@ async function audit(req: { ip?: string }, action: string, targetUserId: string 
 
 export async function adminRoutes(app: FastifyInstance) {
   // POST /admin/auth — public (emite token-ul de sesiune); NU primește adminGuard.
-  app.post('/auth', { config: { rateLimit: { max: 10, timeWindow: '15 minutes' } } }, async (req, reply) => {
+  // Rate limit prin rl() → dezactivat în test/E2E (la fel ca restul rutelor admin), altfel
+  // suita E2E (zeci de login-uri admin) lovește limita de 10/15min și pică pe 429.
+  app.post('/auth', rl(10, '15 minutes'), async (req, reply) => {
     const { secret, totp } = req.body as { secret?: string; totp?: string }
     if (!secret || !env.ADMIN_SECRET || !secretsMatch(secret, env.ADMIN_SECRET)) {
       throw Errors.unauthorized('Cod incorect.')

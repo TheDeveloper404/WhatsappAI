@@ -6,6 +6,12 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed (2026-06-11) — corecție copy planuri UI (nepotriviri promisiune↔realitate)
+
+Audit de coerență „ce promite UI-ul vs. ce e enforce-uit în cod" (toate pârghiile de tier confirmate real-enforce-uite, fail-closed). Două nepotriviri **doar de afișaj** corectate în `apps/web/src/lib/plans.ts`:
+- **Scos „email confirmare comandă"** din feature-urile Max — funcția a fost eliminată (vezi `17bd95c`), UI-ul o mai promitea. Nu mai vindem ce nu există.
+- **RAG pe număr de documente → formulare pe volum:** codul plafonează **fragmente** (Pro 500 / Max 2.000 chunks), nu numărul de documente. „3 documente" / „10+ documente" → „documente (RAG)" / „mai multe documente RAG". Onest și exact (Max ≈ 4× volum).
+
 ### Added (2026-06-11) — vision + multi-serviciu doar Max (Etapa 2.2b, felia 2)
 
 Ultimele 2 pârghii de tier, cele mai sensibile (risc de bypass plătit). `entitlement.visionAllowed` / `multiServiceAllowed` (pure, fail-closed: ≠'max' → fără).

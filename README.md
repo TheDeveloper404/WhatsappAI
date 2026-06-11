@@ -141,8 +141,8 @@ Variabilele obligatorii:
 | `LLM_PROVIDER` | `groq` (default) sau `gemini` — furnizor text (opțional) |
 | `GEMINI_API_KEY` | Cheie Google Gemini (doar dacă `LLM_PROVIDER=gemini`) |
 | `STRIPE_SECRET_KEY` | Cheie secretă Stripe |
-| `STRIPE_PRICE_MONTHLY_ID` | ID prețul lunar din Stripe |
-| `STRIPE_PRICE_ANNUAL_ID` | ID prețul anual din Stripe |
+| `STRIPE_PRICE_PRO_MONTHLY` / `_PRO_ANNUAL` | ID prețuri tier Pro (lunar/anual) din Stripe |
+| `STRIPE_PRICE_MAX_MONTHLY` / `_MAX_ANNUAL` | ID prețuri tier Max (lunar/anual) din Stripe |
 | `STRIPE_WEBHOOK_SECRET` | Secret webhook Stripe |
 | `RESEND_API_KEY` | Cheie API Resend (email) |
 | `EMAIL_FROM` | Adresa expeditor email |

@@ -227,6 +227,8 @@ export async function setup() {
     )`,
     // M7 — coloana de ordonare a evenimentelor Stripe (folosită de webhook handler).
     `ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS last_event_at BIGINT`,
+    // Etapa 2.2a — tier abonament (Pro/Max); NULL = legacy → tratat ca Pro în cod.
+    `ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS tier TEXT CHECK(tier IN ('pro','max'))`,
     // L10 — refresh token reuse detection / family revocation (folosite de claim/save/revoke).
     `ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS family_id TEXT`,
     `ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS rotated_at BIGINT`,

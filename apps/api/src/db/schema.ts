@@ -44,6 +44,9 @@ export const subscriptions = pgTable('subscriptions', {
   stripeCustomerId: text('stripe_customer_id').notNull().unique(),
   stripeSubscriptionId: text('stripe_subscription_id').unique(),
   plan: text('plan'),
+  // Tier de valoare (Pro/Max). NULL = abonament legacy (49/399) → tratat ca Pro în cod (grandfathering).
+  // Separat de `plan` (care e facturarea: monthly/annual). Vezi docs/SUBSCRIPTION_PLAN.md.
+  tier: text('tier'),
   status: text('status').notNull().default('trialing'),
   trialEndsAt: bigint('trial_ends_at', { mode: 'number' }),
   currentPeriodEndsAt: bigint('current_period_ends_at', { mode: 'number' }),

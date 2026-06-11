@@ -28,8 +28,16 @@ vi.mock('../../config/stripe.js', () => ({
 }))
 
 import { sendVerificationEmail } from '../../utils/email.js'
+import { stripe } from '../../config/stripe.js'
 
 let app: FastifyInstance
+
+// Ultimul price ID + metadata cu care a fost chemat Stripe checkout (mock) — ca să verificăm maparea (tier × plan).
+function lastCheckoutArgs() {
+  const calls = vi.mocked(stripe.checkout.sessions.create).mock.calls
+  const arg = calls.at(-1)?.[0] as { line_items: { price: string }[]; metadata: Record<string, string> }
+  return { price: arg.line_items[0].price, metadata: arg.metadata }
+}
 
 beforeAll(async () => {
   app = await buildApp()
@@ -130,6 +138,67 @@ describe('POST /billing/checkout', () => {
     })
     expect(res.statusCode).toBe(200)
     expect(res.json().url).toBeDefined()
+  })
+
+  // --- Etapa 2.2a: tier (Pro/Max) ---
+
+  it("tier='pro' default când e omis → price Pro + metadata.tier='pro' + sub persistă tier", async () => {
+    const accessToken = await registerAndLogin('checkout-default-pro@example.com')
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/billing/checkout',
+      payload: { plan: 'monthly' }, // fără tier
+      headers: { authorization: `Bearer ${accessToken}` },
+    })
+    expect(res.statusCode).toBe(200)
+    const { price, metadata } = lastCheckoutArgs()
+    expect(price).toBe('price_test_pro_monthly')
+    expect(metadata.tier).toBe('pro')
+
+    // Rândul 'incomplete' creat la checkout reține tier-ul.
+    const sub = await app.inject({
+      method: 'GET',
+      url: '/api/v1/billing/subscription',
+      headers: { authorization: `Bearer ${accessToken}` },
+    })
+    expect(sub.json().subscription.tier).toBe('pro')
+  })
+
+  it("tier='max' + monthly → price Max monthly + metadata.tier='max'", async () => {
+    const accessToken = await registerAndLogin('checkout-max-monthly@example.com')
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/billing/checkout',
+      payload: { plan: 'monthly', tier: 'max' },
+      headers: { authorization: `Bearer ${accessToken}` },
+    })
+    expect(res.statusCode).toBe(200)
+    const { price, metadata } = lastCheckoutArgs()
+    expect(price).toBe('price_test_max_monthly')
+    expect(metadata.tier).toBe('max')
+  })
+
+  it("tier='max' + annual → price Max annual", async () => {
+    const accessToken = await registerAndLogin('checkout-max-annual@example.com')
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/billing/checkout',
+      payload: { plan: 'annual', tier: 'max' },
+      headers: { authorization: `Bearer ${accessToken}` },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(lastCheckoutArgs().price).toBe('price_test_max_annual')
+  })
+
+  it('400 — tier invalid', async () => {
+    const accessToken = await registerAndLogin('checkout-bad-tier@example.com')
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/billing/checkout',
+      payload: { plan: 'monthly', tier: 'enterprise' },
+      headers: { authorization: `Bearer ${accessToken}` },
+    })
+    expect(res.statusCode).toBe(400)
   })
 })
 

@@ -81,6 +81,10 @@ async function handleEvent(event: Stripe.Event, app: FastifyInstance) {
       const stripeSubscriptionId = session.subscription as string
       const customerId = session.customer as string
       const plan = (session.metadata?.plan ?? 'monthly') as 'monthly' | 'annual'
+      // Tier-ul ales la checkout (metadata setată de billing.service). Fail-closed: orice ≠ 'max'
+      // → 'pro'. Setat aici ca webhook-ul să fie autoritativ și la re-abonare la alt tier (cazul în
+      // care rândul există deja, deci billing.service NU l-a re-creat cu tier-ul nou).
+      const tier = session.metadata?.tier === 'max' ? 'max' : 'pro'
 
       const stripeSub = await stripe.subscriptions.retrieve(stripeSubscriptionId)
       const trialEnd = stripeSub.trial_end ? stripeSub.trial_end * 1000 : null
@@ -92,6 +96,7 @@ async function handleEvent(event: Stripe.Event, app: FastifyInstance) {
         await billingRepository.update(existing.id, {
           stripeSubscriptionId,
           plan,
+          tier,
           status,
           trialEndsAt: trialEnd,
           currentPeriodEndsAt: periodEnd,

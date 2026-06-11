@@ -6,6 +6,10 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Security (2026-06-11) — fail-fast dacă E2E_MODE=true în producție
+
+`E2E_MODE=true` dezactivează rate-limit-urile (global + admin) și e gândit strict pentru E2E local. Setat din greșeală pe prod, ar slăbi **tăcut** apărarea anti brute-force. Adăugat guard în `apps/api/src/config/env.ts`: la `NODE_ENV === 'production' && E2E_MODE === 'true'` procesul scrie un mesaj FATAL și face `process.exit(1)` → greșeala de ops devine boot eșuat vizibil, nu o slăbire silențioasă. Combinația nu are nicio utilizare legitimă. Nicio cale atacabilă schimbată (toate flag-urile sunt server-side). Verificat: `tsc --noEmit` verde. Închide ultimul caveat operațional din auditul gating-ului test↔prod (rutele de test rămân apărate pe 5 straturi).
+
 ### Fixed (2026-06-11) — 0.6 E2E: suită verde (51/51), ultimele 7 eșecuri reparate
 
 După repararea mediului (2026-06-10) + CSP/Turnstile, rularea era `44 passed · 7 failed`. Triaj: 5 cauze, aproape toate pe partea de teste (selectori/timing), o singură corecție de cod sursă. Rezultat final: **51 passed · 0 failed**.

@@ -6,13 +6,20 @@ import { authRepository } from '../auth/auth.repository.js'
 import { Errors } from '../../utils/errors.js'
 
 export type PlanType = 'monthly' | 'annual'
+export type Tier = 'pro' | 'max'
+
+// (tier × plan) → price ID Stripe. Single source of truth pentru maparea de checkout.
+const PRICE_IDS: Record<Tier, Record<PlanType, string>> = {
+  pro: { monthly: env.STRIPE_PRICE_PRO_MONTHLY, annual: env.STRIPE_PRICE_PRO_ANNUAL },
+  max: { monthly: env.STRIPE_PRICE_MAX_MONTHLY, annual: env.STRIPE_PRICE_MAX_ANNUAL },
+}
 
 export const billingService = {
-  async createCheckoutSession(userId: string, plan: PlanType) {
+  async createCheckoutSession(userId: string, plan: PlanType, tier: Tier) {
     const user = await authRepository.findUserById(userId)
     if (!user) throw Errors.notFound('User')
 
-    const priceId = plan === 'monthly' ? env.STRIPE_PRICE_MONTHLY_ID : env.STRIPE_PRICE_ANNUAL_ID
+    const priceId = PRICE_IDS[tier][plan]
 
     let existing = await billingRepository.findByUserId(userId)
     let customerId = existing?.stripeCustomerId
@@ -34,7 +41,8 @@ export const billingService = {
       subscription_data: { trial_period_days: 7 },
       success_url: `${env.APP_URL}/dashboard?checkout=success`,
       cancel_url: `${env.APP_URL}/subscribe`,
-      metadata: { userId, plan },
+      // `tier` în metadata = sursa pe care o citește webhook-ul (Felia 2b) la confirmare.
+      metadata: { userId, plan, tier },
     })
 
     if (!existing) {
@@ -45,6 +53,7 @@ export const billingService = {
         stripeCustomerId: customerId,
         stripeSubscriptionId: null,
         plan,
+        tier,
         status: 'incomplete',
         trialEndsAt: null,
         currentPeriodEndsAt: null,

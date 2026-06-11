@@ -74,4 +74,13 @@ if (!parsed.success) {
   process.exit(1)
 }
 
+// FAIL-FAST de siguranță (CRITICAL): `E2E_MODE=true` dezactivează rate-limit-urile (global + admin) și e
+// gândit STRICT pentru E2E local. Setat din greșeală pe prod, ar slăbi tăcut apărarea anti brute-force.
+// Combinația prod + E2E_MODE nu are nicio utilizare legitimă → oprim boot-ul vizibil în loc s-o tolerăm.
+// (Rutele de test cer oricum `NODE_ENV !== 'production'`, deci nu se montează aici — dar throttling-ul ar dispărea.)
+if (parsed.data.NODE_ENV === 'production' && parsed.data.E2E_MODE === 'true') {
+  console.error('FATAL: E2E_MODE=true în producție (NODE_ENV=production). Slăbește guard-urile de securitate — refuz pornirea. Scoate E2E_MODE din env-ul de producție.')
+  process.exit(1)
+}
+
 export const env = parsed.data

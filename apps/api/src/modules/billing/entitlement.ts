@@ -87,3 +87,13 @@ export const MIN_TIMER_MINUTES = { pro: 5, max: 1 } as const
 export function minTimerMinutes(tier: 'pro' | 'max' | null): number {
   return tier === 'max' ? MIN_TIMER_MINUTES.max : MIN_TIMER_MINUTES.pro
 }
+
+// Felia 2 (2.2b): vision (citire poze) doar pe Max. Fail-closed: orice ≠'max' → fără vision.
+export function visionAllowed(tier: 'pro' | 'max' | null): boolean {
+  return tier === 'max'
+}
+
+// Felia 2 (2.2b): mai multe servicii într-o singură programare doar pe Max. Pro = 1 serviciu/programare.
+export function multiServiceAllowed(tier: 'pro' | 'max' | null): boolean {
+  return tier === 'max'
+}

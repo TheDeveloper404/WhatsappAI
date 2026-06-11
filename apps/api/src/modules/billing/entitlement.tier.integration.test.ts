@@ -18,6 +18,7 @@ import {
   subTier, userTier, monthlyAiLimit, PRO_MONTHLY_AI_LIMIT,
   productLimit, ragChunkLimit, minTimerMinutes,
   PRODUCT_LIMIT, RAG_CHUNK_LIMIT, MIN_TIMER_MINUTES,
+  visionAllowed, multiServiceAllowed,
 } from './entitlement.js'
 import { randomUUID } from 'crypto'
 
@@ -107,6 +108,18 @@ describe('pârghii de tier (pure) — plafoane pe tier', () => {
     expect(minTimerMinutes('pro')).toBe(MIN_TIMER_MINUTES.pro)
     expect(minTimerMinutes(null)).toBe(MIN_TIMER_MINUTES.pro)
     expect(MIN_TIMER_MINUTES.max).toBeLessThan(MIN_TIMER_MINUTES.pro)
+  })
+
+  it('visionAllowed: doar Max (fail-closed)', () => {
+    expect(visionAllowed('max')).toBe(true)
+    expect(visionAllowed('pro')).toBe(false)
+    expect(visionAllowed(null)).toBe(false)
+  })
+
+  it('multiServiceAllowed: doar Max (fail-closed)', () => {
+    expect(multiServiceAllowed('max')).toBe(true)
+    expect(multiServiceAllowed('pro')).toBe(false)
+    expect(multiServiceAllowed(null)).toBe(false)
   })
 })
 

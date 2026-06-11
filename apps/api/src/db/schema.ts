@@ -165,6 +165,20 @@ export const leadInsights = pgTable('lead_insights', {
   userContactUnique: unique().on(t.userId, t.contactPhone),
 }))
 
+// Contor de consum AI per user și lună calendaristică (ora RO), pentru plafonul de tier (Pro = cap
+// lunar, Max = nelimitat). Tabel SEPARAT de conversation_messages — acela se curăță la 50 mesaje/contact,
+// deci nu poate servi drept sursă de adevăr pentru consumul lunar. PK compus (user + lună) = un rând/lună.
+export const aiUsage = pgTable('ai_usage', {
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  // 'YYYY-MM' în Europe/Bucharest (aliniat cu statisticile)
+  periodMonth: text('period_month').notNull(),
+  count: integer('count').notNull().default(0),
+  createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+  updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.userId, t.periodMonth] }),
+}))
+
 
 export const products = pgTable('products', {
   id: text('id').primaryKey(),

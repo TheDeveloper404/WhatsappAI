@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { authenticate } from '../../middleware/authenticate.js'
 import { requireActiveSubscription } from '../../middleware/requireSubscription.js'
 import { productsRepository } from './products.repository.js'
+import { userTier, productLimit } from '../billing/entitlement.js'
 import { Errors } from '../../utils/errors.js'
 
 // Prețul vine de la owner în lei (ex: 49.99) și se stochează în bani (4999).
@@ -60,6 +61,11 @@ export async function productsRoutes(app: FastifyInstance) {
   app.post('/', { preHandler: [authenticate, requireActiveSubscription] }, async (req, reply) => {
     const result = createSchema.safeParse(req.body)
     if (!result.success) throw Errors.validation(result.error.issues.map(e => ({ field: String(e.path[0]), message: e.message })))
+    // Plafon produse pe tier (Etapa 2.2a, pas 3). Fail-closed: legacy/null → limita Pro.
+    const limit = productLimit(await userTier(req.user!.id))
+    if (await productsRepository.countForUser(req.user!.id) >= limit) {
+      throw Errors.tierRequired(`Ai atins plafonul de ${limit} produse al planului tău. Treci pe Max pentru mai multe.`)
+    }
     const { name, description, priceLei, category, isAvailable, isEstimate, isBookable, stock } = result.data
     const product = await productsRepository.create(req.user!.id, {
       name, description, priceBani: leiToBani(priceLei), category, isAvailable, isEstimate, isBookable, stock,
@@ -86,6 +92,13 @@ export async function productsRoutes(app: FastifyInstance) {
   app.post('/import', { preHandler: [authenticate, requireActiveSubscription] }, async (req, reply) => {
     const result = importSchema.safeParse(req.body)
     if (!result.success) throw Errors.validation(result.error.issues.map(e => ({ field: e.path.join('.'), message: e.message })))
+
+    // Plafon produse pe tier (Etapa 2.2a, pas 3): importul nu poate depăși limita totală.
+    const limit = productLimit(await userTier(req.user!.id))
+    const existing = await productsRepository.countForUser(req.user!.id)
+    if (existing + result.data.items.length > limit) {
+      throw Errors.tierRequired(`Importul ar depăși plafonul de ${limit} produse al planului tău (ai deja ${existing}). Treci pe Max pentru mai multe.`)
+    }
 
     const count = await productsRepository.createMany(req.user!.id, result.data.items.map(it => ({
       name: it.name,

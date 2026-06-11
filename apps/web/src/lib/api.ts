@@ -181,12 +181,12 @@ export const api = {
         credentials: 'include',
       }),
 
-    createCheckout: (accessToken: string, plan: 'monthly' | 'annual') =>
+    createCheckout: (accessToken: string, plan: 'monthly' | 'annual', tier: 'pro' | 'max') =>
       request<{ url: string }>('/api/v1/billing/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
         credentials: 'include',
-        body: JSON.stringify({ plan }),
+        body: JSON.stringify({ plan, tier }),
       }),
 
     createPortal: (accessToken: string) =>

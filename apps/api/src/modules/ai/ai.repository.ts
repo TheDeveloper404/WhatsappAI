@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto'
 import { eq, and, desc } from 'drizzle-orm'
 import { db, pool } from '../../config/database.js'
-import { aiSettings, contactsBlacklist, conversationMessages, contactMemory, platformConfig, leadInsights } from '../../db/schema.js'
+import { aiSettings, contactsBlacklist, conversationMessages, contactMemory, platformConfig, leadInsights, aiUsage } from '../../db/schema.js'
 import type { AiSettings } from '../../db/schema.js'
 
 export const DEFAULT_PROMPT = 'Ești un asistent WhatsApp care răspunde în numele proprietarului acestui număr.\n\nComportament:\n- Răspunsuri scurte și naturale: 1-2 propoziții\n- Ton prietenos, politicos și respectuos\n- La salut sau mesaj vag, răspunzi călduros și întrebi cum poți ajuta\n- Folosești diacritice corecte: ă, â, î, ș, ț\n\nReguli:\n- NU folosești fraze robotice: "Desigur!", "Cu plăcere!", "Bineînțeles!"\n- NU repeta aceleași structuri de la un mesaj la altul\n\nLimba: răspunzi în limba în care ți se scrie.\n\n— Personalizează acest prompt din pagina Setări.'
@@ -43,6 +43,15 @@ export function startOfMonthInTz(now: number, tz: string): number {
   const [y, m] = ymd.split('-')
   const firstUTC = new Date(`${y}-${m}-01T00:00:00Z`).getTime()
   return firstUTC - tzOffsetMs(firstUTC, tz)
+}
+
+// Cheia de lună ('YYYY-MM', ora RO) pentru contorul de consum AI. Aceeași convenție de fus ca
+// statisticile, ca „luna" din plafon să coincidă cu „luna" din dashboard. Exportat pt test.
+export function aiUsagePeriod(now: number = Date.now(), tz: string = STATS_TZ): string {
+  const ymd = new Intl.DateTimeFormat('en-CA', {
+    timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(new Date(now))
+  return ymd.slice(0, 7) // 'YYYY-MM-DD' → 'YYYY-MM'
 }
 
 export const aiRepository = {
@@ -250,6 +259,28 @@ export const aiRepository = {
       month:              Number(r.month),
       totalConversations: Number(r.total_conversations),
     }
+  },
+
+  // Consumul AI al userului pentru o lună dată ('YYYY-MM'). 0 dacă nu există rând (lună nouă).
+  async getMonthlyAiUsage(userId: string, period: string): Promise<number> {
+    const rows = await db.select({ count: aiUsage.count })
+      .from(aiUsage)
+      .where(and(eq(aiUsage.userId, userId), eq(aiUsage.periodMonth, period)))
+    return rows[0]?.count ?? 0
+  },
+
+  // Incrementează atomic contorul lunar (upsert). Întoarce noul total. O singură instrucțiune →
+  // corect și cu mai multe instanțe/concurență (spre deosebire de read-modify-write în cod).
+  async incrementMonthlyAiUsage(userId: string, period: string): Promise<number> {
+    const now = Date.now()
+    const res = await pool.query(`
+      INSERT INTO ai_usage (user_id, period_month, count, created_at, updated_at)
+      VALUES ($1, $2, 1, $3, $3)
+      ON CONFLICT (user_id, period_month)
+      DO UPDATE SET count = ai_usage.count + 1, updated_at = $3
+      RETURNING count
+    `, [userId, period, now])
+    return Number(res.rows[0].count)
   },
 
   // Metrici avansate, derivate din conversation_messages (fără tabele noi).

@@ -6,6 +6,35 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added (2026-06-11) — pârghii de tier: plafon produse, cap RAG, timer minim (Etapa 2.2a, pas 3)
+
+Trei plafoane per tier (valori din `SUBSCRIPTION_PLAN.md §1`), toate fail-closed (legacy/`tier=null` → limita Pro):
+- **Plafon produse** (`products.routes.ts`): Pro 100 / Max 1.000. Gate pe `POST /products` (≥ limită → 403 `TIER_REQUIRED`) și pe `POST /products/import` (existente + import > limită → 403). `productsRepository.countForUser()` nou.
+- **Cap RAG** (`knowledge.service.ts`): Pro 500 / Max 2.000 fragmente. `MAX_USER_CHUNKS` (constantă fixă 2.000) înlocuit cu `ragChunkLimit(tier)` în `ingest`. Anti-DoS la parsing (`MAX_EXTRACTED_CHARS`) neschimbat.
+- **Timer minim/tier** (`ai.routes.ts` PATCH `/settings`): Pro min 5 min / Max min 1 min. Sub minimul tier-ului → 400 `VALIDATION_ERROR` pe câmpul `timerMinutes`.
+- **`entitlement`**: `productLimit` / `ragChunkLimit` / `minTimerMinutes` (+ constantele `PRODUCT_LIMIT` / `RAG_CHUNK_LIMIT` / `MIN_TIMER_MINUTES`).
+- **Teste:** pure pentru cele 3 funcții (fail-closed) în `entitlement.tier.integration.test.ts`; integrare timer Pro→400 / Max→200 în `ai.integration.test.ts`. `tsc --noEmit` verde.
+- **Email confirmare comandă (Max-only) — N/A:** feature-ul nu există în cod (nicio trimitere de email pe comenzi), deci nu există ce „gate-ui". Rămâne de construit Max-only când/dacă se implementează. **Cu asta 2.2a e completă** (vision + multi-serviciu = 2.2b, separat).
+
+### Added (2026-06-11) — plafon AI lunar pe Pro (Etapa 2.2a, pas 2)
+
+Planul Pro promite 1.200 răspunsuri AI/lună, Max nelimitat — dar backend-ul nu număra/oprea nimic. Adăugat plafonul, fail-closed pe cost:
+- **Contor durabil nou `ai_usage`** (`user_id`, `period_month` 'YYYY-MM' ora RO, `count`; PK compus). Tabel **separat** de `conversation_messages` — acela se curăță la 50 mesaje/contact, deci nu putea fi sursă de adevăr pentru consumul lunar. Adăugat în `migration-statements.ts` + safety-net `app.ts` + schema test `global-setup.ts` + `schema.ts`.
+- **`entitlement.monthlyAiLimit(tier)`** → `null` pentru Max (nelimitat), `PRO_MONTHLY_AI_LIMIT` (1.200) pentru Pro/legacy/null (fail-closed: doar 'max' explicit primește nelimitat).
+- **Gate în `message.handler.sendAiResponse`** (același choke point unic ca entitlement-ul, acoperă răspuns imediat ȘI programat): citește tier-ul; dacă e plafonat și consumul lunar ≥ limită → **nu generează** (zero apel LLM) + notifică owner-ul pe WhatsApp o singură dată/30min („ai atins plafonul, treci pe Max"). Altfel incrementează atomic (upsert `ON CONFLICT … count+1`). Incrementăm o dată per răspuns declanșat (debounce-ul colapsează rafalele), nu per mesaj primit.
+- **Repository:** `getMonthlyAiUsage` / `incrementMonthlyAiUsage` (upsert atomic — corect și la concurență/multi-instanță) + helper exportat `aiUsagePeriod()`.
+- **Teste:** `monthlyAiLimit` (pur, 3 cazuri) în `entitlement.tier.integration.test.ts`; nou `ai.usage.integration.test.ts` — `aiUsagePeriod` format + contor (get/increment atomic, izolare pe lună și pe user). `tsc --noEmit` verde.
+- *Rămas din 2.2a (amânat, pas 3): plafon produse, cap RAG, email/vision doar Max.*
+
+### Added (2026-06-11) — gating pe tier: rute Max-only enforce-uite în backend (Etapa 2.2a, pas 1)
+
+Cardurile de abonament promit matricea Pro vs Max (vision/email/lead-scoring doar Max), dar backend-ul nu diferenția încă tier-ul → un client pe Pro primea tehnic și features Max. Închis gap-ul pe rute:
+- **Middleware nou `requireTier('max')`** (`apps/api/src/middleware/requireTier.ts`): factory de autorizare pe TIER, fail-closed (tier necunoscut / fără abonament → rang 0 → refuzat). Citește `userTier()` din `billing/entitlement.ts`; rang `pro=1 < max=2`. Se pune **după** `authenticate` + `requireActiveSubscription` (entitlement-ul e verificat acolo; aici doar nivelul).
+- **Eroare nouă `Errors.tierRequired()`** → `403 TIER_REQUIRED` (distinctă de `402 SUBSCRIPTION_REQUIRED`): userul ARE abonament valid, doar nu tier-ul cerut → clientul o mapează la „upgrade la Max", nu la „abonează-te".
+- **Rute gate-uite Max-only** (`ai.routes.ts`): `GET /ai/stats/advanced` (statistici avansate) și `POST /ai/leads/analyze` (scoring AI lead-uri). `GET /ai/leads` (lista simplă) rămâne Pro+.
+- **Teste** (`ai.integration.test.ts`): helper `registerAndLogin(email, tier='max')` threadează tier prin `seedActiveSubscription`; cazuri noi Pro→403 (`TIER_REQUIRED`) pe ambele rute + Max→200 pe `/stats/advanced`. `tsc --noEmit` verde.
+- *Rămas din 2.2a (amânat): plafon AI 1.200/lună pe Pro + restul pârghiilor (plafon produse, cap RAG, email/vision).*
+
 ### Security (2026-06-11) — fail-fast dacă E2E_MODE=true în producție
 
 `E2E_MODE=true` dezactivează rate-limit-urile (global + admin) și e gândit strict pentru E2E local. Setat din greșeală pe prod, ar slăbi **tăcut** apărarea anti brute-force. Adăugat guard în `apps/api/src/config/env.ts`: la `NODE_ENV === 'production' && E2E_MODE === 'true'` procesul scrie un mesaj FATAL și face `process.exit(1)` → greșeala de ops devine boot eșuat vizibil, nu o slăbire silențioasă. Combinația nu are nicio utilizare legitimă. Nicio cale atacabilă schimbată (toate flag-urile sunt server-side). Verificat: `tsc --noEmit` verde. Închide ultimul caveat operațional din auditul gating-ului test↔prod (rutele de test rămân apărate pe 5 straturi).

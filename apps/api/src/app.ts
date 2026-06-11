@@ -129,6 +129,15 @@ async function runStartupMigrations() {
       UNIQUE(user_id, contact_phone)
     )`,
     `CREATE INDEX IF NOT EXISTS idx_lead_insights_user ON lead_insights(user_id, score)`,
+    // Etapa 2.2a — contor consum AI lunar pentru plafonul de tier (Pro cap, Max nelimitat).
+    `CREATE TABLE IF NOT EXISTS ai_usage (
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      period_month TEXT NOT NULL,
+      count INTEGER NOT NULL DEFAULT 0,
+      created_at BIGINT NOT NULL,
+      updated_at BIGINT NOT NULL,
+      PRIMARY KEY (user_id, period_month)
+    )`,
   ]
   for (const stmt of stmts) {
     try { await pool.query(stmt) } catch { /* tabela poate lipsi la prima rulare */ }

@@ -244,6 +244,15 @@ export async function setup() {
       service_name TEXT NOT NULL,
       unit_price_bani INTEGER NOT NULL DEFAULT 0
     )`,
+    // Etapa 2.2a — contor consum AI lunar (plafon tier Pro/Max).
+    `CREATE TABLE IF NOT EXISTS ai_usage (
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      period_month TEXT NOT NULL,
+      count INTEGER NOT NULL DEFAULT 0,
+      created_at BIGINT NOT NULL,
+      updated_at BIGINT NOT NULL,
+      PRIMARY KEY (user_id, period_month)
+    )`,
   ]
 
   try {

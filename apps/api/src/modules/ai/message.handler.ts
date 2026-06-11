@@ -1,13 +1,13 @@
 import type { WASocket } from '@whiskeysockets/baileys'
 import { downloadMediaMessage } from '@whiskeysockets/baileys'
-import { aiRepository, DEFAULT_PROMPT } from './ai.repository.js'
+import { aiRepository, DEFAULT_PROMPT, aiUsagePeriod } from './ai.repository.js'
 import { askGroq, extractContactMemory, transcribeAudio, classifyScopeLLM, analyzeOrderIntent, analyzeBookingIntent, classifyOrderConfirmation, classifyBookingConfirmation, extractFromImage, type GroqMessage } from './groq.client.js'
 import { productsRepository } from '../orders/products.repository.js'
 import { ordersRepository } from '../orders/orders.repository.js'
 import { appointmentsRepository } from '../orders/appointments.repository.js'
 import { setAppointmentStatus } from '../orders/appointments.service.js'
 import { knowledgeService } from '../knowledge/knowledge.service.js'
-import { userHasEntitlement } from '../billing/entitlement.js'
+import { userHasEntitlement, userTier, monthlyAiLimit } from '../billing/entitlement.js'
 import { allowIncomingMessage } from './incoming.rate-limiter.js'
 import { parseCommand, HELP_TEXT } from './command.parser.js'
 import { recordOwnerReply, isOwnerActive } from './inactivity.tracker.js'
@@ -219,6 +219,10 @@ const lastEstimateHandoff = new Map<string, Map<string, number>>()
 // Throttle alertă red-flag (mesaje sensibile juridic — B1): maxim o alertă owner la 30 min per contact.
 const lastRedFlagAlert = new Map<string, Map<string, number>>()
 
+// Throttle notificare „plafon AI lunar atins" (Pro): o singură dată per user la 30 min — nivel de
+// CONT, nu per contact. State în RAM → se resetează la restart (poate re-notifica o dată, acceptabil).
+const lastCapAlert = new Map<string, number>()
+
 // Throttle memorie: actualizăm rezumatul contactului cel mult o dată la 10 min
 // (altfel am face un apel Groq suplimentar la fiecare răspuns AI)
 const MEMORY_THROTTLE_MS = 10 * 60 * 1000
@@ -260,6 +264,32 @@ async function sendAiResponse(userId: string, contactPhone: string, jid: string,
   if (!(await userHasEntitlement(userId))) {
     logger.info(`[AI][${userId.slice(0, 8)}] răspuns AI blocat — fără abonament activ`)
     return
+  }
+
+  // Plafon AI lunar pe tier (Etapa 2.2a, pas 2). Max = nelimitat; Pro (și legacy/grandfathered) =
+  // PRO_MONTHLY_AI_LIMIT/lună calendaristică (ora RO). Contor durabil în `ai_usage` (NU din
+  // conversation_messages, care se curăță la 50/contact). Același choke point unic ca entitlement-ul →
+  // acoperă și răspunsul imediat, și cel programat de timer. Incrementăm o dată per răspuns declanșat
+  // (un mesaj efectiv trimis pe WhatsApp în numele owner-ului, inclusiv refuzurile de scope), nu per
+  // mesaj primit — debounce-ul din `schedulePending` colapsează rafalele într-un singur răspuns.
+  const tier = await userTier(userId)
+  const limit = monthlyAiLimit(tier)
+  if (limit !== null) {
+    const period = aiUsagePeriod()
+    const used = await aiRepository.getMonthlyAiUsage(userId, period)
+    if (used >= limit) {
+      logger.info(`[AI][${userId.slice(0, 8)}] răspuns AI blocat — plafon lunar atins`, { used, limit })
+      const ownerJid = sock.user?.id
+      const now = Date.now()
+      if (ownerJid && now - (lastCapAlert.get(userId) ?? 0) > NOTIFY_THROTTLE_MS) {
+        lastCapAlert.set(userId, now)
+        sock.sendMessage(ownerJid, {
+          text: `⚠️ Ai atins plafonul lunar de ${limit} răspunsuri AI al planului Pro. Agentul nu mai răspunde automat până luna viitoare. Pentru răspunsuri nelimitate, treci pe planul Max din dashboard.`,
+        }).catch(() => {})
+      }
+      return
+    }
+    await aiRepository.incrementMonthlyAiUsage(userId, period)
   }
 
   const [history, existingMemory, platformPrompt] = await Promise.all([

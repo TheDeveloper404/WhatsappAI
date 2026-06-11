@@ -7,7 +7,7 @@ import { ordersRepository } from '../orders/orders.repository.js'
 import { appointmentsRepository } from '../orders/appointments.repository.js'
 import { setAppointmentStatus } from '../orders/appointments.service.js'
 import { knowledgeService } from '../knowledge/knowledge.service.js'
-import { userHasEntitlement, userTier, monthlyAiLimit } from '../billing/entitlement.js'
+import { userHasEntitlement, userTier, monthlyAiLimit, visionAllowed, multiServiceAllowed } from '../billing/entitlement.js'
 import { allowIncomingMessage } from './incoming.rate-limiter.js'
 import { parseCommand, HELP_TEXT } from './command.parser.js'
 import { recordOwnerReply, isOwnerActive } from './inactivity.tracker.js'
@@ -223,6 +223,10 @@ const lastRedFlagAlert = new Map<string, Map<string, number>>()
 // CONT, nu per contact. State în RAM → se resetează la restart (poate re-notifica o dată, acceptabil).
 const lastCapAlert = new Map<string, number>()
 
+// Throttle nudge „nu pot citi imagini" (vision pe tier non-Max, 2.2b): max o dată la 30 min per contact,
+// ca un client care trimite mai multe poze să nu primească același mesaj la fiecare.
+const lastVisionNudge = new Map<string, Map<string, number>>()
+
 // Throttle memorie: actualizăm rezumatul contactului cel mult o dată la 10 min
 // (altfel am face un apel Groq suplimentar la fiecare răspuns AI)
 const MEMORY_THROTTLE_MS = 10 * 60 * 1000
@@ -385,6 +389,16 @@ async function sendAiResponse(userId: string, contactPhone: string, jid: string,
         const svcs = booking.serviceIds
           .map(id => catalog.find(p => p.id === id))
           .filter((p): p is NonNullable<typeof p> => Boolean(p))
+        // Multi-serviciu = doar Max (2.2b). Pe non-Max păstrăm DOAR primul serviciu și îi spunem
+        // politicos clientului că programăm câte un serviciu pe rând (degradare grațioasă — clientul
+        // NU află de tier). `tier` e calculat la începutul lui sendAiResponse (gate-ul de plafon).
+        let multiServiceNote = ''
+        if (!multiServiceAllowed(tier) && svcs.length > 1) {
+          const dropped = svcs.slice(1).map(s => s.name)
+          svcs.splice(1) // păstrăm doar primul serviciu
+          multiServiceNote = `\n\n_Momentan pot programa câte un serviciu pe rând — am pregătit „${svcs[0].name}". Pentru ${dropped.join(', ')} revino te rog cu o programare separată._`
+          logger.info(`[AI][${userId.slice(0, 8)}] multi-serviciu redus la 1 (tier non-Max)`, { dropped: dropped.length })
+        }
         const cur = curLabel(settings.currency)
         const hasEstimate = svcs.some(s => s.isEstimate)
         const combinedName = svcs.map(s => s.name).join(' + ')
@@ -422,7 +436,7 @@ async function sendAiResponse(userId: string, contactPhone: string, jid: string,
 
             const slotLine = booking.requestedSlot.trim() ? `\n🗓️ Interval dorit: ${booking.requestedSlot.trim()}` : ''
             const totalLine = svcs.length > 1 ? `\n\n*Total: ${totalText}*` : ''
-            const reply = `Am notat cererea ta de programare (*${appt.publicRef}*):\n${svcLines}${slotLine}${totalLine}\n\nProprietarul îți confirmă intervalul în scurt timp. Mulțumim!`
+            const reply = `Am notat cererea ta de programare (*${appt.publicRef}*):\n${svcLines}${slotLine}${totalLine}\n\nProprietarul îți confirmă intervalul în scurt timp. Mulțumim!${multiServiceNote}`
             await sock.sendMessage(jid, { text: reply })
             await aiRepository.saveMessage(userId, contactPhone, true, reply, Date.now(), true)
 
@@ -442,7 +456,7 @@ async function sendAiResponse(userId: string, contactPhone: string, jid: string,
             // Propunem serviciile exacte + preț + interval și cerem confirmarea. NU creăm încă.
             const slotLine = booking.requestedSlot.trim() ? `\n🗓️ ${booking.requestedSlot.trim()}` : ''
             const totalLine = svcs.length > 1 ? `\n\n*Total: ${totalText}*` : ''
-            const reply = `${BOOKING_CONFIRM_MARKER}\n\n${svcLines}${slotLine}${totalLine}\n\nRăspunde cu *da* ca să trimit cererea de programare (proprietarul confirmă apoi ora), sau spune-mi ce vrei să schimbi.`
+            const reply = `${BOOKING_CONFIRM_MARKER}\n\n${svcLines}${slotLine}${totalLine}\n\nRăspunde cu *da* ca să trimit cererea de programare (proprietarul confirmă apoi ora), sau spune-mi ce vrei să schimbi.${multiServiceNote}`
             await sock.sendMessage(jid, { text: reply })
             await aiRepository.saveMessage(userId, contactPhone, true, reply, Date.now(), true)
             return
@@ -827,6 +841,9 @@ async function processMessage(userId: string, sock: WASocket, msg: any): Promise
   const MAX_IMAGE_BYTES = 5 * 1024 * 1024
 
   let body: string | null = null
+  // Vision gated pe tier (2.2b): pe non-Max, o poză fără caption declanșează un nudge politicos
+  // („scrie-mi în text") în loc de citirea imaginii. Setat în ramura `isImage`.
+  let visionNudge = false
 
   if (isAudio) {
     try {
@@ -844,7 +861,16 @@ async function processMessage(userId: string, sock: WASocket, msg: any): Promise
     // vision eșuează/lipsește cheia, păstrăm caption-ul (dacă există) ca să nu pierdem mesajul.
     const caption = m?.imageMessage?.caption?.trim() || ''
     const mimeType: string = m?.imageMessage?.mimetype ?? 'image/jpeg'
-    if (!mimeType.startsWith('image/')) {
+    // Vision = doar Max (2.2b). Pe tier non-Max NU descărcăm imaginea și NU apelăm Gemini (zero cost):
+    // dacă poza are caption, răspundem la text; altfel marcăm un nudge politicos mai jos.
+    if (!visionAllowed(await userTier(userId))) {
+      if (caption) {
+        body = caption
+      } else {
+        body = '[Imagine primită]'
+        visionNudge = true
+      }
+    } else if (!mimeType.startsWith('image/')) {
       body = caption || null
     } else {
       try {
@@ -911,6 +937,24 @@ async function processMessage(userId: string, sock: WASocket, msg: any): Promise
     return
   }
   if (await aiRepository.isBlacklisted(userId, contactPhone)) return
+
+  // Nudge vision (2.2b): client a trimis o poză fără text pe un cont non-Max. Răspundem politicos,
+  // DAR doar dacă owner-ul e inactiv (altfel owner-ul vede poza și răspunde el) și contul e entitled.
+  // Throttled per contact. NU intră pe fluxul LLM (placeholder-ul „[Imagine primită]" nu ajunge la model).
+  if (visionNudge) {
+    if (!isOwnerActive(userId, contactPhone, settings.timerMinutes) && await userHasEntitlement(userId)) {
+      const now = Date.now()
+      const t = lastVisionNudge.get(userId) ?? new Map<string, number>()
+      if (now - (t.get(contactPhone) ?? 0) > NOTIFY_THROTTLE_MS) {
+        t.set(contactPhone, now)
+        lastVisionNudge.set(userId, t)
+        const reply = 'Momentan nu pot citi imagini 📷. Scrie-mi te rog detaliile în text și te ajut imediat.'
+        await sock.sendMessage(jid, { text: reply })
+        await aiRepository.saveMessage(userId, contactPhone, true, reply, Date.now(), true)
+      }
+    }
+    return
+  }
 
   const sentiment = detectSentiment(body)
 

@@ -6,6 +6,14 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added (2026-06-11) — vision + multi-serviciu doar Max (Etapa 2.2b, felia 2)
+
+Ultimele 2 pârghii de tier, cele mai sensibile (risc de bypass plătit). `entitlement.visionAllowed` / `multiServiceAllowed` (pure, fail-closed: ≠'max' → fără).
+- **Vision = doar Max** (`message.handler.ts`, un singur call-site `extractFromImage`): pe tier non-Max NU se descarcă imaginea și NU se apelează Gemini (zero cost). Dacă poza are caption → răspunde la text; dacă nu → **nudge politicos** „momentan nu pot citi imagini, scrie-mi în text" (doar când owner-ul e inactiv + cont entitled; throttled 30 min/contact; NU trece prin LLM). Frontend-ul deja promitea vision = Max.
+- **Multi-serviciu programare = doar Max**: pe non-Max, o programare cu 2+ servicii e redusă la **primul serviciu** + mesaj politicos către client („programez câte un serviciu pe rând; pentru rest, programare separată") — degradare grațioasă, clientul nu află de tier. Comenzile de produse rămân multi-articol pe orice tier (matricea restrânge doar programările).
+- **Teste:** pure `visionAllowed` / `multiServiceAllowed` (fail-closed) în `entitlement.tier.integration.test.ts`. Enforcement-ul din handler (nudge, trim) se verifică manual (`GHID_TESTARE_MANUALA` H6b + H7 actualizate) — nu există harness de mock pentru WA socket. `tsc --noEmit` verde.
+- **Cu asta Etapa 2.2 (a+b) e COMPLETĂ:** toată matricea Pro/Max e enforce-uită în backend.
+
 ### Added (2026-06-11) — pârghii de tier: plafon produse, cap RAG, timer minim (Etapa 2.2a, pas 3)
 
 Trei plafoane per tier (valori din `SUBSCRIPTION_PLAN.md §1`), toate fail-closed (legacy/`tier=null` → limita Pro):

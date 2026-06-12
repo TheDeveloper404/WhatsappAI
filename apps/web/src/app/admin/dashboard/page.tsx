@@ -7,6 +7,7 @@ import {
   CheckCircle, XCircle, Clock, AlertCircle, TrendingUp, ChevronDown,
   Mail, Trash2, WifiOff, CalendarPlus, Settings, Save, X, Eye,
   Activity, MessageSquare, ShieldCheck, Smartphone, AlertTriangle, Cpu,
+  Search,
 } from 'lucide-react'
 import { ThemeToggle } from '@/components/ThemeToggle'
 
@@ -14,7 +15,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 interface AdminUser {
   id: string; name: string; email: string; createdAt: number
-  subscriptionStatus: string | null; subscriptionPlan: string | null
+  subscriptionStatus: string | null; subscriptionPlan: string | null; subscriptionTier: string | null
   trialEndsAt: number | null; currentPeriodEndsAt: number | null
   cancelAtPeriodEnd: boolean | null; cancelAt: number | null
   sessionStatus: string | null; sessionPhone: string | null; sessionConnectedAt: number | null
@@ -22,6 +23,7 @@ interface AdminUser {
   agentTimerMinutes: number | null; agentSystemPrompt: string | null
   agentKnowledgeBase: string | null; agentWritingStyle: string | null
   agentNotifyOnAiTakeover: boolean | null
+  aiMessagesThisMonth: number | null
 }
 
 interface AdminStats {
@@ -34,6 +36,7 @@ interface AdminStats {
   messagesToday: number; aiMessagesToday: number; ownerMessagesToday: number
   totalConversations: number
   llmProvider?: { provider: 'groq' | 'gemini'; fallback: 'groq' | 'gemini' | null }
+  activeSockets: number
 }
 
 interface AdminNotification {
@@ -272,6 +275,14 @@ function UserDetailsModal({ user, onClose }: { user: AdminUser; onClose: () => v
                 <div className="flex justify-between gap-3"><span>Trial</span><span className="text-ink">{formatDate(user.trialEndsAt)}</span></div>
                 <div className="flex justify-between gap-3"><span>Perioadă</span><span className="text-ink">{formatDate(user.currentPeriodEndsAt)}</span></div>
                 <div className="flex justify-between gap-3"><span>Anulare</span><span className="text-ink">{user.cancelAtPeriodEnd ? formatDate(user.cancelAt) : 'nu'}</span></div>
+                <div className="flex justify-between gap-3">
+                  <span>AI luna aceasta</span>
+                  <span className="text-ink">
+                    {user.aiMessagesThisMonth ?? 0}
+                    {' / '}
+                    {user.subscriptionTier === 'max' ? '∞' : '1200'}
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -447,6 +458,8 @@ export default function AdminDashboard() {
   const [deletingNotification, setDeletingNotification] = useState<string | null>(null)
   const [modal, setModal] = useState<ModalState>(null)
   const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'activity' | 'config'>('overview')
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
   // Capturat o dată la mount — `Date.now()` în render nu e idempotent (react-hooks/purity).
   const [now] = useState(() => Date.now())
 
@@ -561,6 +574,13 @@ export default function AdminDashboard() {
 
   function logout() { sessionStorage.removeItem('admin_token'); router.replace('/admin') }
 
+  const filteredUsers = users.filter(u => {
+    const q = search.trim().toLowerCase()
+    const matchesSearch = !q || u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
+    const matchesStatus = statusFilter === 'all' || u.subscriptionStatus === statusFilter
+    return matchesSearch && matchesStatus
+  })
+
   const statCards = stats ? [
     { icon: Users,      label: 'Total useri',    value: stats.totalUsers,              sub: `+${stats.newThisMonth} luna aceasta` },
     { icon: CreditCard, label: 'Abonați activi', value: stats.activeSubscribers,       sub: `${stats.conversionRate}% conversie` },
@@ -581,6 +601,7 @@ export default function AdminDashboard() {
     { icon: Smartphone, label: 'WhatsApp conectat', value: stats.connectedWhatsapp, sub: `${stats.disconnectedWhatsapp} fără sesiune` },
     { icon: Clock, label: 'În pairing', value: stats.pairingWhatsapp, sub: 'așteaptă conectare' },
     { icon: Bot, label: 'Agenți activi', value: stats.activeAgents, sub: `${stats.activeAgentsWithoutWhatsapp} fără WA conectat` },
+    { icon: Activity, label: 'Socketuri live (RAM)', value: stats.activeSockets, sub: stats.activeSockets === stats.connectedWhatsapp ? 'sincronizat cu DB' : `DB: ${stats.connectedWhatsapp} — posibil drift` },
     ...(stats.llmProvider ? [{
       icon: Cpu,
       label: 'Model AI activ',
@@ -819,6 +840,29 @@ export default function AdminDashboard() {
         {/* ─── Tab: Useri ─── */}
         {activeTab === 'users' && (
           <div className="card-elevated rounded-xl overflow-hidden">
+            <div className="px-5 py-3 border-b border-line flex flex-col sm:flex-row gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-dimmer pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Caută după nume sau email..."
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  className={`${inputCls} pl-8`}
+                />
+              </div>
+              <select
+                value={statusFilter}
+                onChange={e => setStatusFilter(e.target.value)}
+                className={`${inputCls} sm:w-44`}
+              >
+                <option value="all">Toate statusurile</option>
+                <option value="active">Activ</option>
+                <option value="trialing">Trial</option>
+                <option value="past_due">Restanță</option>
+                <option value="canceled">Anulat</option>
+              </select>
+            </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -829,7 +873,7 @@ export default function AdminDashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
-                  {users.map(u => {
+                  {filteredUsers.map(u => {
                     const daysLeft = trialDaysLeft(u.trialEndsAt)
                     return (
                       <tr key={u.id} className="hover:bg-cardhi/60 transition-colors">
@@ -852,6 +896,11 @@ export default function AdminDashboard() {
                           )}
                           {u.cancelAtPeriodEnd && (
                             <p className="font-mono-ui text-[10px] text-orange-500 dark:text-orange-400 mt-1">Anulare la final: {formatDate(u.cancelAt)}</p>
+                          )}
+                          {(u.subscriptionStatus === 'active' || u.subscriptionStatus === 'trialing') && (
+                            <p className="font-mono-ui text-[10px] text-dimmer mt-1">
+                              AI: {u.aiMessagesThisMonth ?? 0}{u.subscriptionTier !== 'max' && ' / 1200'}
+                            </p>
                           )}
                         </td>
                         <td className="px-5 py-4">
@@ -885,8 +934,8 @@ export default function AdminDashboard() {
                       </tr>
                     )
                   })}
-                  {users.length === 0 && (
-                    <tr><td colSpan={6} className="px-5 py-16 text-center font-mono-ui text-xs text-dimmer">Niciun user înregistrat.</td></tr>
+                  {filteredUsers.length === 0 && (
+                    <tr><td colSpan={6} className="px-5 py-16 text-center font-mono-ui text-xs text-dimmer">{users.length === 0 ? 'Niciun user înregistrat.' : 'Niciun rezultat pentru filtrele aplicate.'}</td></tr>
                   )}
                 </tbody>
               </table>

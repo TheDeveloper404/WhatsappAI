@@ -227,6 +227,10 @@ export async function disconnectSession(userId: string): Promise<void> {
   })
 }
 
+export function getActiveSessionCount(): number {
+  return sessions.size
+}
+
 export async function restoreAllSessions(): Promise<void> {
   const connected = await whatsappRepository.findAllConnected()
   logger.info(`[WA] restaurez ${connected.length} sesiuni la startup`)

@@ -6,6 +6,12 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added (2026-06-12) — 4.3 V5: îmbunătățiri admin panel (căutare, consum AI, socketuri live)
+
+- **(4.3a) Căutare și filtrare useri:** input de căutare (live, după nume/email) + select de status (Toate/Activ/Trial/Restanță/Anulat) deasupra tabelului de useri din tab-ul Useri. Client-side, fără request nou la API.
+- **(4.3b) Consum AI per user:** `listUsers()` face LEFT JOIN pe `ai_usage` pentru luna curentă (ora RO, via `aiUsagePeriod()`). Returnat `aiMessagesThisMonth` + `subscriptionTier` (lipsea). Frontend: sub-linie discretă în tabel + rând dedicat în modalul de detalii (ex. „347 / 1200" Pro, „42 / ∞" Max).
+- **(4.3c) Socketuri live (RAM):** `getActiveSessionCount()` exportat din `whatsapp.session-manager.ts`. Adăugat în `/admin/stats` ca `activeSockets`. Health card nou „Socketuri live (RAM)" în Overview — sub-text „sincronizat cu DB" sau „DB: X — posibil drift" (util la debug sesiuni drop-uite nedetectate de DB).
+
 ### Fixed (2026-06-12) — lot fix-uri UI din testare pe device (mobil/Safari + admin + tier)
 
 Nouă probleme raportate din testare live (poze), corectate. 4585 (default „Anual" la prețuri) = lăsat intenționat — best practice SaaS.

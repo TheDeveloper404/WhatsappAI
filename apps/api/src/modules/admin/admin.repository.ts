@@ -1,11 +1,13 @@
 import { randomUUID } from 'crypto'
 import { eq, desc, isNull, and, count, sql } from 'drizzle-orm'
 import { db, pool } from '../../config/database.js'
-import { users, subscriptions, whatsappSessions, aiSettings, notifications, platformConfig, adminAuditLog } from '../../db/schema.js'
+import { users, subscriptions, whatsappSessions, aiSettings, notifications, platformConfig, adminAuditLog, aiUsage } from '../../db/schema.js'
 import type { Notification } from '../../db/schema.js'
+import { aiUsagePeriod } from '../ai/ai.repository.js'
 
 export const adminRepository = {
   async listUsers() {
+    const currentMonth = aiUsagePeriod()
     return db
       .select({
         id: users.id,
@@ -15,6 +17,7 @@ export const adminRepository = {
         createdAt: users.createdAt,
         subscriptionStatus: subscriptions.status,
         subscriptionPlan: subscriptions.plan,
+        subscriptionTier: subscriptions.tier,
         trialEndsAt: subscriptions.trialEndsAt,
         currentPeriodEndsAt: subscriptions.currentPeriodEndsAt,
         cancelAtPeriodEnd: subscriptions.cancelAtPeriodEnd,
@@ -29,11 +32,13 @@ export const adminRepository = {
         agentKnowledgeBase: aiSettings.knowledgeBase,
         agentWritingStyle: aiSettings.writingStyle,
         agentNotifyOnAiTakeover: aiSettings.notifyOnAiTakeover,
+        aiMessagesThisMonth: aiUsage.count,
       })
       .from(users)
       .leftJoin(subscriptions, eq(subscriptions.userId, users.id))
       .leftJoin(whatsappSessions, eq(whatsappSessions.userId, users.id))
       .leftJoin(aiSettings, eq(aiSettings.userId, users.id))
+      .leftJoin(aiUsage, and(eq(aiUsage.userId, users.id), eq(aiUsage.periodMonth, currentMonth)))
       .orderBy(desc(users.createdAt))
   },
 

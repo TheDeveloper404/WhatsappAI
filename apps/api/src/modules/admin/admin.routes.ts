@@ -98,9 +98,11 @@ export async function adminRoutes(app: FastifyInstance) {
 
   // GET /admin/stats
   app.get('/stats', { preHandler: adminGuard }, async (_req, reply) => {
-    const stats = await adminRepository.getStats()
-    // Furnizorul LLM activ (platform-wide, din env) — indicator în admin (B5).
-    return reply.send({ ...stats, llmProvider: getActiveLLMProvider() })
+    const [stats, { getActiveSessionCount }] = await Promise.all([
+      adminRepository.getStats(),
+      import('../whatsapp/whatsapp.session-manager.js'),
+    ])
+    return reply.send({ ...stats, llmProvider: getActiveLLMProvider(), activeSockets: getActiveSessionCount() })
   })
 
   // PATCH /admin/users/:userId/agent

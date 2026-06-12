@@ -155,7 +155,7 @@ export const adminRepository = {
 
   async createNotification(userId: string, type: string, title: string, body: string): Promise<void> {
     await db.insert(notifications).values({
-      id: randomUUID(), userId, type, title, body, readAt: null, createdAt: Date.now(),
+      id: randomUUID(), userId, audience: 'admin', type, title, body, readAt: null, createdAt: Date.now(),
     })
   },
 
@@ -171,7 +171,7 @@ export const adminRepository = {
     if (!adminId) return []
     return db.select()
       .from(notifications)
-      .where(eq(notifications.userId, adminId))
+      .where(and(eq(notifications.userId, adminId), eq(notifications.audience, 'admin')))
       .orderBy(desc(notifications.createdAt))
       .limit(50)
   },
@@ -181,7 +181,7 @@ export const adminRepository = {
     if (!adminId) return 0
     const rows = await db.select({ id: notifications.id })
       .from(notifications)
-      .where(and(eq(notifications.userId, adminId), isNull(notifications.readAt)))
+      .where(and(eq(notifications.userId, adminId), eq(notifications.audience, 'admin'), isNull(notifications.readAt)))
     return rows.length
   },
 
@@ -190,21 +190,21 @@ export const adminRepository = {
     if (!adminId) return
     await db.update(notifications)
       .set({ readAt: Date.now() })
-      .where(eq(notifications.userId, adminId))
+      .where(and(eq(notifications.userId, adminId), eq(notifications.audience, 'admin')))
   },
 
   async deleteAdminNotification(notificationId: string): Promise<void> {
     const adminId = await this.getAdminUserId()
     if (!adminId) return
     await db.delete(notifications)
-      .where(and(eq(notifications.id, notificationId), eq(notifications.userId, adminId)))
+      .where(and(eq(notifications.id, notificationId), eq(notifications.userId, adminId), eq(notifications.audience, 'admin')))
   },
 
   async deleteAllAdminNotifications(): Promise<void> {
     const adminId = await this.getAdminUserId()
     if (!adminId) return
     await db.delete(notifications)
-      .where(eq(notifications.userId, adminId))
+      .where(and(eq(notifications.userId, adminId), eq(notifications.audience, 'admin')))
   },
 
   async getPlatformConfig(): Promise<Record<string, string>> {

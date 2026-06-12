@@ -143,15 +143,21 @@ function EmailModal({ user, token, onClose }: { user: AdminUser; token: string; 
 
 // ─── Modal extindere trial ────────────────────────────────────────────────────
 function TrialModal({ user, token, onClose, onDone }: { user: AdminUser; token: string; onClose: () => void; onDone: () => void }) {
-  const [days, setDays] = useState(7)
+  // String, nu number: cu `Number(e.target.value)` ștergerea câmpului dădea 0 „blocat" și valori
+  // din 2 cifre. Ținem textul brut (gol permis), parsăm + validăm la submit.
+  const [days, setDays] = useState('7')
   // Capturat o dată la mount — `Date.now()` în render nu e idempotent (react-hooks/purity).
   const [now] = useState(() => Date.now())
   const [loading, setLoading] = useState(false)
 
+  const daysNum = Number(days)
+  const daysValid = Number.isInteger(daysNum) && daysNum >= 1 && daysNum <= 365
+
   async function extend() {
+    if (!daysValid) return
     setLoading(true)
     try {
-      await adminFetch(`/users/${user.id}/extend-trial`, token, { method: 'POST', body: JSON.stringify({ days }) })
+      await adminFetch(`/users/${user.id}/extend-trial`, token, { method: 'POST', body: JSON.stringify({ days: daysNum }) })
       onDone(); onClose()
     } catch {}
     setLoading(false)
@@ -166,12 +172,20 @@ function TrialModal({ user, token, onClose, onDone }: { user: AdminUser; token: 
         </div>
         <div className="px-6 py-5">
           <label className="font-mono-ui text-xs text-dim block mb-2">Număr de zile de adăugat</label>
-          <input type="number" min={1} max={365} value={days} onChange={e => setDays(Number(e.target.value))} className={inputCls} />
-          {user.trialEndsAt && (
+          <input
+            type="number"
+            inputMode="numeric"
+            min={1}
+            max={365}
+            value={days}
+            onChange={e => setDays(e.target.value.replace(/[^0-9]/g, '').slice(0, 3))}
+            className={inputCls}
+          />
+          {user.trialEndsAt && daysValid && (
             <p className="font-mono-ui text-xs text-dimmer mt-2">
               Expiră acum: {formatDate(user.trialEndsAt)}
               {' → '}
-              {formatDate(Math.max(user.trialEndsAt, now) + days * 86_400_000)}
+              {formatDate(Math.max(user.trialEndsAt, now) + daysNum * 86_400_000)}
             </p>
           )}
         </div>
@@ -179,7 +193,7 @@ function TrialModal({ user, token, onClose, onDone }: { user: AdminUser; token: 
           <button onClick={onClose} className={btnSecondary}>Anulează</button>
           <button
             onClick={extend}
-            disabled={loading}
+            disabled={loading || !daysValid}
             className="px-4 py-2 text-sm font-mono-ui rounded-lg disabled:opacity-50 flex items-center gap-1.5 hover:opacity-90 transition-opacity"
             style={{ background: 'var(--acid)', color: 'var(--on-acid)' }}
           >
@@ -469,6 +483,19 @@ export default function AdminDashboard() {
     loadAll(t)
   }, [loadAll, router])
 
+  // Persistă tab-ul activ în hash-ul URL → refresh-ul rămâne pe același tab (nu mai sare la Overview).
+  // Hash-ul nu ajunge la server → init în efect (lazy-init din window ar da hydration mismatch).
+  useEffect(() => {
+    const hash = window.location.hash.replace('#', '')
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (['overview', 'users', 'activity', 'config'].includes(hash)) setActiveTab(hash as typeof activeTab)
+  }, [])
+
+  function selectTab(tab: typeof activeTab) {
+    setActiveTab(tab)
+    history.replaceState(null, '', `#${tab}`)
+  }
+
   async function toggleAgent(userId: string, current: boolean | null) {
     if (!token) return
     setToggling(userId)
@@ -670,12 +697,12 @@ export default function AdminDashboard() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 border-b border-line">
+        <div className="flex gap-1 border-b border-line overflow-x-auto nice-scroll">
           {([['overview', 'Overview', Activity], ['users', 'Useri', Users], ['activity', 'Activitate', Bell], ['config', 'Configurare', Settings]] as const).map(([tab, label, Icon]) => (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`flex items-center gap-1.5 px-4 py-2.5 font-mono-ui text-xs tracking-wide border-b-2 -mb-px transition-colors ${
+              onClick={() => selectTab(tab)}
+              className={`flex items-center gap-1.5 px-4 py-2.5 font-mono-ui text-xs tracking-wide border-b-2 -mb-px whitespace-nowrap shrink-0 transition-colors ${
                 activeTab === tab
                   ? 'border-acid text-acid'
                   : 'border-transparent text-dim hover:text-ink'
@@ -739,7 +766,7 @@ export default function AdminDashboard() {
                     <span className="text-dim">Knowledge base</span>
                     <span className="text-ink">{users.filter(u => u.agentKnowledgeBase?.trim()).length}</span>
                   </div>
-                  <button onClick={() => setActiveTab('config')} className="w-full mt-2 px-3 py-2 rounded-lg border border-line text-dim hover:text-ink hover:bg-cardhi transition-colors">
+                  <button onClick={() => selectTab('config')} className="w-full mt-2 px-3 py-2 rounded-lg border border-line text-dim hover:text-ink hover:bg-cardhi transition-colors">
                     Configurează reguli globale
                   </button>
                 </div>

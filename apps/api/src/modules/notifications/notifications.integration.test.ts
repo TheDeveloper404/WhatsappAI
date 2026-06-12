@@ -164,3 +164,33 @@ describe('B15 — extinderea trial-ului creează notificare pentru user', () => 
     expect(listA.json().notifications.some((n: any) => n.type === 'trial_extended')).toBe(true)
   })
 })
+
+describe('4584 — separare notificări admin vs user (audience)', () => {
+  it('contul de admin NU vede notificările operaționale de admin în clopoțelul user; panoul admin le vede', async () => {
+    // Contul de admin e și user normal (email = ADMIN_EMAIL din vitest.config). Notificările de
+    // admin (new_user) se stochează sub acest user, dar cu audience='admin' → nu trebuie să apară
+    // în ruta user-facing /notifications.
+    const { accessToken: adminUserToken } = await registerAndLogin('admin@test.example.com')
+
+    // Înregistrarea altui user declanșează notifyAdmin('new_user') către contul de admin.
+    await registerAndLogin('triggers-new-user@test.com')
+
+    // Clopoțelul user al contului de admin NU conține new_user
+    const userBell = await app.inject({
+      method: 'GET',
+      url: '/api/v1/notifications',
+      headers: { authorization: `Bearer ${adminUserToken}` },
+    })
+    expect(userBell.statusCode).toBe(200)
+    expect(userBell.json().notifications.some((n: any) => n.type === 'new_user')).toBe(false)
+
+    // Panoul admin DA conține new_user
+    const adminBell = await app.inject({
+      method: 'GET',
+      url: '/api/v1/admin/notifications',
+      headers: { authorization: ADMIN_TOKEN },
+    })
+    expect(adminBell.statusCode).toBe(200)
+    expect(adminBell.json().notifications.some((n: any) => n.type === 'new_user')).toBe(true)
+  })
+})

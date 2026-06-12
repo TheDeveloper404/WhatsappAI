@@ -10,14 +10,14 @@ export const notificationsRepository = {
   // Creare — folosit de evenimente de cont (azi: extindere trial din admin). `userId` = destinatarul.
   async create(userId: string, type: string, title: string, body: string): Promise<void> {
     await db.insert(notifications).values({
-      id: randomUUID(), userId, type, title, body, readAt: null, createdAt: Date.now(),
+      id: randomUUID(), userId, audience: 'user', type, title, body, readAt: null, createdAt: Date.now(),
     })
   },
 
   async listForUser(userId: string): Promise<Notification[]> {
     return db.select()
       .from(notifications)
-      .where(eq(notifications.userId, userId))
+      .where(and(eq(notifications.userId, userId), eq(notifications.audience, 'user')))
       .orderBy(desc(notifications.createdAt))
       .limit(50)
   },
@@ -25,13 +25,13 @@ export const notificationsRepository = {
   async unreadCount(userId: string): Promise<number> {
     const rows = await db.select({ id: notifications.id })
       .from(notifications)
-      .where(and(eq(notifications.userId, userId), isNull(notifications.readAt)))
+      .where(and(eq(notifications.userId, userId), eq(notifications.audience, 'user'), isNull(notifications.readAt)))
     return rows.length
   },
 
   async markAllRead(userId: string): Promise<void> {
     await db.update(notifications)
       .set({ readAt: Date.now() })
-      .where(and(eq(notifications.userId, userId), isNull(notifications.readAt)))
+      .where(and(eq(notifications.userId, userId), eq(notifications.audience, 'user'), isNull(notifications.readAt)))
   },
 }

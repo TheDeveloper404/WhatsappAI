@@ -122,6 +122,9 @@ export const platformConfig = pgTable('platform_config', {
 export const notifications = pgTable('notifications', {
   id: text('id').primaryKey(),
   userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  // 'admin' = operațional (user nou, plăți) → panoul admin; 'user' = user-facing (trial prelungit) → clopoțel user.
+  // Separă cele două fluxuri care împart acest tabel scopat pe `user_id` (contul de admin e și user normal).
+  audience: text('audience').notNull().default('user'),
   type: text('type').notNull(),
   title: text('title').notNull(),
   body: text('body').notNull(),

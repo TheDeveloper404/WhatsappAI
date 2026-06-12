@@ -6,6 +6,19 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed (2026-06-12) — lot fix-uri UI din testare pe device (mobil/Safari + admin + tier)
+
+Nouă probleme raportate din testare live (poze), corectate. 4585 (default „Anual" la prețuri) = lăsat intenționat — best practice SaaS.
+- **4581 — tab-uri admin tăiate pe mobil:** bara de tab-uri din `admin/dashboard` (Overview/Useri/Activitate/Configurare) depășea ecranul îngust → „Configurare" tăiat. `overflow-x-auto nice-scroll` + `whitespace-nowrap shrink-0` → scrollabilă orizontal, scrollbar ascuns. Desktop neschimbat.
+- **4582 — toggle parolă nu comuta live pe Safari:** `Input.tsx` schimba `type` pe câmp neforfocusat → Safari nu repainta „secure text field". `onMouseDown preventDefault` pe ochi (păstrează focus) + reasignare `value` în rAF (forțează repaint fără tastatură). Păstrat `type="password"` → autofill/password manager intacte.
+- **4583 — ochi parolă invizibil în dark mode (mobil):** cauza = fundalul galben `-webkit-autofill` al Safari (icon deschis pe galben deschis). Override global în `globals.css` → câmpurile autofilled păstrează `--card-hi` + `--ink` (elimină galbenul off-brand peste tot). Bump contrast icon (`dimmer→dim`, hover `→ink`).
+- **4584 — notificări admin apăreau în clopoțelul user + plan invizibil:** admin & user împărțeau tabela `notifications` doar pe `user_id`; contul de admin (și user normal) vedea operaționalele de admin în clopoțelul user. Adăugată coloana **`audience`** ('admin'/'user') + migrare idempotentă (backfill pe tipuri admin) + filtre în ambele repository-uri. Mirror ALTER în `global-setup.ts` (test). Plus: badge **Pro/Max** în pagina de profil (tier adăugat în interfața `Subscription`; backend îl trimitea deja). Test regresie: contul admin nu vede `new_user` în clopoțelul user.
+- **4586 — input zile trial admin blocat:** `TrialModal` folosea `Number(e.target.value)` → ștergerea dădea 0 „blocat" + valori din 2 cifre. Trecut pe state string (gol permis, filtrare cifre, parse+validare 1–365 la submit, buton dezactivat la invalid).
+- **4587 — timer Pro sub minim arăta „Eroare la salvarea timerului":** prevenit (input `min` pe tier: Pro 5/Max 1 + clamp + text ajutător „treci pe Max" + link) și backstop (afișez mesajul real al backendului pe `ApiRequestError`, nu generic). Adus tier-ul în settings. Zero schimbări backend.
+- **4588 — Leads pe Pro arăta scoring nefuncțional (403):** verificat că matricea (Pro=listă simplă, Max=scoring) + cardurile sunt corecte, iar „statistici avansate" e **real** (endpoint `/ai/stats/advanced`, secțiunea „Performanță agent" Max-only). Bug-ul era UI: pe Pro, pagina Leads ascunde acum scoring-ul (badge-uri, filtre, butoane „Recalculează") și arată listă simplă + banner upsell. Max neschimbat.
+- **4589 — body email admin nu apărea:** `sendCustomEmail` randa doar `<p>body</p>`, fără subiect în corp → emailul părea gol. Adăugat subiectul ca `<h1>` (consecvent cu notificarea admin); `escapeHtml` aplicat și pe subiect.
+- **4592 — refresh în admin sărea pe Overview:** `activeTab` nepersistat. Persistare în hash URL (`selectTab` + citire la mount), ca pagina de settings.
+
 ### Fixed (2026-06-11) — audit coerență UI↔cod: bypass gating `/setTimer` + copy onest
 
 Audit de coerență „ce promite UI-ul vs. ce facem real" pe landing + comenzi (cerut de user). Verificat că promisiunile majore au acoperire reală (comenzi WA, RAG PDF/DOCX/TXT, comenzi+stoc atomic, transcriere, blacklist, memorie, red-flag, date în UE). Patru nepotriviri corectate:

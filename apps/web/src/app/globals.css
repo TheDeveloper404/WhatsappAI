@@ -116,6 +116,21 @@
     }
   }
 
+  /* Safari/Chrome pun un fundal galben pe câmpurile autofilled (`-webkit-autofill`),
+   off-brand și — în dark mode — face iconul „arată parola" (gri-deschis) invizibil
+   pe galben-deschis. Forțăm fundalul pe token-ul de design + text `--ink`. Trucul cu
+   box-shadow inset + transition lungă e singurul mod de a suprascrie fundalul autofill. */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  input:-webkit-autofill:active {
+    -webkit-text-fill-color: var(--ink);
+    -webkit-box-shadow: 0 0 0 1000px var(--card-hi) inset;
+    box-shadow: 0 0 0 1000px var(--card-hi) inset;
+    caret-color: var(--ink);
+    transition: background-color 9999s ease-in-out 0s;
+  }
+
   /* ─── TYPOGRAPHY ─────────────────────────────────────────────────── */
   .font-display {
     font-family: var(--font-geist-mono), ui-monospace, monospace;

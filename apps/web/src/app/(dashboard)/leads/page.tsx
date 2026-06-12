@@ -30,6 +30,9 @@ export default function LeadsPage() {
   const [filter, setFilter] = useState<'all' | LeadStatus>('all')
   const [analyzingAll, setAnalyzingAll] = useState(false)
   const [analyzingPhone, setAnalyzingPhone] = useState<string | null>(null)
+  // Scoring AI (hot/warm/cold) = Max only. Pe Pro afișăm doar lista simplă + upsell (matricea Pro/Max).
+  // NULL/legacy → Pro (grandfathering, ca în backend).
+  const [isMax, setIsMax] = useState(false)
 
   const load = useCallback(async () => {
     if (!accessToken) return
@@ -49,6 +52,15 @@ export default function LeadsPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     load()
   }, [load])
+
+  // Tier — pentru a decide dacă afișăm scoring-ul (Max) sau lista simplă + upsell (Pro).
+  useEffect(() => {
+    if (!accessToken) return
+    api.billing.getSubscription(accessToken)
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      .then(({ subscription }) => setIsMax(subscription?.tier === 'max'))
+      .catch(() => {})
+  }, [accessToken])
 
   async function handleAnalyzeAll() {
     if (!accessToken) return
@@ -98,38 +110,63 @@ export default function LeadsPage() {
         <div>
           <h1 className="font-display text-[32px] text-ink leading-none">Lead-uri</h1>
           <p className="font-mono-ui text-[13px] text-dim mt-1">
-            Contactele tale, clasificate după interesul de cumpărare.{hotCount > 0 && <span className="text-red-600 dark:text-red-400"> {hotCount} hot.</span>}
+            {isMax ? (
+              <>Contactele tale, clasificate după interesul de cumpărare.{hotCount > 0 && <span className="text-red-600 dark:text-red-400"> {hotCount} hot.</span>}</>
+            ) : (
+              <>Contactele tale, după activitatea recentă.</>
+            )}
           </p>
         </div>
-        <button
-          onClick={handleAnalyzeAll}
-          disabled={analyzingAll}
-          style={{ background: 'var(--acid)', color: 'var(--on-acid)' }}
-          className="flex items-center justify-center gap-2 font-mono-ui text-[13px] px-4 py-2.5 rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity sm:shrink-0"
-        >
-          {analyzingAll ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-          {analyzingAll ? 'Se analizează…' : 'Recalculează scoruri'}
-        </button>
+        {isMax && (
+          <button
+            onClick={handleAnalyzeAll}
+            disabled={analyzingAll}
+            style={{ background: 'var(--acid)', color: 'var(--on-acid)' }}
+            className="flex items-center justify-center gap-2 font-mono-ui text-[13px] px-4 py-2.5 rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity sm:shrink-0"
+          >
+            {analyzingAll ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            {analyzingAll ? 'Se analizează…' : 'Recalculează scoruri'}
+          </button>
+        )}
       </div>
+
+      {/* Upsell — calificarea AI e Max only (matricea Pro/Max). */}
+      {!isMax && (
+        <div className="bg-acid/10 border border-acid/30 rounded-xl p-4 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <p className="font-mono-ui text-[13px] text-ink">
+            <Flame className="h-4 w-4 text-acid inline-block mr-1.5 -mt-0.5" />
+            Calificarea automată a lead-urilor (hot / warm / cold) e disponibilă pe planul Max.
+          </p>
+          <a
+            href="/subscribe"
+            className="font-mono-ui text-[13px] px-4 py-2 rounded-lg whitespace-nowrap shrink-0 text-center hover:opacity-90 transition-opacity"
+            style={{ background: 'var(--acid)', color: 'var(--on-acid)' }}
+          >
+            Treci pe Max
+          </a>
+        </div>
+      )}
 
       {error && (
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-3 font-mono-ui text-[13px] text-red-700 dark:text-red-300 mb-6">{error}</div>
       )}
 
-      {/* Filtre */}
-      <div className="flex gap-2 mb-6 flex-wrap">
-        {FILTERS.map(({ id, label }) => (
-          <button
-            key={id}
-            onClick={() => setFilter(id)}
-            className={`font-mono-ui text-[12px] px-3 py-1.5 rounded-full transition-colors ${
-              filter === id ? 'bg-ink text-base' : 'bg-cardhi text-dim hover:text-ink'
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      {/* Filtre — doar pe Max (Pro nu are scoring, deci nimic de filtrat). */}
+      {isMax && (
+        <div className="flex gap-2 mb-6 flex-wrap">
+          {FILTERS.map(({ id, label }) => (
+            <button
+              key={id}
+              onClick={() => setFilter(id)}
+              className={`font-mono-ui text-[12px] px-3 py-1.5 rounded-full transition-colors ${
+                filter === id ? 'bg-ink text-base' : 'bg-cardhi text-dim hover:text-ink'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {visible.length === 0 ? (
         <div className="border border-dashed border-line rounded-xl py-16 flex flex-col items-center gap-3">
@@ -137,7 +174,7 @@ export default function LeadsPage() {
           <p className="font-mono-ui text-[13px] text-dimmer">
             {leads.length === 0 ? 'Niciun contact încă.' : 'Niciun lead cu acest status.'}
           </p>
-          {leads.length > 0 && filter === 'all' && (
+          {isMax && leads.length > 0 && filter === 'all' && (
             <p className="font-mono-ui text-[12px] text-dimmer">Apasă „Recalculează scoruri” pentru a clasifica contactele.</p>
           )}
         </div>
@@ -154,34 +191,38 @@ export default function LeadsPage() {
                       {lead.count} mesaje · ultimul {formatDate(lead.lastAt)}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    {meta ? (
-                      <span className={`font-mono-ui text-[11px] px-3 py-1 rounded-full flex items-center gap-1.5 ${meta.color}`}>
-                        <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} />
-                        {meta.label} · {lead.score}
-                      </span>
-                    ) : (
-                      <span className="font-mono-ui text-[11px] px-3 py-1 rounded-full bg-cardhi text-dimmer">neanalizat</span>
-                    )}
-                  </div>
+                  {isMax && (
+                    <div className="flex items-center gap-2 shrink-0">
+                      {meta ? (
+                        <span className={`font-mono-ui text-[11px] px-3 py-1 rounded-full flex items-center gap-1.5 ${meta.color}`}>
+                          <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} />
+                          {meta.label} · {lead.score}
+                        </span>
+                      ) : (
+                        <span className="font-mono-ui text-[11px] px-3 py-1 rounded-full bg-cardhi text-dimmer">neanalizat</span>
+                      )}
+                    </div>
+                  )}
                 </div>
 
-                {lead.reason && (
+                {isMax && lead.reason && (
                   <p className="font-mono-ui text-[12px] text-dim bg-cardhi/60 rounded-lg px-3 py-2 mb-3">{lead.reason}</p>
                 )}
 
                 <div className="flex items-center justify-between pt-3 border-t border-line">
                   <p className="font-mono-ui text-[12px] text-dimmer truncate max-w-[60%]">{lead.lastMessage}</p>
-                  <button
-                    onClick={() => handleAnalyzeOne(lead.contactPhone)}
-                    disabled={analyzingPhone === lead.contactPhone}
-                    className="flex items-center gap-1.5 font-mono-ui text-[12px] text-dim hover:text-ink transition-colors disabled:opacity-50 shrink-0"
-                  >
-                    {analyzingPhone === lead.contactPhone
-                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      : <RefreshCw className="h-3.5 w-3.5" />}
-                    Recalculează
-                  </button>
+                  {isMax && (
+                    <button
+                      onClick={() => handleAnalyzeOne(lead.contactPhone)}
+                      disabled={analyzingPhone === lead.contactPhone}
+                      className="flex items-center gap-1.5 font-mono-ui text-[12px] text-dim hover:text-ink transition-colors disabled:opacity-50 shrink-0"
+                    >
+                      {analyzingPhone === lead.contactPhone
+                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        : <RefreshCw className="h-3.5 w-3.5" />}
+                      Recalculează
+                    </button>
+                  )}
                 </div>
               </li>
             )

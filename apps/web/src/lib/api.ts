@@ -584,6 +584,8 @@ export interface Subscription {
   stripeCustomerId: string
   stripeSubscriptionId: string | null
   plan: 'monthly' | 'annual' | null
+  // Nivelul de valoare (Pro/Max). NULL = abonament legacy, tratat ca Pro (grandfathering în backend).
+  tier: 'pro' | 'max' | null
   status: 'trialing' | 'active' | 'past_due' | 'canceled' | 'incomplete'
   trialEndsAt: number | null
   currentPeriodEndsAt: number | null

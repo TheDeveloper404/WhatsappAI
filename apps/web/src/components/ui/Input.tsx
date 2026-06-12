@@ -1,5 +1,5 @@
 'use client'
-import { forwardRef, useState } from 'react'
+import { forwardRef, useRef, useState } from 'react'
 import { Eye, EyeOff } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -12,9 +12,34 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 export const Input = forwardRef<HTMLInputElement, InputProps>(
   ({ label, error, hint, type, className, id, ...props }, ref) => {
     const [showPassword, setShowPassword] = useState(false)
+    const innerRef = useRef<HTMLInputElement>(null)
     const inputId = id ?? label.toLowerCase().replace(/\s+/g, '-')
     const isPassword = type === 'password'
     const inputType = isPassword ? (showPassword ? 'text' : 'password') : type
+
+    // Combină ref-ul intern cu cel forwardat (avem nevoie de acces intern pt. fix-ul Safari).
+    const setRefs = (el: HTMLInputElement | null) => {
+      innerRef.current = el
+      if (typeof ref === 'function') ref(el)
+      else if (ref) (ref as React.MutableRefObject<HTMLInputElement | null>).current = el
+    }
+
+    // Safari (iOS/iPadOS) nu repaintează un câmp `password` neforfocusat când îi schimbi `type`;
+    // punctele rămân până la refocus. Reasignăm `value` într-un rAF ca să forțăm re-randarea,
+    // fără să deschidem tastatura (nu apelăm focus()).
+    const togglePassword = () => {
+      setShowPassword(v => !v)
+      requestAnimationFrame(() => {
+        const el = innerRef.current
+        if (!el) return
+        const start = el.selectionStart
+        const end = el.selectionEnd
+        const val = el.value
+        el.value = ''
+        el.value = val
+        try { el.setSelectionRange(start, end) } catch { /* unele tipuri nu suportă selecție */ }
+      })
+    }
 
     return (
       <div className="flex flex-col gap-1.5">
@@ -23,7 +48,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         </label>
         <div className="relative">
           <input
-            ref={ref}
+            ref={setRefs}
             id={inputId}
             type={inputType}
             aria-describedby={error ? `${inputId}-error` : hint ? `${inputId}-hint` : undefined}
@@ -41,8 +66,11 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           {isPassword && (
             <button
               type="button"
-              onClick={() => setShowPassword(v => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-dimmer hover:text-dim transition-colors"
+              // preventDefault pe mousedown: butonul nu mai fură focus-ul din input,
+              // deci dacă userul tocmai scria, câmpul rămâne focusat și Safari repaintează live.
+              onMouseDown={e => e.preventDefault()}
+              onClick={togglePassword}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-dim hover:text-ink transition-colors"
               aria-label={showPassword ? 'Ascunde parola' : 'Arată parola'}
             >
               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}

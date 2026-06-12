@@ -56,6 +56,10 @@ export default function ProfilePage() {
   const planLabel = subscription
     ? subscription.plan === 'annual' ? 'Anual' : 'Lunar'
     : null
+  // tier NULL = abonament legacy → Pro (grandfathering, ca în backend).
+  const tierLabel = subscription
+    ? subscription.tier === 'max' ? 'Max' : 'Pro'
+    : null
 
   const statusLabel: Record<string, string> = {
     trialing: 'Trial activ',
@@ -146,9 +150,14 @@ export default function ProfilePage() {
           ) : subscription ? (
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="font-mono-ui text-[13px] text-ink font-medium">
-                  Plan {planLabel} — {subscription.cancelAtPeriodEnd ? 'Anulat la final' : statusLabel[subscription.status] ?? subscription.status}
-                </p>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono-ui text-[11px] font-semibold px-2 py-0.5 rounded-full bg-acid/15 text-acid uppercase tracking-wider">
+                    {tierLabel}
+                  </span>
+                  <p className="font-mono-ui text-[13px] text-ink font-medium">
+                    Facturare {planLabel} — {subscription.cancelAtPeriodEnd ? 'Anulat la final' : statusLabel[subscription.status] ?? subscription.status}
+                  </p>
+                </div>
                 {subscriptionEnd && (
                   <p className="font-mono-ui text-[11px] text-dimmer mt-0.5">
                     {subscriptionDateLabel} {formatDate(subscriptionEnd)}

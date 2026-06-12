@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { useAuthStore } from '@/store/auth'
-import { api, type AiSettings, type WhatsappSession, type KnowledgeDocument } from '@/lib/api'
+import { api, ApiRequestError, type AiSettings, type WhatsappSession, type KnowledgeDocument } from '@/lib/api'
 import { CURRENCIES, currencyLabel } from '@/lib/format'
 import { Loader2, Save, Plus, X, Bot, Clock, Shield, Terminal, Flame, FileText, Upload, Trash2 } from 'lucide-react'
 
@@ -30,6 +30,9 @@ export default function SettingsPage() {
   const [savedStyle, setSavedStyle] = useState(false)
   const [analyzingStyle, setAnalyzingStyle] = useState(false)
   const [timerMinutes, setTimerMinutes] = useState(5)
+  // tier-ul determină minimul de timer (Pro 5 / Max 1). NULL/legacy → Pro (grandfathering, ca în backend).
+  const [tier, setTier] = useState<'pro' | 'max'>('pro')
+  const timerMin = tier === 'max' ? 1 : 5
   const [loading, setLoading] = useState(true)
   const [savingPrompt, setSavingPrompt] = useState(false)
   const [savingKB, setSavingKB] = useState(false)
@@ -66,8 +69,9 @@ export default function SettingsPage() {
       api.whatsapp.getSession(accessToken).catch(() => ({ session: null })),
       api.knowledge.list(accessToken).catch(() => ({ documents: [] })),
       api.ai.getLlmProvider(accessToken).catch(() => null),
+      api.billing.getSubscription(accessToken).catch(() => ({ subscription: null })),
     ])
-      .then(([{ settings: s }, { phones }, { session }, { documents: docs }, llm]) => {
+      .then(([{ settings: s }, { phones }, { session }, { documents: docs }, llm, { subscription }]) => {
         setSettings(s)
         setSystemPrompt(s.systemPrompt)
         setKnowledgeBase(s.knowledgeBase ?? '')
@@ -76,6 +80,7 @@ export default function SettingsPage() {
         setOrderIntakePrompt(s.orderIntakePrompt ?? '')
         setCurrency(s.currency ?? 'RON')
         setTimerMinutes(s.timerMinutes)
+        setTier(subscription?.tier === 'max' ? 'max' : 'pro')
         setBlacklist(phones)
         setWaSession(session)
         setDocuments(docs)
@@ -130,7 +135,14 @@ export default function SettingsPage() {
       const { settings: updated } = await api.ai.updateSettings(accessToken, { timerMinutes })
       setSettings(updated); setSavedTimer(true)
       setTimeout(() => setSavedTimer(false), 3000)
-    } catch { setError('Eroare la salvarea timerului.') }
+    } catch (err) {
+      // Backstop: dacă backendul refuză (ex. gate de tier), arătăm mesajul lui real (clar, cu upsell)
+      // în loc de eroarea generică ce sperie userii. Validarea pune mesajul în details[0].message.
+      const msg = err instanceof ApiRequestError
+        ? err.details?.[0]?.message ?? err.message
+        : 'Eroare la salvarea timerului.'
+      setError(msg)
+    }
     finally { setSavingTimer(false) }
   }
 
@@ -369,13 +381,13 @@ export default function SettingsPage() {
             <div className="flex items-center gap-3 flex-wrap">
               <input
                 type="number"
-                min={1}
+                min={timerMin}
                 max={60}
                 value={timerMinutes}
-                onChange={e => setTimerMinutes(Math.max(1, Math.min(60, parseInt(e.target.value) || 1)))}
+                onChange={e => setTimerMinutes(Math.max(timerMin, Math.min(60, parseInt(e.target.value) || timerMin)))}
                 className="w-20 rounded-xl border border-line px-3 py-2.5 text-[13px] text-ink bg-cardhi text-center focus:outline-hidden focus:ring-2 focus:ring-acid/40 focus:border-acid transition-colors"
               />
-              <span className="font-mono-ui text-[13px] text-dim">minute (1–60)</span>
+              <span className="font-mono-ui text-[13px] text-dim">minute ({timerMin}–60)</span>
               <button
                 onClick={handleSaveTimer}
                 disabled={savingTimer}
@@ -387,6 +399,15 @@ export default function SettingsPage() {
               </button>
               {savedTimer && <span className="font-mono-ui text-[12px] text-green-600 dark:text-green-400 font-medium">Salvat!</span>}
             </div>
+            {tier === 'pro' && (
+              <p className="font-mono-ui text-[12px] text-dimmer mt-3">
+                Pe planul Pro minimul e 5 min.{' '}
+                <a href="/subscribe" className="text-acid underline underline-offset-2 hover:opacity-80">
+                  Treci pe Max
+                </a>{' '}
+                pentru valori de la 1 min.
+              </p>
+            )}
           </div>
 
           {/* Monedă */}

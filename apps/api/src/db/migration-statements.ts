@@ -266,4 +266,10 @@ export const migrationStatements = [
     updated_at BIGINT NOT NULL,
     PRIMARY KEY (user_id, period_month)
   )`,
+  // Separare notificări admin vs user (același tabel, scopat pe `user_id`): `audience` distinge
+  // operaționalele de admin (user nou, plăți) de cele user-facing (trial prelungit etc.). Fără asta,
+  // contul de admin — care e și user normal — vedea notificările de admin în clopoțelul de user.
+  // Default 'user'; backfill pe tipurile cunoscute de admin ca rândurile existente să nu „scape".
+  `ALTER TABLE notifications ADD COLUMN IF NOT EXISTS audience TEXT NOT NULL DEFAULT 'user'`,
+  `UPDATE notifications SET audience = 'admin' WHERE type IN ('new_user','payment_failed','subscription_canceled','subscription_updated')`,
 ]

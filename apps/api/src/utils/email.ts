@@ -193,7 +193,10 @@ export async function sendCustomEmail(to: string, subject: string, body: string)
     from: env.EMAIL_FROM,
     to,
     subject,
+    // Randăm subiectul ca titlu în corp (ca la notificarea admin), nu doar body-ul — altfel
+    // subiectul apare doar în lista de inbox, iar emailul pare „gol" dacă textul e pus acolo.
     html: baseTemplate(`
+      <h1 style="margin:0 0 16px;font-size:20px;font-weight:700;color:#0A0F0C;">${escapeHtml(subject)}</h1>
       <p style="margin:0;font-size:15px;color:#374151;line-height:1.7;white-space:pre-wrap;">${escapeHtml(body)}</p>
     `),
   })

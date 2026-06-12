@@ -232,6 +232,8 @@ export async function setup() {
     // L10 — refresh token reuse detection / family revocation (folosite de claim/save/revoke).
     `ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS family_id TEXT`,
     `ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS rotated_at BIGINT`,
+    // 4584 — separare notificări admin vs user (același tabel, scopat pe user_id).
+    `ALTER TABLE notifications ADD COLUMN IF NOT EXISTS audience TEXT NOT NULL DEFAULT 'user'`,
     // B11 — date de livrare structurate pe comandă.
     `ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_method TEXT NOT NULL DEFAULT ''`,
     `ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_address TEXT NOT NULL DEFAULT ''`,

@@ -1,7 +1,7 @@
 import type { WASocket } from '@whiskeysockets/baileys'
 import { downloadMediaMessage } from '@whiskeysockets/baileys'
 import { aiRepository, DEFAULT_PROMPT, aiUsagePeriod } from './ai.repository.js'
-import { askGroq, extractContactMemory, transcribeAudio, classifyScopeLLM, analyzeOrderIntent, analyzeBookingIntent, classifyOrderConfirmation, classifyBookingConfirmation, extractFromImage, type GroqMessage } from './groq.client.js'
+import { askGroq, extractContactMemory, transcribeAudio, classifyScopeLLM, analyzeOrderIntent, analyzeBookingIntent, classifyOrderConfirmation, classifyBookingConfirmation, parseConfirmationSignal, extractFromImage, type GroqMessage } from './groq.client.js'
 import { productsRepository } from '../orders/products.repository.js'
 import { ordersRepository } from '../orders/orders.repository.js'
 import { appointmentsRepository } from '../orders/appointments.repository.js'
@@ -424,7 +424,11 @@ async function sendAiResponse(userId: string, contactPhone: string, jid: string,
           // înțeles alt serviciu (ex. „Tuns" în loc de „Pachet tuns + barbă").
           const lastAssistant = [...ordered].reverse().find(m => m.fromMe)?.body ?? ''
           const alreadyProposed = lastAssistant.includes(BOOKING_CONFIRM_MARKER)
-          const confirmed = await classifyBookingConfirmation(ordered)
+          const lastClientMsg = [...ordered].filter(m => !m.fromMe).at(-1)?.body ?? ''
+          const bookingSignal = parseConfirmationSignal(lastClientMsg)
+          const confirmed = bookingSignal === 'yes' ? true
+            : bookingSignal === 'no' ? false
+            : await classifyBookingConfirmation(ordered)
 
           if (confirmed) {
             const appt = await appointmentsRepository.create(userId, contactPhone, {
@@ -595,8 +599,12 @@ REGULI OBLIGATORII pentru acest caz:
         // Avem produse clare din catalog + stoc ok + toate informațiile. Propunem sau înregistrăm.
         const lastAssistant = [...ordered].reverse().find(m => m.fromMe)?.body ?? ''
         const alreadyProposed = lastAssistant.includes(ORDER_CONFIRM_MARKER)
-        // Înregistrăm DOAR după confirmarea explicită a clientului (poartă separată, fail-safe).
-        const confirmed = await classifyOrderConfirmation(ordered)
+        // Strat 1: regex deterministic (fără LLM). Strat 2: LLM doar pt mesaje ambigue.
+        const lastClientMsg = [...ordered].filter(m => !m.fromMe).at(-1)?.body ?? ''
+        const orderSignal = parseConfirmationSignal(lastClientMsg)
+        const confirmed = orderSignal === 'yes' ? true
+          : orderSignal === 'no' ? false
+          : await classifyOrderConfirmation(ordered)
 
         if (confirmed) {
           // Scădere atomică de stoc ÎNAINTE de a confirma comanda (Pilon B2). Dacă între
@@ -678,6 +686,7 @@ REGULI OBLIGATORII pentru acest caz:
   const honestyGuard = `[Reguli de onestitate — OBLIGATORII]
 - NU confirma și NU promite acțiuni pe care nu le-ai executat efectiv: NU spune „am trimis emailul", „am anunțat proprietarul", „am înregistrat comanda", „verific stocul" decât dacă ți se spune EXPLICIT mai jos că s-a întâmplat.
 - Dacă nu poți face ceva acum, spune sincer că proprietarul revine cu un răspuns. NU inventa confirmări, prețuri, termene sau disponibilitate.
+- REGULĂ CRITICĂ — întrebări retorice despre confirmare: Dacă un client ÎNTREABĂ „deci comanda e confirmată?", „s-a înregistrat?", „programarea e ok?", „e confirmat?" și NU ești notificat explicit în instrucțiunile de mai jos că s-a creat comanda/programarea → răspunde ONEST că mai aștepți confirmarea, NU că e deja confirmată. Exemplu corect: „Imediat îți confirm — mai am nevoie de un răspuns cu DA pentru a înregistra." NICIODATĂ nu spune că e confirmată dacă sistemul nu ți-a spus asta.
 - NU inventa persoane (colegi, angajați, un alt operator) și NU pretinde că tu sau clientul ați discutat deja cu cineva. „Proprietarul" e singura altă persoană la care te poți referi, și DOAR ca cineva care va reveni cu un răspuns — nu relata o conversație care nu a avut loc.
 - Fii consecvent: nu te contrazice de la un mesaj la altul. Dacă într-un mesaj ai spus un preț sau o stare, nu o nega în următorul fără un motiv real comunicat de sistem.
 - Oferă DOAR produse din catalog, cu prețurile exacte de acolo. Niciodată produse inexistente, indisponibile sau epuizate.

@@ -500,9 +500,19 @@ Mesaj client: "${message.replace(/"/g, "'").slice(0, 500)}"`
   return 'BUSINESS'
 }
 
-// Confirmare comandă: decide dacă ULTIMUL mesaj al clientului confirmă explicit o comandă
-// pe care asistentul tocmai a propus-o (rezumat + „Vrei să confirm?"). Folosit ca poartă
-// înainte de a CREA comanda în DB. Fail-safe: la orice ambiguitate → false (nu creăm).
+// Strat 1 — detectare deterministă, fără LLM. Prinde mesajele scurte și clare.
+// Returnează 'yes'/'no' pentru mesaje neambigue, 'ambiguous' cade pe LLM (stratul 2).
+export function parseConfirmationSignal(msg: string): 'yes' | 'no' | 'ambiguous' {
+  const clean = msg.trim().toLowerCase().replace(/[!.]+$/, '').trim()
+  const YES = /^(da|ok|confirm(at)?|perfect|merge|bun[ăa]?|sigur|accept|da da|bine|fac|gata|super|exact|chiar asa|asa e|ok da|da ok|yep|yes)$/
+  const NO  = /^(nu|nope|anulat?|renunt|nu mai vreau|ba nu|nu vreau|cancel|nu mergi?e?)$/
+  if (YES.test(clean)) return 'yes'
+  if (NO.test(clean))  return 'no'
+  return 'ambiguous'
+}
+
+// Strat 2 — LLM fallback, apelat DOAR pentru mesaje ambigue (>1 cuvânt sau neclar).
+// Fail-safe: la orice ambiguitate → false (nu creăm).
 export function parseConfirmation(raw: string): boolean {
   return /\bDA\b/i.test(raw.trim())
 }
@@ -515,13 +525,19 @@ export async function classifyOrderConfirmation(
     .map(m => `${m.fromMe ? 'Asistent' : 'Client'}: ${m.body}`)
     .join('\n')
 
-  const prompt = `Într-o conversație WhatsApp de business, asistentul a propus o comandă (rezumat cu produse și total) și a cerut confirmarea.
+  const prompt = `Într-o conversație WhatsApp de business, asistentul a propus o comandă (rezumat cu produse și total) și a cerut confirmarea explicită.
 
 CONVERSAȚIE:
 ${convoText}
 
-Întrebare: ULTIMUL mesaj al CLIENTULUI confirmă explicit că vrea să plaseze/înregistreze comanda propusă (ex: „da", „confirm", „da, comand", „e ok, comand")?
-NU este confirmare dacă: clientul pune întrebări, cere modificări, dă detalii noi, negociază, sau mesajul e ambiguu.
+Întrebare: ULTIMUL mesaj al CLIENTULUI este o confirmare EXPLICITĂ că vrea să înregistreze comanda?
+
+EXEMPLE CARE SUNT confirmare: „da, comand", „perfect, înregistrează", „da e ok", „merge, fac comanda", „ok confirm".
+EXEMPLE CARE NU SUNT confirmare (RĂSPUNDE NU):
+- Întrebări retorice: „deci comanda e confirmată?", „s-a înregistrat?", „e ok acum?"
+- Negociere sau modificare: „pot să schimb ceva?", „e prea scump", „fără ceapă"
+- Detalii suplimentare: „adresa e Str. X", „pe numele Ion"
+- Mesaje ambigue sau scurte fără context clar
 
 Răspunde DOAR cu un cuvânt: DA sau NU.`
 
@@ -529,10 +545,7 @@ Răspunde DOAR cu un cuvânt: DA sau NU.`
   return parseConfirmation(out)
 }
 
-// Confirmare PROGRAMARE: decide dacă ultimul mesaj al clientului confirmă explicit serviciul +
-// intervalul pe care asistentul tocmai le-a propus. Poartă înainte de a CREA programarea — așa
-// clientul prinde din timp dacă agentul a înțeles alt serviciu (ex. „Tuns" în loc de „Pachet tuns +
-// barbă"). Fail-safe: la orice ambiguitate → false (nu creăm).
+// Strat 2 pentru PROGRAMĂRI — același pattern.
 export async function classifyBookingConfirmation(
   messages: Array<{ fromMe: boolean; body: string }>,
 ): Promise<boolean> {
@@ -541,13 +554,19 @@ export async function classifyBookingConfirmation(
     .map(m => `${m.fromMe ? 'Asistent' : 'Client'}: ${m.body}`)
     .join('\n')
 
-  const prompt = `Într-o conversație WhatsApp de business, asistentul a propus o PROGRAMARE (serviciu, preț și interval dorit) și a cerut confirmarea.
+  const prompt = `Într-o conversație WhatsApp de business, asistentul a propus o PROGRAMARE (serviciu, preț și interval dorit) și a cerut confirmarea explicită.
 
 CONVERSAȚIE:
 ${convoText}
 
-Întrebare: ULTIMUL mesaj al CLIENTULUI confirmă explicit serviciul și intervalul propuse (ex: „da", „confirm", „da, e bine", „perfect, programează-mă")?
-NU este confirmare dacă: clientul cere alt serviciu sau altă oră, pune întrebări, dă detalii noi, negociază, sau mesajul e ambiguu.
+Întrebare: ULTIMUL mesaj al CLIENTULUI este o confirmare EXPLICITĂ a programării propuse?
+
+EXEMPLE CARE SUNT confirmare: „da", „confirm", „da, programează-mă", „perfect, e bine", „ok, merge".
+EXEMPLE CARE NU SUNT confirmare (RĂSPUNDE NU):
+- Întrebări retorice: „deci programarea e confirmată?", „s-a notat?", „e ok?"
+- Cerere de modificare: „pot la altă oră?", „mai devreme", „cu alt serviciu"
+- Detalii suplimentare: „pe numele Maria", „numărul meu e X"
+- Mesaje ambigue sau scurte fără context clar
 
 Răspunde DOAR cu un cuvânt: DA sau NU.`
 

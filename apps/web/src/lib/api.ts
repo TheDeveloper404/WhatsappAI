@@ -98,6 +98,11 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
       }
       return retryData as T
     }
+    // Refresh eșuat (cont șters sau sesiune invalidă) → logout automat pe orice tab activ.
+    const { useAuthStore } = await import('@/store/auth')
+    useAuthStore.getState().clearAuth()
+    if (typeof window !== 'undefined') window.location.href = '/login'
+    throw new ApiRequestError('UNAUTHORIZED', 'Sesiunea a expirat.', undefined, 401)
   }
 
   const data = await res.json()

@@ -21,14 +21,14 @@ export async function authenticate(req: FastifyRequest, reply: FastifyReply) {
   // O singură citire indexată după PK. Dimensiunea „abonament" e acoperită separat de
   // `requireActiveSubscription` (C1/C2) pe rutele premium.
   const rows = await db
-    .select({ id: users.id })
+    .select({ id: users.id, email: users.email })
     .from(users)
     .where(eq(users.id, payload.userId))
   if (rows.length === 0) {
     throw Errors.unauthorized('Account no longer active.')
   }
 
-  req.user = { id: payload.userId, role: payload.role }
+  req.user = { id: payload.userId, role: payload.role, email: rows[0].email }
 }
 
 export async function requireAdmin(req: FastifyRequest, reply: FastifyReply) {
@@ -38,6 +38,6 @@ export async function requireAdmin(req: FastifyRequest, reply: FastifyReply) {
 
 declare module 'fastify' {
   interface FastifyRequest {
-    user?: { id: string; role: string }
+    user?: { id: string; role: string; email: string }
   }
 }

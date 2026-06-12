@@ -70,13 +70,15 @@ function DashboardContent() {
 
   useEffect(() => {
     if (!accessToken) return
+    // Cardurile de status (Agent AI, WhatsApp, Trial) depind doar de primele 3 call-uri.
+    // Stats sunt mai lente (agregări) și nu trebuie să blocheze afișarea cardurilor.
     Promise.all([
       api.billing.getSubscription(accessToken).then(({ subscription }) => setSub(subscription)).catch(() => {}),
       api.whatsapp.getSession(accessToken).then(({ session }) => setWaSession(session)).catch(() => {}),
       api.ai.getSettings(accessToken).then(({ settings }) => setAiSettings(settings)).catch(() => {}),
-      api.ai.getStats(accessToken).then(({ stats }) => setStats(stats)).catch(() => {}),
-      api.ai.getAdvancedStats(accessToken).then(({ stats }) => setAdvStats(stats)).catch(() => {}),
     ]).finally(() => setInitialLoaded(true))
+    api.ai.getStats(accessToken).then(({ stats }) => setStats(stats)).catch(() => {})
+    api.ai.getAdvancedStats(accessToken).then(({ stats }) => setAdvStats(stats)).catch(() => {})
   }, [accessToken])
 
   useEffect(() => {

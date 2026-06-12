@@ -6,6 +6,10 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed (2026-06-12) — eliminare flash de loading pe dashboard
+
+`initialLoaded` devenea `true` abia după toate 5 request-uri din `Promise.all` (inclusiv `getStats`/`getAdvancedStats`, care fac agregări lente). Cardurile Agent AI / WhatsApp / Trial afișau `—` 1-2s la fiecare refresh. Cele 2 call-uri de statistici sunt acum separate și nu mai blochează afișarea cardurilor de status.
+
 ### Added (2026-06-12) — 4.3 V5: îmbunătățiri admin panel (căutare, consum AI, socketuri live)
 
 - **(4.3a) Căutare și filtrare useri:** input de căutare (live, după nume/email) + select de status (Toate/Activ/Trial/Restanță/Anulat) deasupra tabelului de useri din tab-ul Useri. Client-side, fără request nou la API.

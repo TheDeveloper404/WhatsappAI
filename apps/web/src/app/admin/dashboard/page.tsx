@@ -1004,7 +1004,7 @@ export default function AdminDashboard() {
                 value={configPrompt}
                 onChange={e => setConfigPrompt(e.target.value)}
                 rows={10}
-                className={`${inputCls} font-mono resize-none`}
+                className={`${inputCls} font-mono resize-none !transition-none`}
                 placeholder="Reguli globale pentru toți agenții..."
               />
               <div className="flex items-center justify-between mt-4">

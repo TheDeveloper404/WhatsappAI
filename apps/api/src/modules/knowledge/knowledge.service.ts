@@ -3,6 +3,7 @@ import mammoth from 'mammoth'
 import { embedTexts } from '../ai/groq.client.js'
 import { knowledgeRepository, type ChunkInput } from './knowledge.repository.js'
 import { userTier, ragChunkLimit } from '../billing/entitlement.js'
+import { AppError } from '../../utils/errors.js'
 import type { Document } from '../../db/schema.js'
 
 // MIME-uri acceptate. Validarea „hard" (whitelist + mărime) se face în rută; aici e dublată defensiv.
@@ -138,7 +139,13 @@ export const knowledgeService = {
       throw new UnprocessableDocumentError(`Ai atins limita bazei de cunoștințe (${maxUserChunks} fragmente) a planului tău. Șterge documente vechi sau treci pe Max pentru mai mult spațiu.`)
     }
 
-    const vectors = await embedTexts(chunks, 'RETRIEVAL_DOCUMENT')
+    let vectors: number[][]
+    try {
+      vectors = await embedTexts(chunks, 'RETRIEVAL_DOCUMENT')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      throw new AppError(503, 'EMBEDDING_UNAVAILABLE', `Serviciul de embedding nu este disponibil: ${msg}`)
+    }
     const chunkInputs: ChunkInput[] = chunks.map((content, i) => ({
       chunkIndex: i,
       content,
@@ -157,7 +164,12 @@ export const knowledgeService = {
     const all = await knowledgeRepository.listChunksForUser(userId)
     if (all.length === 0) return []
 
-    const [queryVec] = await embedTexts([q], 'RETRIEVAL_QUERY')
+    let queryVec: number[] | undefined
+    try {
+      ;[queryVec] = await embedTexts([q], 'RETRIEVAL_QUERY')
+    } catch {
+      return []  // fail-open la retrieve: fără embedding = răspuns fără RAG, nu eroare
+    }
     if (!queryVec) return []
 
     return all

@@ -12,6 +12,8 @@ import { env } from '../config/env.js'
 export async function requireActiveSubscription(req: FastifyRequest, _reply: FastifyReply) {
   const userId = req.user?.id
   if (!userId) throw Errors.unauthorized('Missing access token.')
-  if (env.OWNER_EMAIL && req.user?.email === env.OWNER_EMAIL) return
+  // Comparație case-insensitive (F-OWN-01): `OWNER_EMAIL` e deja lowercased în env, iar emailul userului
+  // e lowercased la register — `toLowerCase()` aici e o plasă suplimentară contra datelor legacy.
+  if (env.OWNER_EMAIL && req.user?.email?.toLowerCase() === env.OWNER_EMAIL) return
   if (!(await userHasEntitlement(userId))) throw Errors.subscriptionRequired()
 }

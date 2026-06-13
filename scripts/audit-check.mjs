@@ -32,6 +32,11 @@ const BASELINE = {
   'GHSA-q3j6-qgpj-74h6': 'fast-uri path traversal (tranzitiv via fastify)',
   'GHSA-v39h-62p7-jpjc': 'fast-uri host confusion (tranzitiv via fastify)',
   'GHSA-gv7w-rqvm-qjhr': 'esbuild RCE — DENO-ONLY (varianta Node/npm are binaryIntegrityCheck SHA-256); la noi e devDep tranzitiv de build/test, neexploatabil. Fixat în 0.28.1 (suntem pe 0.28.0).',
+  // Sub pragul `high` (nu pică gate-ul la default), documentate pentru `AUDIT_LEVEL=moderate` — audit 2026-06-13:
+  'GHSA-5v7r-6r5c-r473': 'file-type ASF infinite loop (DoS) — tranzitiv via Baileys, aceeași clasă ca music-metadata (D4); mărginit de throttle mesaje primite (H6). Upgrade prin Baileys.',
+  'GHSA-qx2v-qp2m-jg93': 'postcss <8.5.10 XSS via </style> în CSS Stringify — bundled de next@16; vector build-time (nu procesăm CSS ostil la runtime). Se închide la bump-ul postcss din Next.',
+  'GHSA-w5hq-g745-h8pq': 'uuid bounds check v3/v5/v6 cu `buf` — tranzitiv via Baileys; codul nostru folosește crypto.randomUUID (nu calea afectată).',
+  'GHSA-g7r4-m6w7-qqqr': 'esbuild dev-server arbitrary file read — DEV-ONLY (nu rulează în prod).',
 }
 
 function runAudit() {

@@ -6,6 +6,10 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Security (2026-06-13) — audit de securitate integral (10 faze) + remediere findings
+
+Audit integral (white-box pe tot codul server + black-box live pe prod + a doua opinie `security-engineer` pe autorizare/owner-bypass). **Verdict: APPROVED — 0 CRITICAL/HIGH/MED.** Cele 6 findings LOW (hardening) remediate în această sesiune: claim `typ` pe JWT (F-AUTH-01), `OWNER_EMAIL` lowercased + comparație case-insensitive (F-OWN-01), TTL pe `ownerUserIdCache` (F-OWN-03), pseudonimizare telefon în loguri (F-PII-01), triaj baseline `pnpm audit` (F-DEP-01); F-OWN-02 (squatting = DoS onboarding, nu takeover) mitigat operațional în RUNBOOK. Raport complet + matrice rută×protecție + log findings → **`docs/SECURITY.md`** și `pentest/audit-2026-06/`.
+
 ### Fixed (2026-06-13) — owner trimis pe `/subscribe` de gate-ul de UI (bypass incomplet pe frontend)
 
 Owner-ul (OWNER_EMAIL), după login, era redirecționat pe `/subscribe` deși backend-ul îl lasă: bypass-ul era doar pe API (entitlement/402), iar gate-ul de UI din `(dashboard)/layout.tsx` calcula entitlement-ul **pe client** din statusul brut al abonamentului (`hasActiveEntitlement(subscription)`) → owner fără rând de abonament = redirect. Frontend-ul nu poate ști de OWNER_EMAIL (secret de backend). Fix: `GET /billing/subscription` întoarce acum și `entitled` (= `userHasEntitlement(userId)`, owner-aware, aceeași sursă ca gate-ul de 402), iar UI-ul gateuiește pe acest flag, nu pe statusul brut. Scoasă funcția-oglindă `hasActiveEntitlement` din client (redundantă; defense-in-depth rămâne — granița reală e API-ul + fail-closed pe eroare). Teste: `billing.integration.test.ts` verifică `entitled` false (fără abonament) / true (activ).

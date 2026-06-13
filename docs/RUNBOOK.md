@@ -151,3 +151,23 @@ npx tsx src/scripts/gen-admin-totp.ts
 
 **Recovery (telefon pierdut / cod care nu mai merge):** nu există lockout posibil. Rulează din nou
 scriptul, pune noul secret în Railway, re-scanează în aplicația authenticator. ~2 minute.
+
+---
+
+## 10. Owner-bypass abonament (`OWNER_EMAIL`)
+
+**Ce face:** contul cu acest email folosește produsul fără plată (entitled + tier Max, pe toate căile).
+
+**Setare corectă (ordine obligatorie — anti-squatting, F-OWN-02):**
+1. **Întâi** înregistrează contul owner în aplicație cu emailul dorit și **verifică-l** (click pe linkul din email).
+2. **Abia apoi** setează `OWNER_EMAIL` în Railway (lowercase nu contează — e normalizat automat) → redeploy.
+
+> De ce ordinea asta: dacă setezi `OWNER_EMAIL` pentru un cont care nu există încă, cineva ar putea înregistra
+> acel email înainte (squatting). Nu duce la preluare de privilegii (login cere email verificat, iar emailul de
+> verificare ajunge la tine), dar te poate bloca la onboarding. Pre-crearea contului elimină fereastra.
+
+**Schimbarea valorii** (rebrand / alt email): owner-bypass-ul e cache-uit în proces cu TTL ~1h (F-OWN-03);
+pentru efect imediat fă **redeploy** după ce schimbi `OWNER_EMAIL` în Railway.
+
+**Verificare:** loghează-te cu contul owner → dashboard-ul trebuie să fie accesibil fără abonament (fără redirect
+pe `/subscribe`); `GET /billing/subscription` întoarce `entitled: true`.

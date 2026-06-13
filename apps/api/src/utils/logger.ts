@@ -17,3 +17,13 @@ export const logger = {
   warn:  (msg: string, ctx?: LogCtx) => write('warn',  msg, ctx),
   error: (msg: string, ctx?: LogCtx) => write('error', msg, ctx),
 }
+
+// F-PII-01: pseudonimizare telefon/JID în loguri (PII). Păstrează doar ultimele 4 cifre pentru
+// corelație, restul mascat — consecvent cu `userId.slice(0,8)`. Acceptă fie un număr, fie un JID
+// WhatsApp (`40712...@s.whatsapp.net`). `null`/gol → '∅'.
+export function maskPhone(value: string | null | undefined): string {
+  if (!value) return '∅'
+  const digits = value.replace(/\D/g, '')
+  if (digits.length <= 4) return `***${digits}`
+  return `***${digits.slice(-4)}`
+}

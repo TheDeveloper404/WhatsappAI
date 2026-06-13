@@ -14,20 +14,26 @@ import { env } from '../../config/env.js'
 // până apare contul. Odată rezolvat la un id real, steady-state-ul e zero query suplimentar pentru oricine.
 let ownerUserIdCache: string | null | undefined
 let ownerResolveAttemptedAt = 0
+// Owner încă inexistent (null/undefined) → reîncearcă des (60s) până apare contul.
 const OWNER_RESOLVE_RETRY_MS = 60_000
+// F-OWN-03: TTL absolut chiar și pe un id real cache-uit → re-rezolvă periodic, ca să prindem
+// ștergerea+re-înregistrarea contului owner (UUID nou) sau schimbarea `OWNER_EMAIL`, fără restart.
+const OWNER_CACHE_TTL_MS = 60 * 60_000
 
 async function isOwnerUser(userId: string): Promise<boolean> {
   if (!env.OWNER_EMAIL) return false
-  if (ownerUserIdCache === userId) return true
-  // Owner deja rezolvat la un id real ≠ acesta → nu e owner, fără query.
-  if (ownerUserIdCache != null) return false
-  // Nerezolvat (undefined) sau owner inexistent la ultima încercare (null) → reîncearcă, throttled.
   const now = Date.now()
-  if (ownerUserIdCache === undefined || now - ownerResolveAttemptedAt > OWNER_RESOLVE_RETRY_MS) {
-    ownerResolveAttemptedAt = now
-    const owner = await authRepository.findUserByEmail(env.OWNER_EMAIL)
-    ownerUserIdCache = owner?.id ?? null
-  }
+  // Fereastra de prospețime: scurtă cât owner-ul e nerezolvat, lungă odată ce avem un id real.
+  const maxAge = ownerUserIdCache == null ? OWNER_RESOLVE_RETRY_MS : OWNER_CACHE_TTL_MS
+  const fresh = now - ownerResolveAttemptedAt <= maxAge
+
+  // Cache valid (în fereastră): hit = owner, miss = non-owner, ambele fără query (steady-state ieftin).
+  if (fresh) return ownerUserIdCache === userId
+
+  // Expirat (sau nerezolvat) → re-rezolvă o dată, throttled prin `ownerResolveAttemptedAt`.
+  ownerResolveAttemptedAt = now
+  const owner = await authRepository.findUserByEmail(env.OWNER_EMAIL)
+  ownerUserIdCache = owner?.id ?? null
   return ownerUserIdCache === userId
 }
 

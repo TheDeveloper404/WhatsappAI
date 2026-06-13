@@ -47,6 +47,13 @@ GROQ_API_KEY=gsk_XXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # LLM_PROVIDER=gemini
 # GEMINI_API_KEY=AIza_XXXXXXXXXXXXXXXXXXXXXXXX
 
+# ─── OWNER BYPASS ─────────────────────────────────────
+# Email-ul proprietarului platformei → folosește propriul produs FĂRĂ plată (entitled + tier Max,
+# pe toate căile: rute, WhatsApp, SSE). OPȚIONAL. Lipsă → fără bypass. Lowercased automat.
+# IMPORTANT: pre-creează ȘI verifică contul owner ÎNAINTE de a seta asta (vezi RUNBOOK). Schimbarea
+# valorii cere redeploy (cache de proces).
+# OWNER_EMAIL=owner@domeniultau.com
+
 # ─── ADMIN ────────────────────────────────────────────
 ADMIN_EMAIL=admin@domeniultau.com
 ADMIN_SECRET=SCHIMBA_CU_UN_STRING_RANDOM_MIN_32_CARACTERE
@@ -93,6 +100,7 @@ WHATSAPP_ENC_KEY=SCHIMBA_CU_openssl_rand_hex_32
 | `GROQ_API_KEY` | **Da** | API key de la [console.groq.com](https://console.groq.com). Necesar mereu (LLM + transcriere vocală Whisper), chiar dacă `LLM_PROVIDER=gemini` |
 | `GEMINI_API_KEY` | Nu | Cheie Google Gemini. Necesară doar dacă `LLM_PROVIDER=gemini` |
 | `LLM_PROVIDER` | Nu | `groq` (default) sau `gemini` — furnizor pentru generarea de text. Vocea rămâne mereu pe Groq |
+| `OWNER_EMAIL` | Nu | Email proprietar → owner-bypass abonament (entitled + tier Max, fără plată) pe toate căile. Lowercased automat (F-OWN-01). Pre-creează+verifică contul ÎNAINTE de a seta (anti-squatting); schimbarea valorii cere redeploy. Lipsă → fără bypass |
 | `ADMIN_EMAIL` | Nu | Email-ul contului de admin |
 | `ADMIN_SECRET` | Nu | Secret pentru autentificarea în panoul admin. Min 32 chars |
 | `ADMIN_SESSION_SECRET` | Recomandat (dacă folosești admin) | Secret DEDICAT pentru semnarea sesiunii admin (M5), izolat de `JWT_ACCESS_SECRET`. `openssl rand -hex 32`. Fără el, sesiunea admin se derivă din JWT root (avertisment la pornire) |

@@ -11,7 +11,7 @@ import { userHasEntitlement, userTier, monthlyAiLimit, visionAllowed, multiServi
 import { allowIncomingMessage } from './incoming.rate-limiter.js'
 import { parseCommand, HELP_TEXT } from './command.parser.js'
 import { recordOwnerReply, isOwnerActive } from './inactivity.tracker.js'
-import { logger } from '../../utils/logger.js'
+import { logger, maskPhone } from '../../utils/logger.js'
 import { appEvents } from '../../utils/events.js'
 import type { AiSettings } from '../../db/schema.js'
 
@@ -802,7 +802,7 @@ export async function handleMessages(userId: string, sock: WASocket, messages: a
 
 async function processMessage(userId: string, sock: WASocket, msg: any): Promise<void> {
   const jid: string = msg.key?.remoteJid
-  logger.info(`[AI][${userId.slice(0, 8)}] msg-raw`, { jid, fromMe: msg.key?.fromMe, hasMsg: !!msg.message })
+  logger.info(`[AI][${userId.slice(0, 8)}] msg-raw`, { jid: maskPhone(jid), fromMe: msg.key?.fromMe, hasMsg: !!msg.message })
   if (!jid || !isIndividualChat(jid)) return
 
   const fromMe: boolean = msg.key?.fromMe ?? false
@@ -821,7 +821,7 @@ async function processMessage(userId: string, sock: WASocket, msg: any): Promise
     return
   }
   const waTimestamp = (msg.messageTimestamp as number) * 1000
-  logger.info(`[AI][${userId.slice(0, 8)}] procesez mesaj`, { fromMe, contactPhone })
+  logger.info(`[AI][${userId.slice(0, 8)}] procesez mesaj`, { fromMe, contactPhone: maskPhone(contactPhone) })
 
   // Cost-cap anti-DoS financiar (H6): plafonăm câte mesaje PRIMITE declanșează pipeline-ul AI
   // (cost LLM pe chei partajate de platformă), per contact și per user. In-memory, ieftin — rulează
@@ -829,7 +829,7 @@ async function processMessage(userId: string, sock: WASocket, msg: any): Promise
   // Drop silențios (NU trimitem mesaj de fallback): a răspunde unui număr care inundă ne-ar face
   // vector de spam/amplificare. Owner-ul (`fromMe`) e exclus.
   if (!fromMe && !allowIncomingMessage(userId, contactPhone)) {
-    logger.warn(`[AI][${userId.slice(0, 8)}] mesaj primit limitat (anti-flood H6)`, { contactPhone })
+    logger.warn(`[AI][${userId.slice(0, 8)}] mesaj primit limitat (anti-flood H6)`, { contactPhone: maskPhone(contactPhone) })
     return
   }
 
@@ -910,7 +910,7 @@ async function processMessage(userId: string, sock: WASocket, msg: any): Promise
   }
 
   if (!body) {
-    logger.info(`[AI][${userId.slice(0, 8)}] body null`, { fromMe, contactPhone, stubType: msg.messageStubType, msgKeys: msg.message ? Object.keys(msg.message) : null })
+    logger.info(`[AI][${userId.slice(0, 8)}] body null`, { fromMe, contactPhone: maskPhone(contactPhone), stubType: msg.messageStubType, msgKeys: msg.message ? Object.keys(msg.message) : null })
     return
   }
 

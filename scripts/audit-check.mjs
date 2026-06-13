@@ -31,6 +31,7 @@ const BASELINE = {
   'GHSA-5j98-mcp5-4vw2': 'glob CLI command injection (dev-only, via eslint-config-next)',
   'GHSA-q3j6-qgpj-74h6': 'fast-uri path traversal (tranzitiv via fastify)',
   'GHSA-v39h-62p7-jpjc': 'fast-uri host confusion (tranzitiv via fastify)',
+  'GHSA-gv7w-rqvm-qjhr': 'esbuild RCE — DENO-ONLY (varianta Node/npm are binaryIntegrityCheck SHA-256); la noi e devDep tranzitiv de build/test, neexploatabil. Fixat în 0.28.1 (suntem pe 0.28.0).',
 }
 
 function runAudit() {

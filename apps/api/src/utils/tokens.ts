@@ -14,6 +14,9 @@ export interface TokenPayload {
   role: string
   iat: number
   exp: number
+  // F-AUTH-01: leagă tokenul de scopul lui. `undefined` = token legacy (emis înainte de fix) — acceptat
+  // tranzitoriu la verificare; token-urile noi au mereu `typ`, deci confuzia access↔refresh e blocată.
+  typ?: 'access' | 'refresh'
 }
 
 function base64url(data: string): string {
@@ -47,22 +50,29 @@ export function createAccessToken(userId: string, role: string): string {
   const now = Math.floor(Date.now() / 1000)
   const exp = now + Math.floor(parseDuration(env.JWT_ACCESS_EXPIRES_IN) / 1000)
   const jti = randomBytes(8).toString('hex')
-  return sign({ userId, role, iat: now, exp, jti }, env.JWT_ACCESS_SECRET)
+  return sign({ userId, role, typ: 'access', iat: now, exp, jti }, env.JWT_ACCESS_SECRET)
 }
 
 export function createRefreshToken(userId: string, role: string): string {
   const now = Math.floor(Date.now() / 1000)
   const exp = now + Math.floor(parseDuration(env.JWT_REFRESH_EXPIRES_IN) / 1000)
   const jti = randomBytes(8).toString('hex')
-  return sign({ userId, role, iat: now, exp, jti }, env.JWT_REFRESH_SECRET)
+  return sign({ userId, role, typ: 'refresh', iat: now, exp, jti }, env.JWT_REFRESH_SECRET)
 }
 
+// F-AUTH-01: pe lângă secretul distinct, verificăm și `typ` — un refresh token prezentat ca access
+// (sau invers) e respins chiar dacă secretele ar fi configurate identic/scurse. `typ` absent = token
+// legacy (emis înainte de fix) → acceptat tranzitoriu; toate token-urile noi îl au (expiră în ≤7 zile).
 export function verifyAccessToken(token: string): TokenPayload {
-  return verify(token, env.JWT_ACCESS_SECRET)
+  const payload = verify(token, env.JWT_ACCESS_SECRET)
+  if (payload.typ !== undefined && payload.typ !== 'access') throw new Error('Wrong token type')
+  return payload
 }
 
 export function verifyRefreshToken(token: string): TokenPayload {
-  return verify(token, env.JWT_REFRESH_SECRET)
+  const payload = verify(token, env.JWT_REFRESH_SECRET)
+  if (payload.typ !== undefined && payload.typ !== 'refresh') throw new Error('Wrong token type')
+  return payload
 }
 
 // Sesiune admin: token semnat, scurt, emis după validarea ADMIN_SECRET.

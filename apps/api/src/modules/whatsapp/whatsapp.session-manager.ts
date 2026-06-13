@@ -7,7 +7,7 @@ import { usePostgresAuthState, clearAuthState } from './whatsapp.auth-state.js'
 import { handleMessages } from '../ai/message.handler.js'
 import { aiRepository } from '../ai/ai.repository.js'
 import { appEvents } from '../../utils/events.js'
-import { logger } from '../../utils/logger.js'
+import { logger, maskPhone } from '../../utils/logger.js'
 
 const _require = createRequire(import.meta.url)
 const {
@@ -124,7 +124,7 @@ function attachPersistentHandlers(sock: WASocket, userId: string) {
           await handleMessages(userId, sock, messages)
         })
         const phoneNumber = sock.user?.id?.split(':')[0] ?? null
-        logger.info(`[WA][${userId.slice(0, 8)}] CONECTAT`, { phone: phoneNumber })
+        logger.info(`[WA][${userId.slice(0, 8)}] CONECTAT`, { phone: maskPhone(phoneNumber) })
         await whatsappRepository.update(userId, {
           status: 'connected',
           phoneNumber,

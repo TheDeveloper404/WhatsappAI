@@ -48,7 +48,9 @@ const envSchema = z.object({
 
   CORS_ORIGINS: z.string().optional(),
   ADMIN_EMAIL: z.string().email().optional(),
-  OWNER_EMAIL: z.string().email().optional(),
+  // Lowercased la încărcare (F-OWN-01): emailurile userilor se stochează lowercased (schema register),
+  // deci un `OWNER_EMAIL` cu majuscule ar rata silent match-ul de owner-bypass (fail-closed, dar footgun).
+  OWNER_EMAIL: z.string().email().transform(v => v.toLowerCase()).optional(),
   ADMIN_SECRET: z.string().min(32).optional(),
   // Secret DEDICAT pentru semnarea sesiunii admin (M5). Dacă lipsește, se derivă din
   // JWT_ACCESS_SECRET (compatibilitate) — dar atunci un compromis al acelui secret permite și

@@ -181,7 +181,7 @@ export const api = {
 
   billing: {
     getSubscription: (accessToken: string) =>
-      request<{ subscription: Subscription | null; entitled: boolean }>('/api/v1/billing/subscription', {
+      request<{ subscription: Subscription | null; entitled: boolean; tier: 'pro' | 'max' | null }>('/api/v1/billing/subscription', {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
         credentials: 'include',
       }),
@@ -196,6 +196,15 @@ export const api = {
 
     createPortal: (accessToken: string) =>
       request<{ url: string }>('/api/v1/billing/portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        credentials: 'include',
+        body: '{}',
+      }),
+
+    // Upgrade in-place Pro → Max pe abonamentul existent (proration pe factura următoare).
+    upgradeToMax: (accessToken: string) =>
+      request<{ tier: 'max'; plan: 'monthly' | 'annual' }>('/api/v1/billing/upgrade', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
         credentials: 'include',

@@ -107,7 +107,7 @@ export default function AdminLoginPage() {
         </div>
 
         <p className="font-mono-ui text-center text-[11px] text-dimmer mt-6">
-          WhatsApp AI · panou administrare intern
+          waai · panou administrare intern
         </p>
 
       </div>

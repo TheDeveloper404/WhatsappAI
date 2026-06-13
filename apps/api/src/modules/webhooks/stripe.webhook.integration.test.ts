@@ -323,6 +323,61 @@ describe('customer.subscription.updated', () => {
     expect(agentRows[0].isActive).toBe(true)
   })
 
+  it('200 — upgrade Pro→Max: price-ul Max din items setează tier=max + plan din price', async () => {
+    const { user } = await registerAndLogin('webhook-upgrade-tier@test.com')
+    await createSubscription(user.id, {
+      stripeCustomerId: 'cus_upg_tier',
+      stripeSubscriptionId: 'sub_upg_tier',
+      status: 'active',
+    }) // tier implicit (null → tratat ca Pro)
+
+    const res = await sendWebhook({
+      type: 'customer.subscription.updated',
+      data: {
+        object: {
+          id: 'sub_upg_tier',
+          status: 'active',
+          trial_end: null,
+          billing_cycle_anchor: Math.floor(Date.now() / 1000),
+          items: { data: [{ price: { id: 'price_test_max_monthly' } }] },
+        },
+      },
+    })
+    expect(res.statusCode).toBe(200)
+
+    const rows = await db.select().from(subscriptions).where(eq(subscriptions.userId, user.id))
+    expect(rows[0].tier).toBe('max')
+    expect(rows[0].plan).toBe('monthly')
+  })
+
+  it('200 — price nemapat NU atinge tier (fail-safe: fără retrogradare)', async () => {
+    const { user } = await registerAndLogin('webhook-unknown-price@test.com')
+    await createSubscription(user.id, {
+      stripeCustomerId: 'cus_unknown_price',
+      stripeSubscriptionId: 'sub_unknown_price',
+      status: 'active',
+    })
+    // Punem manual tier='max' ca să verificăm că un price necunoscut NU îl resetează.
+    await db.update(subscriptions).set({ tier: 'max' }).where(eq(subscriptions.userId, user.id))
+
+    const res = await sendWebhook({
+      type: 'customer.subscription.updated',
+      data: {
+        object: {
+          id: 'sub_unknown_price',
+          status: 'active',
+          trial_end: null,
+          billing_cycle_anchor: Math.floor(Date.now() / 1000),
+          items: { data: [{ price: { id: 'price_legacy_necunoscut' } }] },
+        },
+      },
+    })
+    expect(res.statusCode).toBe(200)
+
+    const rows = await db.select().from(subscriptions).where(eq(subscriptions.userId, user.id))
+    expect(rows[0].tier).toBe('max') // neatins
+  })
+
   it('200 — cancel_at_period_end marchează anularea la final fără dezactivare imediată', async () => {
     const { user } = await registerAndLogin('webhook-cancel-at-end@test.com')
     await createSubscription(user.id, {

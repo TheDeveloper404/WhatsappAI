@@ -64,7 +64,7 @@ export function parseCommand(body: string): ParsedCommand | null {
   return null
 }
 
-export const HELP_TEXT = `*Comenzi WhatsApp AI:*
+export const HELP_TEXT = `*Comenzi waai:*
 /activateAI — activează agentul
 /deactivateAI — dezactivează agentul
 /pauseAI 2h — pauză X ore

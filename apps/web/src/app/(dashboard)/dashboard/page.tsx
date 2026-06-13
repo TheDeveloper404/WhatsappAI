@@ -44,6 +44,7 @@ function DashboardContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const [sub, setSub] = useState<Subscription | null>(null)
+  const [entitled, setEntitled] = useState(false)
   const [waSession, setWaSession] = useState<WhatsappSession | null>(null)
   const [aiSettings, setAiSettings] = useState<AiSettings | null>(null)
   const [stats, setStats] = useState<AiStats | null>(null)
@@ -73,7 +74,7 @@ function DashboardContent() {
     // Cardurile de status (Agent AI, WhatsApp, Trial) depind doar de primele 3 call-uri.
     // Stats sunt mai lente (agregări) și nu trebuie să blocheze afișarea cardurilor.
     Promise.all([
-      api.billing.getSubscription(accessToken).then(({ subscription }) => setSub(subscription)).catch(() => {}),
+      api.billing.getSubscription(accessToken).then(({ subscription, entitled }) => { setSub(subscription); setEntitled(entitled) }).catch(() => {}),
       api.whatsapp.getSession(accessToken).then(({ session }) => setWaSession(session)).catch(() => {}),
       api.ai.getSettings(accessToken).then(({ settings }) => setAiSettings(settings)).catch(() => {}),
     ]).finally(() => setInitialLoaded(true))
@@ -165,11 +166,25 @@ function DashboardContent() {
   }
 
   const isWaConnected = waSession?.status === 'connected'
-  const { text: statusText, color: statusColor } = statusLabel(sub)
+  // Owner bypass: are drept (`entitled`) fără abonament plătit (sub null/incomplete). Nu e admin de
+  // platformă — e business owner care folosește agentul. Pentru el ascundem prompturile de trial/
+  // activare și afișăm „Acces complet" în loc de „Fără subscripție".
+  const isOwnerAccess = entitled && (!sub || sub.status === 'incomplete')
+  const { text: statusText, color: statusColor } = isOwnerAccess
+    ? { text: 'Acces complet', color: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' }
+    : statusLabel(sub)
   const canToggleAI = aiSettings && !aiSettings.adminDisabled
   const subEndsAt = subscriptionEndsAt(sub)
   const subEndsDate = formatDate(subEndsAt)
   const subscriptionStep = (() => {
+    if (isOwnerAccess) {
+      return {
+        title: 'Acces complet',
+        done: true,
+        desc: 'Cont owner — toate funcțiile deblocate, fără abonament.',
+      }
+    }
+
     if (!sub || sub.status === 'incomplete') {
       return {
         title: 'Subscripție neactivată',
@@ -213,6 +228,9 @@ function DashboardContent() {
     }
   })()
   const trialPanel = (() => {
+    if (isOwnerAccess) {
+      return { value: 'Acces complet', label: 'owner — toate funcțiile' }
+    }
     if (sub?.status === 'trialing') {
       return {
         value: trialDaysLeft(sub.trialEndsAt),
@@ -336,7 +354,7 @@ function DashboardContent() {
           </button>
         </div>
       )}
-      {initialLoaded && !showCheckoutSuccess && (!sub || sub.status === 'incomplete') && user?.role !== 'admin' && (
+      {initialLoaded && !showCheckoutSuccess && !isOwnerAccess && (!sub || sub.status === 'incomplete') && user?.role !== 'admin' && (
         <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 mb-8 flex items-center gap-3">
           <div className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
           <p className="font-mono-ui text-[13px] text-amber-800 dark:text-amber-300">
@@ -441,7 +459,7 @@ function DashboardContent() {
           <div className="p-5 flex flex-col gap-3">
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-purple-500 dark:text-purple-400" />
-              <span className="font-mono-ui text-[12px] text-dim">Trial</span>
+              <span className="font-mono-ui text-[12px] text-dim">{isOwnerAccess ? 'Acces' : 'Trial'}</span>
             </div>
             <div>
               <p className="font-display text-[22px] leading-none text-purple-600 dark:text-purple-400">

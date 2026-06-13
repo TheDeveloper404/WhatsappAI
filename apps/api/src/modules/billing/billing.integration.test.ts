@@ -24,6 +24,12 @@ vi.mock('../../config/stripe.js', () => ({
         create: vi.fn().mockResolvedValue({ url: 'https://billing.stripe.com/test' }),
       },
     },
+    subscriptions: {
+      retrieve: vi.fn().mockResolvedValue({
+        items: { data: [{ id: 'si_test', price: { id: 'price_test_pro_monthly' } }] },
+      }),
+      update: vi.fn().mockResolvedValue({}),
+    },
   },
 }))
 
@@ -31,6 +37,7 @@ import { sendVerificationEmail } from '../../utils/email.js'
 import { stripe } from '../../config/stripe.js'
 import { db } from '../../config/database.js'
 import { subscriptions } from '../../db/schema.js'
+import { eq } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 
 let app: FastifyInstance
@@ -121,6 +128,7 @@ describe('GET /billing/subscription', () => {
     expect(res.statusCode).toBe(200)
     expect(res.json().subscription).toBeNull()
     expect(res.json().entitled).toBe(false)
+    expect(res.json().tier).toBeNull()
   })
 
   it('200 — entitled:true când există abonament activ (gate-ul de UI nu mai trimite pe /subscribe)', async () => {
@@ -134,6 +142,65 @@ describe('GET /billing/subscription', () => {
     expect(res.statusCode).toBe(200)
     expect(res.json().subscription.status).toBe('active')
     expect(res.json().entitled).toBe(true)
+    expect(res.json().tier).toBe('pro') // seed fără tier explicit → subTier() = 'pro'
+  })
+})
+
+// ---------------------------------------------------------------------------
+// POST /billing/upgrade  (Pro → Max in-place)
+// ---------------------------------------------------------------------------
+
+describe('POST /billing/upgrade', () => {
+  it('401 — fără token', async () => {
+    const res = await app.inject({ method: 'POST', url: '/api/v1/billing/upgrade' })
+    expect(res.statusCode).toBe(401)
+  })
+
+  it('402 — user fără abonament (requireActiveSubscription)', async () => {
+    const accessToken = await registerAndLogin('upgrade-no-sub@example.com')
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/billing/upgrade',
+      headers: { authorization: `Bearer ${accessToken}` },
+    })
+    expect(res.statusCode).toBe(402)
+  })
+
+  it('200 — Pro activ → Max: swap price (proration pe factura următoare) + tier=max', async () => {
+    const { accessToken, userId } = await registerLoginId('upgrade-happy@example.com')
+    await seedActiveSubscription(userId) // tier null → Pro, stripeSubscriptionId = sub_<userId>
+    vi.mocked(stripe.subscriptions.update).mockClear()
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/billing/upgrade',
+      headers: { authorization: `Bearer ${accessToken}` },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(res.json().tier).toBe('max')
+
+    // Stripe a fost chemat să schimbe price-ul la Max monthly, cu proration pe factura următoare.
+    const call = vi.mocked(stripe.subscriptions.update).mock.calls[0]!
+    expect(call[0]).toBe(`sub_${userId}`)
+    expect(call[1]?.items?.[0]?.price).toBe('price_test_max_monthly')
+    expect(call[1]?.proration_behavior).toBe('create_prorations')
+
+    // Tier reflectat optimist în DB (webhook-ul reconfirmă în prod).
+    const rows = await db.select().from(subscriptions).where(eq(subscriptions.userId, userId))
+    expect(rows[0].tier).toBe('max')
+  })
+
+  it('409 — deja pe Max', async () => {
+    const { accessToken, userId } = await registerLoginId('upgrade-already-max@example.com')
+    await seedActiveSubscription(userId)
+    await db.update(subscriptions).set({ tier: 'max' }).where(eq(subscriptions.userId, userId))
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/billing/upgrade',
+      headers: { authorization: `Bearer ${accessToken}` },
+    })
+    expect(res.statusCode).toBe(409)
   })
 })
 

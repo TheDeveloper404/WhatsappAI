@@ -19,13 +19,13 @@ export default function ConfidentialitatePage() {
 
         <section>
           <h2 className="font-display-md text-[22px] text-ink mb-3">1. Cine suntem</h2>
-          <p>WhatsApp AI SRL, cu sediul în București, România, este operatorul datelor cu caracter personal colectate prin intermediul platformei WhatsApp AI. Ne poți contacta la <a href="mailto:support@waai.ro" className="text-acid hover:underline">support@waai.ro</a>.</p>
+          <p>ACL Smart Software SRL (care operează platforma &bdquo;waai&rdquo;), cu sediul în Str. Horea 2/31, Petroșani, România (CUI 51219715), este operatorul datelor cu caracter personal colectate prin intermediul platformei waai. Ne poți contacta la <a href="mailto:support@waai.ro" className="text-acid hover:underline">support@waai.ro</a>.</p>
         </section>
 
         <section>
           <h2 className="font-display-md text-[22px] text-ink mb-3">2. Ce date colectăm</h2>
           <ul className="list-disc pl-5 space-y-1.5 mt-3">
-            <li><strong className="text-ink">Date de cont:</strong> adresă de email, parolă (stocată criptat), număr de telefon</li>
+            <li><strong className="text-ink">Date de cont:</strong> adresă de email, parolă (stocată sub formă de hash), număr de telefon</li>
             <li><strong className="text-ink">Date de utilizare:</strong> configurațiile agentului, stilul de scriere, prompturile personalizate</li>
             <li><strong className="text-ink">Date de plată:</strong> procesate exclusiv de Stripe — nu stocăm date ale cardului</li>
             <li><strong className="text-ink">Date tehnice:</strong> adresă IP, tipul browserului, paginile accesate, durata sesiunii</li>
@@ -52,7 +52,7 @@ export default function ConfidentialitatePage() {
           <p>Nu vindem datele tale. Le partajăm doar cu:</p>
           <ul className="list-disc pl-5 space-y-1.5 mt-3">
             <li><strong className="text-ink">Stripe</strong> — procesare plăți</li>
-            <li><strong className="text-ink">Groq / furnizori AI</strong> — procesarea mesajelor pentru generarea răspunsurilor</li>
+            <li><strong className="text-ink">Google (Gemini), Groq</strong> — furnizori AI care procesează mesajele pentru generarea răspunsurilor (Gemini este furnizorul principal, Groq rezervă)</li>
             <li><strong className="text-ink">Autorități publice</strong> — când suntem obligați legal</li>
           </ul>
         </section>
@@ -69,7 +69,7 @@ export default function ConfidentialitatePage() {
 
         <section>
           <h2 className="font-display-md text-[22px] text-ink mb-3">8. Securitate</h2>
-          <p>Utilizăm măsuri tehnice și organizatorice adecvate pentru protejarea datelor tale: criptare în tranzit (TLS), criptare la stocare pentru date sensibile, autentificare cu doi factori disponibilă, audituri periodice de securitate.</p>
+          <p>Utilizăm măsuri tehnice și organizatorice adecvate pentru protejarea datelor tale: criptare în tranzit (TLS), criptare la stocare pentru date sensibile, parole stocate sub formă de hash, audituri periodice de securitate.</p>
         </section>
 
       </div>

@@ -4,6 +4,7 @@ import { stripe } from '../../config/stripe.js'
 import { env } from '../../config/env.js'
 import { pool } from '../../config/database.js'
 import { billingRepository } from '../billing/billing.repository.js'
+import { priceMeta } from '../billing/billing.service.js'
 import { adminRepository } from '../admin/admin.repository.js'
 import { notifyAdmin } from '../admin/notifications.service.js'
 
@@ -123,8 +124,14 @@ async function handleEvent(event: Stripe.Event, app: FastifyInstance) {
       }
       const status = statusMap[stripeSub.status] ?? 'incomplete'
 
+      // Reflectă schimbarea de tier/plan din price-ul curent (ex. upgrade Pro→Max prin
+      // `subscriptions.update` sau portal). `null` = price nemapat → NU atingem tier/plan
+      // (fail-safe: nu retrograda din cauza unui price necunoscut).
+      const meta = priceMeta(stripeSub.items?.data?.[0]?.price?.id)
+
       await billingRepository.update(existing.id, {
         status,
+        ...(meta ? { tier: meta.tier, plan: meta.plan } : {}),
         trialEndsAt: stripeSub.trial_end ? stripeSub.trial_end * 1000 : null,
         currentPeriodEndsAt: getCurrentPeriodEnd(stripeSub),
         cancelAtPeriodEnd: Boolean(stripeSub.cancel_at_period_end),

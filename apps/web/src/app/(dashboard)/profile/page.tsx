@@ -13,6 +13,7 @@ export default function ProfilePage() {
   const { user, accessToken } = useAuthStore()
 
   const [subscription, setSubscription] = useState<Subscription | null>(null)
+  const [entitled, setEntitled] = useState(false)
   const [loadingSub, setLoadingSub] = useState(true)
   const [sendingReset, setSendingReset] = useState(false)
   const [resetSent, setResetSent] = useState(false)
@@ -22,7 +23,7 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!accessToken) return
     api.billing.getSubscription(accessToken)
-      .then(({ subscription: s }) => setSubscription(s))
+      .then(({ subscription: s, entitled: e }) => { setSubscription(s); setEntitled(e) })
       .catch(() => {})
       .finally(() => setLoadingSub(false))
   }, [accessToken])
@@ -147,6 +148,14 @@ export default function ProfilePage() {
           </div>
           {loadingSub ? (
             <Loader2 className="h-4 w-4 animate-spin text-acid" />
+          ) : entitled && !subscription ? (
+            // Owner bypass: drept valid fără rând de abonament (tier 'max').
+            <div className="flex items-center gap-2">
+              <span className="font-mono-ui text-[11px] font-semibold px-2 py-0.5 rounded-full bg-acid/15 text-acid uppercase tracking-wider">
+                Max
+              </span>
+              <p className="font-mono-ui text-[13px] text-ink font-medium">Owner — acces complet, fără abonament</p>
+            </div>
           ) : subscription ? (
             <div className="flex items-start justify-between gap-4">
               <div>

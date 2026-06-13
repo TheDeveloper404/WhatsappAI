@@ -4,6 +4,7 @@ import { useAuthStore } from '@/store/auth'
 import { api, ApiRequestError, type AiSettings, type WhatsappSession, type KnowledgeDocument } from '@/lib/api'
 import { CURRENCIES, currencyLabel } from '@/lib/format'
 import { Loader2, Save, Plus, X, Bot, Clock, Shield, Terminal, Flame, FileText, Upload, Trash2 } from 'lucide-react'
+import { UpgradeToMaxButton } from '@/components/UpgradeToMaxButton'
 
 const inputCls = 'w-full rounded-xl border border-line px-3 py-2.5 text-[13px] text-ink bg-cardhi focus:outline-hidden focus:ring-2 focus:ring-acid/40 focus:border-acid transition-colors resize-y'
 
@@ -69,9 +70,9 @@ export default function SettingsPage() {
       api.whatsapp.getSession(accessToken).catch(() => ({ session: null })),
       api.knowledge.list(accessToken).catch(() => ({ documents: [] })),
       api.ai.getLlmProvider(accessToken).catch(() => null),
-      api.billing.getSubscription(accessToken).catch(() => ({ subscription: null })),
+      api.billing.getSubscription(accessToken).catch(() => ({ tier: null as 'pro' | 'max' | null })),
     ])
-      .then(([{ settings: s }, { phones }, { session }, { documents: docs }, llm, { subscription }]) => {
+      .then(([{ settings: s }, { phones }, { session }, { documents: docs }, llm, { tier }]) => {
         setSettings(s)
         setSystemPrompt(s.systemPrompt)
         setKnowledgeBase(s.knowledgeBase ?? '')
@@ -80,7 +81,8 @@ export default function SettingsPage() {
         setOrderIntakePrompt(s.orderIntakePrompt ?? '')
         setCurrency(s.currency ?? 'RON')
         setTimerMinutes(s.timerMinutes)
-        setTier(subscription?.tier === 'max' ? 'max' : 'pro')
+        // `tier` owner-aware (owner → 'max'); `subscription.tier` ar fi null pentru owner.
+        setTier(tier === 'max' ? 'max' : 'pro')
         setBlacklist(phones)
         setWaSession(session)
         setDocuments(docs)
@@ -402,9 +404,10 @@ export default function SettingsPage() {
             {tier === 'pro' && (
               <p className="font-mono-ui text-[12px] text-dimmer mt-3">
                 Pe planul Pro minimul e 5 min.{' '}
-                <a href="/subscribe" className="text-acid underline underline-offset-2 hover:opacity-80">
-                  Treci pe Max
-                </a>{' '}
+                <UpgradeToMaxButton
+                  className="text-acid underline underline-offset-2 hover:opacity-80"
+                  onUpgraded={() => setTier('max')}
+                />{' '}
                 pentru valori de la 1 min.
               </p>
             )}

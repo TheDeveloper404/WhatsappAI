@@ -11,7 +11,7 @@ import { generateSecret, generateURI } from 'otplib'
 
 const label = process.argv[2] ?? 'admin'
 const secret = generateSecret()
-const uri = generateURI({ issuer: 'WhatsApp AI', label, secret })
+const uri = generateURI({ issuer: 'waai', label, secret })
 
 console.log('')
 console.log('  Secret TOTP (base32) — pune-l în Railway ca ADMIN_TOTP_SECRET:')

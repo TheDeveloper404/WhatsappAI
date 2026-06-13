@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import { authenticate } from '../../middleware/authenticate.js'
 import { billingService } from './billing.service.js'
+import { userHasEntitlement } from './entitlement.js'
 import { Errors } from '../../utils/errors.js'
 import { z } from 'zod'
 
@@ -27,6 +28,10 @@ export async function billingRoutes(app: FastifyInstance) {
 
   app.get('/subscription', { preHandler: authenticate }, async (req, reply) => {
     const sub = await billingService.getSubscription(req.user!.id)
-    return reply.send({ subscription: sub ?? null })
+    // `entitled` = owner-aware (bypass OWNER_EMAIL inclus prin userHasEntitlement), aceeași sursă de
+    // adevăr ca gate-ul de 402. UI-ul gateuiește pe ASTA, nu pe statusul brut al abonamentului — altfel
+    // owner-ul (fără rând de abonament) e trimis greșit pe /subscribe deși backend-ul îl lasă.
+    const entitled = await userHasEntitlement(req.user!.id)
+    return reply.send({ subscription: sub ?? null, entitled })
   })
 }

@@ -3,29 +3,14 @@ import { Suspense, useEffect, useRef, useState } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuthStore } from '@/store/auth'
-import { api, type Subscription } from '@/lib/api'
+import { api } from '@/lib/api'
 import { Loader2, LayoutDashboard, MessageSquare, Settings, User, LogOut, ShoppingCart, Menu, X } from 'lucide-react'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { NotificationBell } from '@/components/NotificationBell'
 
-// Oglindă pe client a lui `isEntitled` din API (apps/api/.../billing/entitlement.ts). Doar
-// defense-in-depth pe UI — granița reală e API-ul (C1/C2). Fail-closed: orice ambiguitate = fără acces.
-//  - `active`   → acces (mai puțin: programat la anulare ȘI perioada a trecut).
-//  - `trialing` → acces cât timp trial-ul nu a expirat.
-//  - `incomplete` / `past_due` / `canceled` / fără abonament → fără acces.
-function hasActiveEntitlement(sub: Subscription | null | undefined): boolean {
-  if (!sub) return false
-  const now = Date.now()
-  if (sub.status === 'active') {
-    if (sub.cancelAtPeriodEnd && sub.currentPeriodEndsAt != null && now > sub.currentPeriodEndsAt) return false
-    return true
-  }
-  if (sub.status === 'trialing') {
-    return sub.trialEndsAt == null || now <= sub.trialEndsAt
-  }
-  return false
-}
-
+// Entitlement-ul de UI vine acum din API (`/billing/subscription` → `entitled`), sursă unică
+// owner-aware (include bypass OWNER_EMAIL). Defense-in-depth: granița reală rămâne API-ul (C1/C2),
+// fail-closed pe orice eroare (vezi catch-ul gate-ului mai jos).
 function WaIcon({ size = 16 }: { size?: number }) {
   return (
     <svg viewBox="0 0 32 32" width={size} height={size} fill="#fff">
@@ -287,9 +272,11 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     }
 
     setChecking(true)
-    api.billing.getSubscription(accessToken!).then(({ subscription }) => {
-      // `past_due` și `canceled` NU mai trec (înainte doar null/incomplete redirecționau).
-      if (!hasActiveEntitlement(subscription)) {
+    api.billing.getSubscription(accessToken!).then(({ entitled }) => {
+      // Gate pe `entitled` = sursa de adevăr OWNER-AWARE din backend (include bypass OWNER_EMAIL +
+      // active/trialing valide, exclude past_due/canceled). NU mai calculăm din statusul brut pe client —
+      // altfel owner-ul (fără rând de abonament) era trimis greșit pe /subscribe deși API-ul îl lasă.
+      if (!entitled) {
         subVerified.current = false
         router.replace('/subscribe')
       } else {

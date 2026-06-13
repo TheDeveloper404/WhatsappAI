@@ -181,7 +181,7 @@ export const api = {
 
   billing: {
     getSubscription: (accessToken: string) =>
-      request<{ subscription: Subscription | null }>('/api/v1/billing/subscription', {
+      request<{ subscription: Subscription | null; entitled: boolean }>('/api/v1/billing/subscription', {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
         credentials: 'include',
       }),

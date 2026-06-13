@@ -29,8 +29,29 @@ vi.mock('../../config/stripe.js', () => ({
 
 import { sendVerificationEmail } from '../../utils/email.js'
 import { stripe } from '../../config/stripe.js'
+import { db } from '../../config/database.js'
+import { subscriptions } from '../../db/schema.js'
+import { randomUUID } from 'crypto'
 
 let app: FastifyInstance
+
+// Seed direct un abonament activ pentru un user (ca să verificăm flag-ul `entitled` din rută).
+async function seedActiveSubscription(userId: string) {
+  const now = Date.now()
+  await db.insert(subscriptions).values({
+    id: randomUUID(),
+    userId,
+    stripeCustomerId: `cus_${userId}`,
+    stripeSubscriptionId: `sub_${userId}`,
+    plan: 'monthly',
+    status: 'active',
+    trialEndsAt: now + 7 * 86_400_000,
+    currentPeriodEndsAt: now + 30 * 86_400_000,
+    cancelAtPeriodEnd: false,
+    createdAt: now,
+    updatedAt: now,
+  })
+}
 
 // Ultimul price ID + metadata cu care a fost chemat Stripe checkout (mock) — ca să verificăm maparea (tier × plan).
 function lastCheckoutArgs() {
@@ -69,6 +90,17 @@ async function registerAndLogin(email = 'billing@example.com') {
   return res.json().accessToken as string
 }
 
+// Variantă care întoarce și userId-ul (pentru seed de abonament).
+async function registerLoginId(email: string): Promise<{ accessToken: string; userId: string }> {
+  const accessToken = await registerAndLogin(email)
+  const res = await app.inject({
+    method: 'POST',
+    url: '/api/v1/auth/login',
+    payload: { email, password: 'Password123!' },
+  })
+  return { accessToken, userId: res.json().user.id as string }
+}
+
 // ---------------------------------------------------------------------------
 // GET /billing/subscription
 // ---------------------------------------------------------------------------
@@ -79,7 +111,7 @@ describe('GET /billing/subscription', () => {
     expect(res.statusCode).toBe(401)
   })
 
-  it('200 — returnează null când nu există subscripție', async () => {
+  it('200 — returnează null + entitled:false când nu există subscripție', async () => {
     const accessToken = await registerAndLogin()
     const res = await app.inject({
       method: 'GET',
@@ -88,6 +120,20 @@ describe('GET /billing/subscription', () => {
     })
     expect(res.statusCode).toBe(200)
     expect(res.json().subscription).toBeNull()
+    expect(res.json().entitled).toBe(false)
+  })
+
+  it('200 — entitled:true când există abonament activ (gate-ul de UI nu mai trimite pe /subscribe)', async () => {
+    const { accessToken, userId } = await registerLoginId('billing-entitled@example.com')
+    await seedActiveSubscription(userId)
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/v1/billing/subscription',
+      headers: { authorization: `Bearer ${accessToken}` },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(res.json().subscription.status).toBe('active')
+    expect(res.json().entitled).toBe(true)
   })
 })
 

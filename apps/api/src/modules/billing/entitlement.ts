@@ -1,5 +1,35 @@
 import type { Subscription } from '../../db/schema.js'
 import { billingRepository } from './billing.repository.js'
+import { authRepository } from '../auth/auth.repository.js'
+import { env } from '../../config/env.js'
+
+// Owner bypass (consecvent cu `requireActiveSubscription`, care îl aplică pe rutele API prin email).
+// AICI îl aplicăm pe calea scoped-pe-userId — singura folosită de fluxul WhatsApp/AI, care NU trece
+// prin middleware. Fără asta, owner-ul s-ar putea loga în dashboard dar agentul lui ar fi mort
+// (hard wall din `executeCommand` + blocaj generare). Owner = drept valid + tier 'max' (toate funcțiile).
+//
+// `OWNER_EMAIL` → `userId` se rezolvă o singură dată și se memoizează, ca să NU adăugăm un query pe
+// fiecare mesaj WhatsApp. `undefined` = nerezolvat încă; `null` = email setat dar contul încă neexistent
+// (owner nu s-a înregistrat) — reîncercăm cel mult o dată la 60s ca să nu lovim DB pe fiecare mesaj
+// până apare contul. Odată rezolvat la un id real, steady-state-ul e zero query suplimentar pentru oricine.
+let ownerUserIdCache: string | null | undefined
+let ownerResolveAttemptedAt = 0
+const OWNER_RESOLVE_RETRY_MS = 60_000
+
+async function isOwnerUser(userId: string): Promise<boolean> {
+  if (!env.OWNER_EMAIL) return false
+  if (ownerUserIdCache === userId) return true
+  // Owner deja rezolvat la un id real ≠ acesta → nu e owner, fără query.
+  if (ownerUserIdCache != null) return false
+  // Nerezolvat (undefined) sau owner inexistent la ultima încercare (null) → reîncearcă, throttled.
+  const now = Date.now()
+  if (ownerUserIdCache === undefined || now - ownerResolveAttemptedAt > OWNER_RESOLVE_RETRY_MS) {
+    ownerResolveAttemptedAt = now
+    const owner = await authRepository.findUserByEmail(env.OWNER_EMAIL)
+    ownerUserIdCache = owner?.id ?? null
+  }
+  return ownerUserIdCache === userId
+}
 
 // Sursa unică de adevăr pentru „are dreptul să folosească produsul premium".
 // Derivată din STAREA REALĂ a abonamentului (tabela `subscriptions`, actualizată de webhook-ul
@@ -33,7 +63,9 @@ export function isEntitled(sub: Subscription | undefined | null, now: number = D
 }
 
 // Varianta async, scoped pe user — citește abonamentul curent și aplică `isEntitled`.
+// Owner-ul (OWNER_EMAIL) trece mereu, fără abonament.
 export async function userHasEntitlement(userId: string): Promise<boolean> {
+  if (await isOwnerUser(userId)) return true
   const sub = await billingRepository.findByUserId(userId)
   return isEntitled(sub)
 }
@@ -52,7 +84,9 @@ export function subTier(sub: Subscription | undefined | null): 'pro' | 'max' | n
 }
 
 // Varianta async, scoped pe user — citește abonamentul curent și aplică `subTier`.
+// Owner-ul (OWNER_EMAIL) primește tier 'max' (toate funcțiile), ca să-și testeze produsul complet.
 export async function userTier(userId: string): Promise<'pro' | 'max' | null> {
+  if (await isOwnerUser(userId)) return 'max'
   const sub = await billingRepository.findByUserId(userId)
   return subTier(sub)
 }

@@ -6,6 +6,10 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed (2026-06-13) — `/admin/stats` 500 în teste: mock session-manager incomplet
+
+Suita admin pica pe `GET /admin/stats` (500). Cauză reală (găsită cu script de diagnostic, nu ghicită): `vi.mock('../whatsapp/whatsapp.session-manager.js')` din `admin.integration.test.ts` nu exporta `getActiveSessionCount`, pe care ruta îl apelează pentru `activeSockets` (adăugat la 4.3c) → `undefined()` → TypeError → 500. Mock-ul completat cu `getActiveSessionCount: vi.fn().mockReturnValue(0)`. Niciun cod de producție afectat (ruta era corectă; doar mock-ul de test rămăsese în urmă).
+
 ### Added (2026-06-13) — failover vision Gemini→Groq (RAG embeddings rămân Gemini-only, intenționat)
 
 `extractFromImage` (citire poze/documente client) era Gemini-only → dacă Gemini pica, vision murea (caller făcea fail-open, adică se pierdea extragerea). Acum face failover automat pe Groq vision (`meta-llama/llama-4-scout-17b-16e-instruct`, OpenAI-compatible image_url base64): Gemini preferat (extractor mai bun), Groq backup pe orice eroare; fără `GEMINI_API_KEY` → Groq primar direct (vision merge și pe deployment Groq-only). Limită Groq 4MB base64 (~3MB raw) sub garda de 5MB → imaginile 3-5MB merg pe Gemini dar nu pe fallback (caller fail-open). Test nou `vision.failover.test.ts` (stub fetch).

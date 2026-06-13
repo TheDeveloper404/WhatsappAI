@@ -90,7 +90,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         </div>
 
         <p className="relative z-10 font-mono-ui text-[10px]" style={{ color: 'rgba(232,230,225,0.25)' }}>
-          © 2026 WhatsApp AI SRL · nu suntem afiliați cu Meta
+          © 2026 ACL Smart Software SRL · nu suntem afiliați cu Meta
         </p>
       </div>
 

@@ -242,7 +242,7 @@ function OperatorConsole() {
           <div className="flex items-center justify-between gap-2 px-5 py-3 border-b border-line">
             <div className="flex items-center gap-2 min-w-0">
               <span className="w-2 h-2 rounded-full bg-acid pulse-dot shrink-0" />
-              <span className="font-mono-ui text-[11px] text-acid truncate">whatsapp.ai · operator console</span>
+              <span className="font-mono-ui text-[11px] text-acid truncate">waai · operator console</span>
             </div>
             <div className="font-mono-ui text-[10.5px] text-dimmer shrink-0">interfață <span className="text-ink">demo</span></div>
           </div>
@@ -969,9 +969,9 @@ const FAQ_ITEMS: { q: string; a: React.ReactNode }[] = [
     a: (
       <div className="flex flex-col gap-3">
         {[
-          { model: 'Llama 3.3 70B', by: 'Meta', role: 'conversații', note: 'model open-source, rulat pe Groq LPU pentru răspunsuri rapide' },
-          { model: 'Whisper Large V3', by: 'OpenAI', role: 'mesaje vocale', note: 'transcriere automată a audio-urilor și PTT-urilor' },
-          { model: 'Gemini 2.0 Flash', by: 'Google', role: 'backup', note: 'disponibil ca alternativă în caz de indisponibilitate' },
+          { model: 'Gemini 2.5 Flash', by: 'Google', role: 'conversații', note: 'modelul principal care generează răspunsurile' },
+          { model: 'Llama 3.3 70B', by: 'Meta', role: 'rezervă', note: 'model open-source pe Groq LPU; preia automat dacă principalul e indisponibil' },
+          { model: 'Whisper Large V3', by: 'OpenAI', role: 'mesaje vocale', note: 'transcriere automată a audio-urilor și PTT-urilor, rulată pe Groq' },
         ].map(m => (
           <div key={m.model} className="flex items-start gap-3">
             <span className="mt-0.5 shrink-0 w-1.5 h-1.5 rounded-full bg-acid" />

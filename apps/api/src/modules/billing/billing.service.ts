@@ -14,6 +14,23 @@ const PRICE_IDS: Record<Tier, Record<PlanType, string>> = {
   max: { monthly: env.STRIPE_PRICE_MAX_MONTHLY, annual: env.STRIPE_PRICE_MAX_ANNUAL },
 }
 
+// Hartă inversă price ID → (tier, plan), derivată din PRICE_IDS. Sursa de adevăr pentru webhook
+// (`subscription.updated`, ca să reflecte schimbarea de tier/plan din price-ul real) și pentru
+// `upgradeToMax`. Construită o singură dată la boot din aceleași env-uri.
+const PRICE_META = new Map<string, { tier: Tier; plan: PlanType }>()
+for (const t of ['pro', 'max'] as const) {
+  for (const p of ['monthly', 'annual'] as const) {
+    PRICE_META.set(PRICE_IDS[t][p], { tier: t, plan: p })
+  }
+}
+
+// `null` = price necunoscut (legacy/test) → apelantul NU suprascrie tier/plan (fail-safe: nu retrograda
+// un user din cauza unui price ID nemapat).
+export function priceMeta(priceId: string | undefined | null): { tier: Tier; plan: PlanType } | null {
+  if (!priceId) return null
+  return PRICE_META.get(priceId) ?? null
+}
+
 export const billingService = {
   async createCheckoutSession(userId: string, plan: PlanType, tier: Tier) {
     const user = await authRepository.findUserById(userId)
@@ -79,5 +96,38 @@ export const billingService = {
 
   async getSubscription(userId: string) {
     return billingRepository.findByUserId(userId)
+  },
+
+  // Upgrade in-place Pro → Max pe ABONAMENTUL EXISTENT (NU checkout nou — ăla ar crea un al doilea
+  // abonament + alt trial). Schimbă price-ul liniei de abonament la Max pe ACEEAȘI perioadă
+  // (lunar→lunar, anual→anual); Stripe calculează proration-ul și îl pune pe FACTURA URMĂTOARE
+  // (`create_prorations`, fără debit imediat — decizie de produs). Webhook-ul `subscription.updated`
+  // reconfirmă tier-ul din price (idempotent); scriem optimist aici doar pentru UX instant.
+  async upgradeToMax(userId: string) {
+    const sub = await billingRepository.findByUserId(userId)
+    if (!sub || !sub.stripeSubscriptionId) throw Errors.notFound('Subscription')
+
+    // Doar abonamentele utilizabile pot fi upgradate. incomplete/past_due/canceled → refuz.
+    if (sub.status !== 'active' && sub.status !== 'trialing') {
+      throw Errors.conflict('Abonamentul trebuie să fie activ pentru a face upgrade la Max.')
+    }
+    if (sub.tier === 'max') throw Errors.conflict('Ești deja pe planul Max.')
+
+    // Perioada rămâne aceeași ca acum. Orice ≠ 'annual' → 'monthly' (fail-safe, consecvent cu subTier).
+    const plan: PlanType = sub.plan === 'annual' ? 'annual' : 'monthly'
+    const targetPriceId = PRICE_IDS.max[plan]
+
+    // Item-ul curent (price-ul de schimbat) de pe abonamentul Stripe.
+    const stripeSub = await stripe.subscriptions.retrieve(sub.stripeSubscriptionId)
+    const item = stripeSub.items.data[0]
+    if (!item) throw Errors.conflict('Abonamentul Stripe nu are o linie de preț de actualizat.')
+
+    await stripe.subscriptions.update(sub.stripeSubscriptionId, {
+      items: [{ id: item.id, price: targetPriceId }],
+      proration_behavior: 'create_prorations',
+    })
+
+    await billingRepository.update(sub.id, { tier: 'max', plan })
+    return { tier: 'max' as const, plan }
   },
 }

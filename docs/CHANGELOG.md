@@ -6,6 +6,56 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added (2026-06-13) — upgrade Pro → Max in-place (proration), nu mai creează abonament nou
+
+Butoanele „Treci pe Max" (leads + settings) duceau la `/subscribe` → `createCheckout`, care crea un **al doilea abonament Stripe + alt trial de 7 zile** pentru un abonat existent. Înlocuit cu un flux de upgrade real, **in-place**:
+- **`POST /billing/upgrade`** (`authenticate` + `requireActiveSubscription`, rate-limit 5/min): `billingService.upgradeToMax` schimbă price-ul liniei de abonament la **Max pe aceeași perioadă** (lunar→Max lunar, anual→Max anual) via `stripe.subscriptions.update` cu `proration_behavior: 'create_prorations'` → diferența proratată apare pe **factura următoare** (fără debit imediat). Validări: abonament existent cu `stripeSubscriptionId`, status `active`/`trialing`, tier curent ≠ `max` (altfel 404/409). Scriere optimistă a tier-ului pentru UX instant; webhook-ul reconfirmă.
+- **Bug ascuns reparat (fundație):** `customer.subscription.updated` din webhook NU actualiza `plan`/`tier` → o schimbare de price (upgrade sau portal) lăsa tier-ul vechi. Acum derivă `tier`+`plan` din price-ul curent (hartă inversă `priceMeta`); price nemapat → nu atinge tier-ul (fail-safe contra retrogradării accidentale).
+- **Frontend:** componentă nouă `UpgradeToMaxButton` cu dialog de confirmare (explică proration pe factura următoare + funcțiile deblocate); folosită în leads & settings. Userii fără abonament rămân pe `/subscribe`.
+
+Teste: `billing.integration.test.ts` (happy Pro→Max cu aserții pe argumentele Stripe, 401, 402 fără abonament, 409 deja-Max); `stripe.webhook.integration.test.ts` (price Max → tier=max + plan; price necunoscut → tier neatins). `tsc` + `next lint` verzi pe web; `tsc` verde pe api.
+
+### Changed (2026-06-13) — rebrand „WhatsApp AI" → „waai" în conținut vizibil userului + acuratețe
+
+Brandul vechi „WhatsApp AI" mai apărea în text user-facing. Înlocuit cu „waai" (numele aplicației), **păstrând** referințele la platforma reală WhatsApp/Meta (cont WhatsApp, Termeni WhatsApp/Meta, „nu suntem afiliați cu Meta"):
+- **Pagini legale**: termeni (platformă + entitate „waai SRL"), confidentialitate (operator + platformă), gdpr (entitate).
+- **Footer auth** (`(auth)/layout.tsx`) + **header admin** (`admin/page.tsx`): „waai SRL" / „waai".
+- **Landing** (`page.tsx`): consola demo „whatsapp.ai · operator console" → „waai · operator console".
+
+**Acuratețe landing — FAQ „ce modele AI sunt folosite?":** prezenta principal/rezervă **inversat** față de cod (`groq.client.ts`). Corectat: **Gemini 2.5 Flash (Google) = principal** pentru conversații; **Llama 3.3 70B pe Groq = rezervă** (preia la indisponibilitate); **Whisper Large V3 = transcriere vocală, rulată pe Groq**. (Înainte: Llama = principal, „Gemini 2.0 Flash" = backup — versiune greșită + rol invers; contrazicea paginile legale.)
+- **Backend user-facing**: numele dispozitivului în „Dispozitive conectate" pe telefon (`whatsapp.session-manager.ts`, 3×) → „waai"; textul de help pe WhatsApp (`HELP_TEXT`) „Comenzi waai:"; issuer-ul TOTP admin (`gen-admin-totp.ts`) → „waai".
+
+**Acuratețe conținut** (corectat ca să reflecte realitatea aplicației):
+- confidentialitate §8: eliminată afirmația **falsă** „autentificare cu doi factori disponibilă" — 2FA (TOTP) există DOAR pe panoul admin, nu pentru useri → înlocuită cu „parole stocate sub formă de hash".
+- confidentialitate §2: „parolă (stocată criptat)" → „(stocată sub formă de hash)" (parolele sunt hash-uite, nu criptate).
+
+`tsc --noEmit` verde pe api + web; niciun test afectat (HELP_TEXT neasertat).
+
+**Rezolvat (input owner, 13-06):** entitatea legală = **ACL Smart Software SRL** (sediu Str. Horea 2/31, Petroșani, CUI 51219715), denumire comercială „waai" → actualizat în termeni (IP §7 / răspundere §8), confidentialitate §1 (operator + sediu + CUI), gdpr §1, footer auth. Ștearsă garanția „14 zile money-back" din termeni §6 (nu se oferă refund). Ștergerea cont în 48h rămâne. Rămâne deschis (minor): confidentialitate §6 „30 zile după închidere" vs „48h ștergere" — concepte diferite (retenție vs. fereastră de recuperare), lăsat ca atare.
+
+### Fixed (2026-06-13) — bug-uri în paginile legale (termeni / confidențialitate / GDPR / cookies)
+
+Inconsecvențe și bug-uri de UX/conținut în cele 4 pagini legale:
+- **termeni**: typo „disputăîn" → „dispută în" (lipsă spațiu).
+- **cookies**: era `'use client'` doar pentru butonul de reset → **nu putea exporta `metadata`** (tab fără titlu) și nu avea `ScrollRestoreTop`/`fade-in`. Butonul extras în `CookieResetButton` (client component mic); pagina e acum server component, consecventă cu surorile ei (titlu „Politică de cookies — waai.", scroll-to-top la intrare, fade-in). Ton corectat: „Rețineți" (plural formal) → „Reține" (consecvent cu „tu" din restul textului).
+- **gdpr**: adăugat `ScrollRestoreTop` + `fade-in` (lipseau — pagina se putea deschide scrollată la mijloc dacă intrai din footer; celelalte două le aveau).
+
+- **confidentialitate + gdpr**: corectat naming subîmputernicit AI — paginile menționau doar Groq, dar furnizorul principal de procesare a mesajelor e **Google (Gemini)** (Groq = rezervă). Adăugat Google/Gemini la „Cu cine partajăm datele" (§5) și la „Transferuri internaționale" (ambele procesează în afara SEE) — acuratețe GDPR.
+- **toate 4 paginile**: mărimi de titlu unificate la `text-[36px] sm:text-[52px]` (erau `32/44`, `36/52`, `48/64×2`) — consecvent cu scara de titlu de secțiune din landing.
+
+`tsc --noEmit` verde pe web.
+
+### Fixed (2026-06-13) — owner bypass incomplet pe UI: dashboard/leads/settings/profile arătau „fără abonament" + tier Pro
+
+Owner-ul (OWNER_EMAIL), deși entitled + tier `max` pe backend, vedea în UI starea unui user fără abonament: chip „Fără subscripție", card „Trial — 7 zile", banner „Pasul următor: agentul nu e activ", pasul „Subscripție neactivată", iar pârghiile Pro/Max îl tratau ca **Pro** (leads = upsell „Treci pe Max", timer min 5 min, profil „Niciun abonament activ"). Cauză: UI-ul derivă starea din `subscription` brut (null pentru owner — nu are rând de abonament), iar `GET /billing/subscription` întorcea `entitled` (owner-aware) dar **nu și `tier`** owner-aware. Fix:
+
+- **Backend** (`billing.routes.ts`): `/subscription` întoarce acum și `tier` = `userTier(userId)` (owner-aware → `'max'`), alături de `entitled`.
+- **Leads & Settings**: `isMax`/`tier` se iau din câmpul `tier` din răspuns (owner-aware), nu din `subscription?.tier` (null pt owner).
+- **Dashboard**: flag nou `isOwnerAccess` (`entitled && !subscription`) → chip „Acces complet", cardul Trial devine „Acces / owner — toate funcțiile", banner-ul de activare + pasul „Subscripție neactivată" sunt ascunse/înlocuite cu „Acces complet". Restul (Agent AI, WhatsApp, Activitate) neatins.
+- **Profil**: secțiunea Abonament arată pentru owner badge „Max — Owner, acces complet, fără abonament" în loc de „Niciun abonament activ".
+
+Teste: `billing.integration.test.ts` verifică acum `tier` în răspuns (null fără abonament / `'pro'` pe abonament activ); owner→`max` deja acoperit de `entitlement.owner.test.ts`. `tsc --noEmit` verde pe api + web.
+
 ### Security (2026-06-13) — audit de securitate integral (10 faze) + remediere findings
 
 Audit integral (white-box pe tot codul server + black-box live pe prod + a doua opinie `security-engineer` pe autorizare/owner-bypass). **Verdict: APPROVED — 0 CRITICAL/HIGH/MED.** Cele 6 findings LOW (hardening) remediate în această sesiune: claim `typ` pe JWT (F-AUTH-01), `OWNER_EMAIL` lowercased + comparație case-insensitive (F-OWN-01), TTL pe `ownerUserIdCache` (F-OWN-03), pseudonimizare telefon în loguri (F-PII-01), triaj baseline `pnpm audit` (F-DEP-01); F-OWN-02 (squatting = DoS onboarding, nu takeover) mitigat operațional în RUNBOOK. Raport complet + matrice rută×protecție + log findings → **`docs/SECURITY.md`** și `pentest/audit-2026-06/`.

@@ -72,7 +72,7 @@ async function reconnectAfterDrop(userId: string): Promise<void> {
       auth: { creds: state.creds, keys: makeCacheableSignalKeyStore(state.keys, waLogger) },
       msgRetryCounterCache: msgRetryCache,
       printQRInTerminal: false,
-      browser: ['WhatsApp AI', 'Chrome', '1.0.0'],
+      browser: ['waai', 'Chrome', '1.0.0'],
       logger: waLogger,
     })
     sessions.set(userId, sock)
@@ -157,7 +157,7 @@ export async function requestQrCode(userId: string): Promise<string> {
     auth: { creds: state.creds, keys: makeCacheableSignalKeyStore(state.keys, waLogger) },
     msgRetryCounterCache: msgRetryCache,
     printQRInTerminal: false,
-    browser: ['WhatsApp AI', 'Chrome', '1.0.0'],
+    browser: ['waai', 'Chrome', '1.0.0'],
     connectTimeoutMs: 20_000,
     logger: waLogger,
   })
@@ -253,7 +253,7 @@ export async function restoreSession(userId: string): Promise<void> {
       auth: { creds: state.creds, keys: makeCacheableSignalKeyStore(state.keys, waLogger) },
       msgRetryCounterCache: msgRetryCache,
       printQRInTerminal: false,
-      browser: ['WhatsApp AI', 'Chrome', '1.0.0'],
+      browser: ['waai', 'Chrome', '1.0.0'],
       logger: waLogger,
     })
 

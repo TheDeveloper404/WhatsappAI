@@ -1,12 +1,19 @@
-'use client'
+import type { Metadata } from 'next'
 import { BackButton } from '@/components/BackButton'
+import { ScrollRestoreTop } from '@/components/ScrollRestoreTop'
+import { CookieResetButton } from '@/components/CookieResetButton'
+
+export const metadata: Metadata = {
+  title: 'Politică de cookies — waai.',
+}
 
 export default function CookiesPage() {
   return (
-    <main className="max-w-[760px] mx-auto px-6 py-20">
+    <main className="max-w-[760px] mx-auto px-6 py-20 fade-in">
+      <ScrollRestoreTop />
       <BackButton />
 
-      <h1 className="font-display text-[48px] sm:text-[64px] text-ink mb-4">cookies.</h1>
+      <h1 className="font-display text-[36px] sm:text-[52px] text-ink mb-4">cookies.</h1>
       <p className="font-mono-ui text-[11px] text-dimmer mb-12">Ultima actualizare: 25 mai 2026</p>
 
       <div className="space-y-10 text-[15px] text-dim leading-relaxed">
@@ -47,18 +54,8 @@ export default function CookiesPage() {
 
         <section>
           <h2 className="font-display-md text-[22px] text-ink mb-3">Cum controlezi cookie-urile</h2>
-          <p>Poți modifica preferințele oricând din bannerul de cookies (apasă butonul de mai jos). De asemenea, poți configura browserul să blocheze sau să șteargă cookie-urile — consultă documentația browserului tău. Rețineți că dezactivarea cookie-urilor necesare poate afecta funcționarea platformei.</p>
-          <button
-            onClick={() => {
-              if (typeof window !== 'undefined') {
-                localStorage.removeItem('wa-ai-cookie-consent')
-                window.location.reload()
-              }
-            }}
-            className="mt-5 font-mono-ui text-[13px] border border-line text-ink px-5 py-2.5 rounded-full hover:bg-cardhi transition-colors"
-          >
-            resetează preferințele cookies
-          </button>
+          <p>Poți modifica preferințele oricând din bannerul de cookies (apasă butonul de mai jos). De asemenea, poți configura browserul să blocheze sau să șteargă cookie-urile — consultă documentația browserului tău. Reține că dezactivarea cookie-urilor necesare poate afecta funcționarea platformei.</p>
+          <CookieResetButton />
         </section>
 
         <section>

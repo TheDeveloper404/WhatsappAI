@@ -4,6 +4,7 @@ import { useAuthStore } from '@/store/auth'
 import { api, type Lead, type LeadStatus } from '@/lib/api'
 import { Loader2, Flame, RefreshCw } from 'lucide-react'
 import { ConversationsTabs } from '@/components/ConversationsTabs'
+import { UpgradeToMaxButton } from '@/components/UpgradeToMaxButton'
 
 function formatDate(ts: number): string {
   return new Date(ts).toLocaleString('ro-RO', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
@@ -57,8 +58,8 @@ export default function LeadsPage() {
   useEffect(() => {
     if (!accessToken) return
     api.billing.getSubscription(accessToken)
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      .then(({ subscription }) => setIsMax(subscription?.tier === 'max'))
+      // `tier` e owner-aware (owner → 'max'); `subscription.tier` ar fi null pentru owner.
+      .then(({ tier }) => setIsMax(tier === 'max'))
       .catch(() => {})
   }, [accessToken])
 
@@ -137,13 +138,11 @@ export default function LeadsPage() {
             <Flame className="h-4 w-4 text-acid inline-block mr-1.5 -mt-0.5" />
             Calificarea automată a lead-urilor (hot / warm / cold) e disponibilă pe planul Max.
           </p>
-          <a
-            href="/subscribe"
+          <UpgradeToMaxButton
             className="font-mono-ui text-[13px] px-4 py-2 rounded-lg whitespace-nowrap shrink-0 text-center hover:opacity-90 transition-opacity"
             style={{ background: 'var(--acid)', color: 'var(--on-acid)' }}
-          >
-            Treci pe Max
-          </a>
+            onUpgraded={() => { setIsMax(true); load() }}
+          />
         </div>
       )}
 

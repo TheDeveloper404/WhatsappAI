@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { BackButton } from '@/components/BackButton'
 import { DeleteAccountButton } from '@/components/DeleteAccountButton'
+import { ScrollRestoreTop } from '@/components/ScrollRestoreTop'
 
 export const metadata: Metadata = {
   title: 'GDPR — waai.',
@@ -8,17 +9,18 @@ export const metadata: Metadata = {
 
 export default function GdprPage() {
   return (
-    <main className="max-w-[760px] mx-auto px-6 py-20">
+    <main className="max-w-[760px] mx-auto px-6 py-20 fade-in">
+      <ScrollRestoreTop />
       <BackButton />
 
-      <h1 className="font-display text-[48px] sm:text-[64px] text-ink mb-4">gdpr.</h1>
+      <h1 className="font-display text-[36px] sm:text-[52px] text-ink mb-4">gdpr.</h1>
       <p className="font-mono-ui text-[11px] text-dimmer mb-12">Ultima actualizare: 25 mai 2026</p>
 
       <div className="space-y-10 text-[15px] text-dim leading-relaxed">
 
         <section>
           <h2 className="font-display-md text-[22px] text-ink mb-3">Angajamentul nostru GDPR</h2>
-          <p>WhatsApp AI SRL respectă Regulamentul (UE) 2016/679 (GDPR) și legislația națională de implementare. Această pagină explică în detaliu drepturile tale și modul în care le poți exercita.</p>
+          <p>ACL Smart Software SRL (care operează platforma &bdquo;waai&rdquo;) respectă Regulamentul (UE) 2016/679 (GDPR) și legislația națională de implementare. Această pagină explică în detaliu drepturile tale și modul în care le poți exercita.</p>
         </section>
 
         <section>
@@ -66,7 +68,7 @@ export default function GdprPage() {
 
         <section>
           <h2 className="font-display-md text-[22px] text-ink mb-3">Transferuri internaționale</h2>
-          <p>Unii furnizori de servicii (ex. Groq pentru procesare AI) pot procesa date în afara SEE. Ne asigurăm că transferurile se realizează cu garanții adecvate: clauze contractuale standard aprobate de Comisia Europeană sau echivalent.</p>
+          <p>Unii furnizori de servicii (ex. Google / Gemini și Groq pentru procesare AI) pot procesa date în afara SEE. Ne asigurăm că transferurile se realizează cu garanții adecvate: clauze contractuale standard aprobate de Comisia Europeană sau echivalent.</p>
         </section>
 
       </div>

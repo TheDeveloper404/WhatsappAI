@@ -12,19 +12,19 @@ export default function TermeniPage() {
       <ScrollRestoreTop />
       <BackButton />
 
-      <h1 className="font-display text-[32px] sm:text-[44px] text-ink mb-4">termeni și condiții.</h1>
+      <h1 className="font-display text-[36px] sm:text-[52px] text-ink mb-4">termeni și condiții.</h1>
       <p className="font-mono-ui text-[11px] text-dimmer mb-12">Ultima actualizare: 25 mai 2026</p>
 
       <div className="prose-custom space-y-10 text-[15px] text-dim leading-relaxed">
 
         <section>
           <h2 className="font-display-md text-[22px] text-ink mb-3">1. Acceptarea termenilor</h2>
-          <p>Prin accesarea și utilizarea platformei WhatsApp AI (&bdquo;Serviciul&rdquo;), ești de acord să respecți și să fii obligat de acești Termeni și Condiții. Dacă nu ești de acord cu oricare dintre acești termeni, te rugăm să nu utilizezi Serviciul.</p>
+          <p>Prin accesarea și utilizarea platformei waai (&bdquo;Serviciul&rdquo;), ești de acord să respecți și să fii obligat de acești Termeni și Condiții. Dacă nu ești de acord cu oricare dintre acești termeni, te rugăm să nu utilizezi Serviciul.</p>
         </section>
 
         <section>
           <h2 className="font-display-md text-[22px] text-ink mb-3">2. Descrierea serviciului</h2>
-          <p>WhatsApp AI este o platformă software care permite utilizatorilor să configureze un agent de inteligență artificială pentru a gestiona conversații pe WhatsApp în numele lor. Serviciul funcționează pe baza contului tău personal de WhatsApp și nu trimite mesaje nesolicitate (spam).</p>
+          <p>waai este o platformă software care permite utilizatorilor să configureze un agent de inteligență artificială pentru a gestiona conversații pe WhatsApp în numele lor. Serviciul funcționează pe baza contului tău personal de WhatsApp și nu trimite mesaje nesolicitate (spam).</p>
         </section>
 
         <section>
@@ -51,17 +51,17 @@ export default function TermeniPage() {
 
         <section>
           <h2 className="font-display-md text-[22px] text-ink mb-3">6. Plăți și abonamente</h2>
-          <p>Serviciul este disponibil pe bază de abonament lunar sau anual. Prețurile sunt afișate în RON și includ TVA acolo unde este aplicabil. Plățile sunt procesate prin Stripe. Abonamentele se reînnoiesc automat; poți anula oricând din dashboard. Oferim o garanție de returnare a banilor de 14 zile de la prima plată.</p>
+          <p>Serviciul este disponibil pe bază de abonament lunar sau anual. Prețurile sunt afișate în RON și includ TVA acolo unde este aplicabil. Plățile sunt procesate prin Stripe. Abonamentele se reînnoiesc automat; poți anula oricând din dashboard.</p>
         </section>
 
         <section>
           <h2 className="font-display-md text-[22px] text-ink mb-3">7. Proprietate intelectuală</h2>
-          <p>Serviciul și conținutul său original, caracteristicile și funcționalitățile sunt și vor rămâne proprietatea exclusivă a WhatsApp AI SRL. Utilizarea Serviciului nu îți conferă niciun drept de proprietate intelectuală asupra acestuia.</p>
+          <p>Serviciul și conținutul său original, caracteristicile și funcționalitățile sunt și vor rămâne proprietatea exclusivă a ACL Smart Software SRL. Utilizarea Serviciului nu îți conferă niciun drept de proprietate intelectuală asupra acestuia.</p>
         </section>
 
         <section>
           <h2 className="font-display-md text-[22px] text-ink mb-3">8. Limitarea răspunderii</h2>
-          <p>WhatsApp AI SRL nu este responsabilă pentru daune indirecte, incidentale sau consecvente rezultate din utilizarea sau incapacitatea de a utiliza Serviciul. Răspunderea noastră totală nu va depăși suma plătită de tine în ultimele 12 luni.</p>
+          <p>ACL Smart Software SRL nu este responsabilă pentru daune indirecte, incidentale sau consecvente rezultate din utilizarea sau incapacitatea de a utiliza Serviciul. Răspunderea noastră totală nu va depăși suma plătită de tine în ultimele 12 luni.</p>
         </section>
 
         <section>
@@ -71,7 +71,7 @@ export default function TermeniPage() {
 
         <section>
           <h2 className="font-display-md text-[22px] text-ink mb-3">10. Legislație aplicabilă</h2>
-          <p>Acești termeni sunt guvernați de legile României. Orice disputăîn legătură cu Serviciul va fi soluționată de instanțele competente din București, România.</p>
+          <p>Acești termeni sunt guvernați de legile României. Orice dispută în legătură cu Serviciul va fi soluționată de instanțele competente din București, România.</p>
         </section>
 
         <section>

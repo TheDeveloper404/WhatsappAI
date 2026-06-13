@@ -5,6 +5,10 @@ const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions'
 const GROQ_WHISPER_URL = 'https://api.groq.com/openai/v1/audio/transcriptions'
 const GEMINI_MODEL = 'gemini-2.5-flash'
 const GEMINI_EMBED_MODEL = 'text-embedding-004'
+// Model vision Groq (failover pentru extractFromImage). Multimodal, OpenAI-compatible chat.
+// NB: Groq limitează imaginea base64 la 4MB (~3MB raw) — sub garda de 5MB din message.handler,
+// deci o imagine 3-5MB merge pe Gemini (primar) dar ar pica pe fallback-ul Groq → caller fail-open.
+const GROQ_VISION_MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct'
 // Gemini batchEmbedContents acceptă max 100 cereri/apel — împărțim în loturi.
 const EMBED_BATCH = 100
 
@@ -71,20 +75,13 @@ async function callGeminiApi(messages: GroqMessage[], options?: LLMOptions): Pro
   return String(out).trim()
 }
 
-// Extragere date dintr-o imagine (document/rețetă/formular) trimisă de client (Faza 4).
-// Folosește Gemini vision (inlineData base64). Ghidat de `hint` (= order_intake_prompt al
-// businessului): la optică extrage SPH/CYL/AX etc., la altele câmpurile relevante.
-// SECURITATE: imaginea stă doar în memorie (base64), nu se scrie pe disc; rezultatul e text
-// pe care îl tratăm ca mesaj de la client (intră în colectarea normală). Fără PII în logs.
-// Necesită GEMINI_API_KEY — fără ea aruncă (apelantul prinde și face fail-open).
-export async function extractFromImage(buffer: Buffer, mimeType: string, hint: string): Promise<string> {
-  if (!env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY not configured')
-
+// Promptul de extragere — partajat de ambii furnizori vision (Gemini + Groq).
+function buildVisionPrompt(hint: string): string {
   const hintBlock = hint.trim()
     ? `Acest business colectează următoarele informații pentru comenzi:\n${hint.trim()}\n\nExtrage din imagine DOAR datele relevante pentru aceste informații.`
     : `Extrage informațiile structurate vizibile în imagine (valori, măsurători, date de contact, specificații).`
 
-  const prompt = `Ești un sistem care citește un document/o imagine trimisă de un client pe WhatsApp.
+  return `Ești un sistem care citește un document/o imagine trimisă de un client pe WhatsApp.
 ${hintBlock}
 
 Reguli:
@@ -92,11 +89,14 @@ Reguli:
 - Dacă un câmp nu e vizibil sau e ilizibil, omite-l (nu ghici).
 - Răspunde scurt, ca o listă de perechi "câmp: valoare", în română.
 - Dacă imaginea nu conține date utile (e o poză irelevantă), răspunde exact: NIMIC_RELEVANT`
+}
 
+// Vision pe Gemini (inlineData base64). Cheia în header (x-goog-api-key), nu în URL — L8.
+async function geminiVision(prompt: string, buffer: Buffer, mimeType: string): Promise<string> {
+  if (!env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY not configured')
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`
   const res = await fetch(url, {
     method: 'POST',
-    // Cheia în header (x-goog-api-key), nu în URL — evită scurgerea în loguri/proxy/Referer (L8).
     headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY },
     body: JSON.stringify({
       contents: [{
@@ -109,21 +109,67 @@ Reguli:
       generationConfig: { temperature: 0, maxOutputTokens: 500 },
     }),
   })
-
-  if (!res.ok) {
-    const text = await res.text()
-    throw new Error(`Gemini vision error ${res.status}: ${text}`)
-  }
-
+  if (!res.ok) throw new Error(`Gemini vision error ${res.status}: ${await res.text()}`)
   const data = await res.json() as any
   const out = data.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join('') ?? ''
   return String(out).trim()
+}
+
+// Vision pe Groq (Llama 4 Scout, OpenAI-compatible: content cu image_url data-URL base64).
+async function groqVision(prompt: string, buffer: Buffer, mimeType: string): Promise<string> {
+  const res = await fetch(GROQ_API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${env.GROQ_API_KEY}` },
+    body: JSON.stringify({
+      model: GROQ_VISION_MODEL,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'text', text: prompt },
+          { type: 'image_url', image_url: { url: `data:${mimeType};base64,${buffer.toString('base64')}` } },
+        ],
+      }],
+      max_tokens: 500,
+      temperature: 0,
+    }),
+  })
+  if (!res.ok) throw new Error(`Groq vision error ${res.status}: ${await res.text()}`)
+  const data = await res.json() as any
+  return String(data.choices?.[0]?.message?.content ?? '').trim()
+}
+
+// Extragere date dintr-o imagine (document/rețetă/formular) trimisă de client (Faza 4).
+// Ghidat de `hint` (= order_intake_prompt al businessului): la optică extrage SPH/CYL/AX etc.
+// SECURITATE: imaginea stă doar în memorie (base64), nu se scrie pe disc; rezultatul e text
+// pe care îl tratăm ca mesaj de la client (intră în colectarea normală). Fără PII în logs.
+//
+// FAILOVER: Gemini e PREFERAT (extractor mai bun pentru task-ul OCR-like), Groq e backup. Fără
+// GEMINI_API_KEY → direct pe Groq (vision merge și pe deployment Groq-only). Dacă ambii pică,
+// aruncă → apelantul (message.handler) face fail-open (continuă fără datele din imagine).
+export async function extractFromImage(buffer: Buffer, mimeType: string, hint: string): Promise<string> {
+  const prompt = buildVisionPrompt(hint)
+  const hasGemini = Boolean(env.GEMINI_API_KEY)
+  const primary = hasGemini ? geminiVision : groqVision
+  const secondary = hasGemini ? groqVision : null
+
+  try {
+    return await primary(prompt, buffer, mimeType)
+  } catch (err) {
+    if (!secondary) throw err
+    logger.warn('[Vision] furnizor primar a eșuat — failover pe Groq', { transient: looksTransient(err) })
+    return await secondary(prompt, buffer, mimeType)
+  }
 }
 
 // Embeddings pentru RAG (Gemini text-embedding-004). `taskType` ajustează vectorul pentru rolul lui:
 // RETRIEVAL_DOCUMENT la indexarea chunk-urilor, RETRIEVAL_QUERY la întrebarea clientului — îmbunătățește
 // potrivirea. Întoarce un vector per text, în aceeași ordine. Aruncă dacă lipsește cheia sau API-ul
 // dă alt număr de vectori (apelantul decide fail-open). Fără conținut în logs.
+//
+// FĂRĂ FAILOVER — intenționat (NU adăuga unul): (1) Groq nu are API de embeddings; (2) chunk-urile
+// indexate trăiesc în spațiul vectorial Gemini — un embedding de query de la alt model ar fi în alt
+// spațiu → cosine similarity = gunoi → regăsire greșită SILENȚIOASĂ, mai rău decât fail-open-ul actual
+// (retrieve întoarce [] = răspuns fără RAG). Redundanță reală ar cere dual-index pe spațiu, nu un swap.
 export async function embedTexts(
   texts: string[],
   taskType: 'RETRIEVAL_DOCUMENT' | 'RETRIEVAL_QUERY' = 'RETRIEVAL_DOCUMENT',

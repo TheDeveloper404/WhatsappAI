@@ -31,8 +31,14 @@ async function load() {
   }
 }
 
-beforeEach(() => {
+// Mock-urile (env, repos) sunt singleton între teste — resetModules curăță DOAR cache-ul owner din
+// entitlement (re-import proaspăt), NU istoricul de apeluri al mock-urilor și NU mutațiile pe env.
+// Deci: curăț istoricul (clearAllMocks) ȘI restaurez OWNER_EMAIL (un test îl șterge) la fiecare caz.
+beforeEach(async () => {
+  vi.clearAllMocks()
   vi.resetModules()
+  const { env } = await import('../../config/env.js')
+  ;(env as { OWNER_EMAIL?: string }).OWNER_EMAIL = 'owner@waai.ro'
 })
 
 describe('owner bypass — userHasEntitlement / userTier', () => {

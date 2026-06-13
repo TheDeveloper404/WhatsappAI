@@ -6,6 +6,12 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added (2026-06-13) — failover vision Gemini→Groq (RAG embeddings rămân Gemini-only, intenționat)
+
+`extractFromImage` (citire poze/documente client) era Gemini-only → dacă Gemini pica, vision murea (caller făcea fail-open, adică se pierdea extragerea). Acum face failover automat pe Groq vision (`meta-llama/llama-4-scout-17b-16e-instruct`, OpenAI-compatible image_url base64): Gemini preferat (extractor mai bun), Groq backup pe orice eroare; fără `GEMINI_API_KEY` → Groq primar direct (vision merge și pe deployment Groq-only). Limită Groq 4MB base64 (~3MB raw) sub garda de 5MB → imaginile 3-5MB merg pe Gemini dar nu pe fallback (caller fail-open). Test nou `vision.failover.test.ts` (stub fetch).
+
+**Embeddings RAG rămân DELIBERAT Gemini-only, fără failover** (notat în cod): Groq nu are API de embeddings, iar un embedding de query din alt model ar fi în alt spațiu vectorial decât chunk-urile indexate (Gemini) → regăsire greșită silențioasă, mai rău decât fail-open-ul actual (retrieve → `[]`, răspuns fără RAG). Redundanță reală ar cere dual-index pe spațiu — nejustificat acum.
+
 ### Security (2026-06-13) — triaj advisory esbuild în gate-ul de audit (CI verde)
 
 `GHSA-gv7w-rqvm-qjhr` (esbuild, high) a picat gate-ul `scripts/audit-check.mjs` ca advisory nou. Triat: e **Deno-only** (RCE prin lipsă de verificare a integrității binarului la instalarea Deno) — varianta Node/npm pe care o folosim are deja `binaryIntegrityCheck()` SHA-256. La noi esbuild `0.28.0` e devDependency tranzitiv de build/test, deci neexploatabil. Adăugat în BASELINE cu notă (fixat upstream în 0.28.1). Niciun risc de runtime de producție.

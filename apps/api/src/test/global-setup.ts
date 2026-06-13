@@ -239,6 +239,14 @@ export async function setup() {
     `ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_address TEXT NOT NULL DEFAULT ''`,
     // B10 — programări cu mai multe servicii (total + tabel de linii).
     `ALTER TABLE appointments ADD COLUMN IF NOT EXISTS total_bani INTEGER NOT NULL DEFAULT 0`,
+    // 4.3 — metrici produs din getStats (messagesToday/aiMessagesToday/ownerMessagesToday). Aceste
+    // coloane sunt în CREATE-ul de conversation_messages, dar bazele de test PERSISTENTE create înainte
+    // de adăugarea lor nu le primesc (CREATE TABLE IF NOT EXISTS sare tabelul existent) → getStats 500.
+    // ALTER idempotent = patch pe bazele vechi, no-op pe cele noi.
+    `ALTER TABLE conversation_messages ADD COLUMN IF NOT EXISTS from_me BOOLEAN NOT NULL DEFAULT FALSE`,
+    `ALTER TABLE conversation_messages ADD COLUMN IF NOT EXISTS is_ai BOOLEAN NOT NULL DEFAULT FALSE`,
+    `ALTER TABLE conversation_messages ADD COLUMN IF NOT EXISTS wa_timestamp BIGINT NOT NULL DEFAULT 0`,
+    `ALTER TABLE conversation_messages ADD COLUMN IF NOT EXISTS created_at BIGINT NOT NULL DEFAULT 0`,
     `CREATE TABLE IF NOT EXISTS appointment_items (
       id TEXT PRIMARY KEY,
       appointment_id TEXT NOT NULL REFERENCES appointments(id) ON DELETE CASCADE,

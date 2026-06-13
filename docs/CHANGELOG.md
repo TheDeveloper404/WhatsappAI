@@ -6,6 +6,10 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed (2026-06-13) — owner trimis pe `/subscribe` de gate-ul de UI (bypass incomplet pe frontend)
+
+Owner-ul (OWNER_EMAIL), după login, era redirecționat pe `/subscribe` deși backend-ul îl lasă: bypass-ul era doar pe API (entitlement/402), iar gate-ul de UI din `(dashboard)/layout.tsx` calcula entitlement-ul **pe client** din statusul brut al abonamentului (`hasActiveEntitlement(subscription)`) → owner fără rând de abonament = redirect. Frontend-ul nu poate ști de OWNER_EMAIL (secret de backend). Fix: `GET /billing/subscription` întoarce acum și `entitled` (= `userHasEntitlement(userId)`, owner-aware, aceeași sursă ca gate-ul de 402), iar UI-ul gateuiește pe acest flag, nu pe statusul brut. Scoasă funcția-oglindă `hasActiveEntitlement` din client (redundantă; defense-in-depth rămâne — granița reală e API-ul + fail-closed pe eroare). Teste: `billing.integration.test.ts` verifică `entitled` false (fără abonament) / true (activ).
+
 ### Fixed (2026-06-13) — `/admin/stats` 500 în teste: mock session-manager incomplet
 
 Suita admin pica pe `GET /admin/stats` (500). Cauză reală (găsită cu script de diagnostic, nu ghicită): `vi.mock('../whatsapp/whatsapp.session-manager.js')` din `admin.integration.test.ts` nu exporta `getActiveSessionCount`, pe care ruta îl apelează pentru `activeSockets` (adăugat la 4.3c) → `undefined()` → TypeError → 500. Mock-ul completat cu `getActiveSessionCount: vi.fn().mockReturnValue(0)`. Niciun cod de producție afectat (ruta era corectă; doar mock-ul de test rămăsese în urmă).

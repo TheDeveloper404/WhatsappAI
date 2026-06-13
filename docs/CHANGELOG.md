@@ -6,6 +6,10 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Security (2026-06-13) — triaj advisory esbuild în gate-ul de audit (CI verde)
+
+`GHSA-gv7w-rqvm-qjhr` (esbuild, high) a picat gate-ul `scripts/audit-check.mjs` ca advisory nou. Triat: e **Deno-only** (RCE prin lipsă de verificare a integrității binarului la instalarea Deno) — varianta Node/npm pe care o folosim are deja `binaryIntegrityCheck()` SHA-256. La noi esbuild `0.28.0` e devDependency tranzitiv de build/test, deci neexploatabil. Adăugat în BASELINE cu notă (fixat upstream în 0.28.1). Niciun risc de runtime de producție.
+
 ### Added (2026-06-13) — owner bypass abonament pe TOATE căile (entitlement scoped-pe-userId)
 
 `OWNER_EMAIL` făcea bypass doar în `requireActiveSubscription` (rute API/dashboard, prin email). Calea WhatsApp/AI NU trece prin acel middleware — verifică `userHasEntitlement(userId)` / `userTier(userId)` direct pe tabela `subscriptions`, care nu știe de owner. Efect: owner-ul se putea loga în dashboard, dar agentul lui era mort — generare AI blocată (`message.handler.ts:268`), hard wall pe comenzi (`:986` → „🔒 Abonamentul nu mai e activ"), tier `null` (tratat ca Pro plafonat). Bypass-ul owner a fost mutat/centralizat **în `entitlement.ts`**, în cele două funcții async scoped-pe-userId: owner → `userHasEntitlement` = `true` și `userTier` = `'max'` (toate funcțiile, fără plafon). `OWNER_EMAIL`→`userId` se rezolvă o singură dată și se memoizează (zero query suplimentar pe hot-path-ul mesajelor în steady-state; reîncercare throttled la 60s cât timp contul owner încă nu există). Consecvent acum cu pârghia „pe TOATE căile" din CLAUDE.md / ARCHITECTURE §17.

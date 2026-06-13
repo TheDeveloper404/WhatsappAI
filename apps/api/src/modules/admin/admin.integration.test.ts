@@ -28,6 +28,9 @@ vi.mock('../whatsapp/whatsapp.session-manager.js', () => ({
   disconnectSession: vi.fn().mockResolvedValue(undefined),
   restoreAllSessions: vi.fn().mockResolvedValue(undefined),
   getActiveSocket: vi.fn().mockReturnValue(undefined),
+  // /admin/stats citește activeSockets din RAM — mock-ul TREBUIE să-l expună, altfel ruta apelează
+  // undefined() → TypeError → 500 (regăsit după ce 4.3c a adăugat activeSockets în rută).
+  getActiveSessionCount: vi.fn().mockReturnValue(0),
 }))
 
 import { sendVerificationEmail } from '../../utils/email.js'

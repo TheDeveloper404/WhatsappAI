@@ -16,6 +16,28 @@ export class ApiRequestError extends Error {
   }
 }
 
+// Cloudflare / proxy-urile pot întoarce HTML (ex. pagina „Just a moment…" sau un 5xx) în loc de
+// JSON. `res.json()` ar crăpa atunci cu un SyntaxError opac („Unexpected token <") în loc de o eroare
+// utilă. Verificăm content-type-ul întâi și întoarcem o `ApiRequestError` clară, cu statusul real.
+async function parseJsonResponse(res: Response): Promise<unknown> {
+  const contentType = res.headers.get('content-type') ?? ''
+  if (!contentType.includes('application/json')) {
+    throw new ApiRequestError(
+      'NON_JSON_RESPONSE',
+      res.status >= 500
+        ? 'Serviciul este temporar indisponibil. Încearcă din nou în câteva momente.'
+        : 'Răspuns neașteptat de la server.',
+      undefined,
+      res.status,
+    )
+  }
+  try {
+    return await res.json()
+  } catch {
+    throw new ApiRequestError('INVALID_JSON', 'Răspuns invalid de la server.', undefined, res.status)
+  }
+}
+
 async function sameOriginRequest<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(path, {
     headers: { 'Content-Type': 'application/json' },
@@ -25,7 +47,7 @@ async function sameOriginRequest<T>(path: string, options?: RequestInit): Promis
 
   if (res.status === 204) return undefined as T
 
-  const data = await res.json()
+  const data = await parseJsonResponse(res)
 
   if (!res.ok) {
     const body = data as Record<string, unknown>
@@ -91,7 +113,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
         ...retryOptions,
       })
       if (retryRes.status === 204) return undefined as T
-      const retryData = await retryRes.json()
+      const retryData = await parseJsonResponse(retryRes)
       if (!retryRes.ok) {
         const err = (retryData as ApiError).error
         throw new ApiRequestError(err.code, err.message, err.details, retryRes.status)
@@ -105,7 +127,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     throw new ApiRequestError('UNAUTHORIZED', 'Sesiunea a expirat.', undefined, 401)
   }
 
-  const data = await res.json()
+  const data = await parseJsonResponse(res)
 
   if (!res.ok) {
     const body = data as Record<string, unknown>

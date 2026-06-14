@@ -1,14 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { randomUUID } from 'node:crypto'
 
-// Defense-in-depth (M3): blochează la EDGE accesul la rutele de dashboard fără sesiune, ÎNAINTE de
+// Next 16: convenția `middleware` e deprecated → fișierul ăsta e `proxy.ts`, funcția exportată `proxy`.
+// `proxy` rulează pe runtime-ul **nodejs** (nu edge, nu e configurabil) → folosim `node:crypto` explicit
+// pentru nonce, nu globalul Web Crypto.
+//
+// Defense-in-depth (M3): blochează la intrare accesul la rutele de dashboard fără sesiune, ÎNAINTE de
 // orice render. Garanția reală de autorizare rămâne API-ul (C1/C2) + verificarea din `(dashboard)/
 // layout.tsx`; aici doar evităm să randăm shell-ul aplicației pentru un vizitator neautentificat
 // (înainte pagina se randa, apoi JS-ul redirecționa — fereastră vizuală + muncă inutilă).
 //
 // Sesiunea durabilă = cookie-ul httpOnly `refreshToken` (access token-ul stă DOAR în memorie; store-ul
 // Zustand persistă doar `user`). Verificare OPTIMISTĂ pe prezența cookie-ului — nu validăm criptografic
-// token-ul aici (n-avem secretul la edge și n-ar trebui să lovim API-ul pe fiecare cerere). Un cookie
-// expirat trece de edge, dar e prins apoi de refresh-ul din layout / de API.
+// token-ul aici (n-avem secretul la intrare și n-ar trebui să lovim API-ul pe fiecare cerere). Un cookie
+// expirat trece, dar e prins apoi de refresh-ul din layout / de API.
 const REFRESH_COOKIE = 'refreshToken'
 
 // Prefixele rutelor de dashboard (grupul `(dashboard)` — numele grupului nu apare în URL).
@@ -43,7 +48,7 @@ function buildCsp(nonce: string): string {
   ].join('; ')
 }
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
   const isProtected = PROTECTED_PREFIXES.some(p => pathname === p || pathname.startsWith(p + '/'))
 
@@ -53,7 +58,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.nextUrl))
   }
 
-  const nonce = Buffer.from(crypto.randomUUID()).toString('base64')
+  const nonce = Buffer.from(randomUUID()).toString('base64')
   const csp = buildCsp(nonce)
 
   // Nonce-ul trece la render prin header-ul `x-nonce` (layout.tsx îl pune pe scriptul inline de temă);

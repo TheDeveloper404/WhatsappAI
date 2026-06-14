@@ -6,7 +6,7 @@ export type ParsedCommand =
   | { type: 'help' }
   | { type: 'setTimer'; minutes: number }
   | { type: 'clearHistory' }
-  | { type: 'confirmBooking'; ref: string }
+  | { type: 'confirmBooking'; ref: string; slotText: string }
   | { type: 'cancelBooking'; ref: string }
   | { type: 'completeBooking'; ref: string }
 
@@ -30,6 +30,11 @@ export function parseCommand(body: string): ParsedCommand | null {
   if (bookingType) {
     const ref = (parts[1] ?? '').trim()
     if (!/^prg_[a-z0-9]+$/i.test(ref)) return null
+    // La confirmare, owner-ul adaugă data+ora după ref (ex. „/confirma prg_x 18.06 09:00").
+    // Parsarea efectivă (strict, ora RO) se face în handler; aici doar capturăm textul.
+    if (bookingType === 'confirmBooking') {
+      return { type: 'confirmBooking', ref, slotText: parts.slice(2).join(' ').trim() }
+    }
     return { type: bookingType, ref }
   }
 
@@ -74,6 +79,6 @@ export const HELP_TEXT = `*Comenzi waai:*
 /status — stare curentă agent
 
 *Programări:*
-/confirma prg_xxxxxx — confirmă o programare (anunță clientul)
+/confirma prg_xxxxxx 18.06 09:00 — confirmă cu dată+oră (anunță clientul)
 /anuleaza prg_xxxxxx — anulează o programare (anunță clientul)
 /finalizeaza prg_xxxxxx — marchează programarea ca finalizată`

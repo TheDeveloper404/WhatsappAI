@@ -43,6 +43,11 @@ const msgRetryCache = new NodeCache()
 const reconnectAttempts = new Map<string, number>()
 const MAX_RECONNECT_ATTEMPTS = 5
 
+// Stare REALĂ a conexiunii (set pe connection 'open', șters pe 'close'). Distinctă de `sessions`,
+// care conține socket-ul și în timpul reconectării (socket „connecting" pus înainte de 'open').
+// Folosit de `sendToContact` ca să nu raporteze fals „notificat" trimițând pe un socket nedeschis.
+const connectedUsers = new Set<string>()
+
 async function getBaileysVersion(): Promise<[number, number, number]> {
   try {
     const { version } = await fetchLatestBaileysVersion()
@@ -110,6 +115,7 @@ function attachPersistentHandlers(sock: WASocket, userId: string) {
           connectedAt: null,
         })
         sessions.delete(userId)
+        connectedUsers.delete(userId)
 
         if (shouldReconnect) {
           setTimeout(() => reconnectAfterDrop(userId), 3000)
@@ -118,6 +124,7 @@ function attachPersistentHandlers(sock: WASocket, userId: string) {
 
       if (connection === 'open') {
         reconnectAttempts.delete(userId)
+        connectedUsers.add(userId)
         sock.ev.on('messages.upsert', async ({ messages, type }) => {
           logger.info(`[WA][${userId.slice(0, 8)}] messages.upsert`, { type, count: messages.length })
           if (type !== 'notify') return
@@ -145,6 +152,7 @@ export async function requestQrCode(userId: string): Promise<string> {
     try { existing.end(undefined) } catch {}
     sessions.delete(userId)
   }
+  connectedUsers.delete(userId)
 
   // Șterge auth state vechi din DB — user-ul va scana QR nou
   await clearAuthState(userId)
@@ -196,7 +204,9 @@ export async function requestQrCode(userId: string): Promise<string> {
 // `is_ai` și se emite pe stream-ul de conversații, ca să apară în UI.
 export async function sendToContact(userId: string, contactPhone: string, text: string): Promise<boolean> {
   const sock = sessions.get(userId)
-  if (!sock) return false
+  // Conexiune REALĂ deschisă, nu doar socket prezent (vezi `connectedUsers`): altfel un socket
+  // în curs de reconectare ar accepta mesajul fără să-l livreze → fals „notificat".
+  if (!sock || !connectedUsers.has(userId)) return false
   const phone = contactPhone.replace(/[^0-9]/g, '')
   if (!phone) return false
   const jid = `${phone}@s.whatsapp.net`
@@ -218,6 +228,7 @@ export async function disconnectSession(userId: string): Promise<void> {
     try { sock.end(undefined) } catch {}
     sessions.delete(userId)
   }
+  connectedUsers.delete(userId)
   await clearAuthState(userId)
   await whatsappRepository.update(userId, {
     status: 'disconnected',

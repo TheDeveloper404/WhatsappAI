@@ -5,7 +5,7 @@ import { askGroq, extractContactMemory, transcribeAudio, classifyScopeLLM, analy
 import { productsRepository } from '../orders/products.repository.js'
 import { ordersRepository } from '../orders/orders.repository.js'
 import { appointmentsRepository } from '../orders/appointments.repository.js'
-import { setAppointmentStatus } from '../orders/appointments.service.js'
+import { setAppointmentStatus, parseSlotToEpoch } from '../orders/appointments.service.js'
 import { knowledgeService } from '../knowledge/knowledge.service.js'
 import { userHasEntitlement, userTier, monthlyAiLimit, visionAllowed, multiServiceAllowed, minTimerMinutes } from '../billing/entitlement.js'
 import { allowIncomingMessage } from './incoming.rate-limiter.js'
@@ -440,7 +440,7 @@ async function sendAiResponse(userId: string, contactPhone: string, jid: string,
 
             const slotLine = booking.requestedSlot.trim() ? `\n🗓️ Interval dorit: ${booking.requestedSlot.trim()}` : ''
             const totalLine = svcs.length > 1 ? `\n\n*Total: ${totalText}*` : ''
-            const reply = `Am notat cererea ta de programare (*${appt.publicRef}*):\n${svcLines}${slotLine}${totalLine}\n\nProprietarul îți confirmă intervalul în scurt timp. Mulțumim!${multiServiceNote}`
+            const reply = `Am notat cererea ta de programare (*${appt.publicRef}*):\n${svcLines}${slotLine}${totalLine}\n\nProprietarul îți confirmă data și ora exactă în scurt timp. Mulțumim!${multiServiceNote}`
             await sock.sendMessage(jid, { text: reply })
             await aiRepository.saveMessage(userId, contactPhone, true, reply, Date.now(), true)
 
@@ -690,7 +690,9 @@ REGULI OBLIGATORII pentru acest caz:
 - NU inventa persoane (colegi, angajați, un alt operator) și NU pretinde că tu sau clientul ați discutat deja cu cineva. „Proprietarul" e singura altă persoană la care te poți referi, și DOAR ca cineva care va reveni cu un răspuns — nu relata o conversație care nu a avut loc.
 - Fii consecvent: nu te contrazice de la un mesaj la altul. Dacă într-un mesaj ai spus un preț sau o stare, nu o nega în următorul fără un motiv real comunicat de sistem.
 - Oferă DOAR produse din catalog, cu prețurile exacte de acolo. Niciodată produse inexistente, indisponibile sau epuizate.
-- Un mesaj de salut (de ex. „salut", „bună", „vă salut", „bună ziua", „hey", „noroc") este o DESCHIDERE de conversație: răspunde cu un salut și întreabă cu ce poți ajuta. NU răspunde cu formule de rămas-bun („la revedere", „o zi bună", „pa") decât dacă clientul încheie CLAR conversația (de ex. „mulțumesc, am terminat", „pa", „asta a fost tot").`
+- Salutul: salută o SINGURĂ dată per conversație, la început. Dacă în istoric AI SALUTAT deja sau ați mai schimbat mesaje, NU mai saluta — continuă direct și firesc, fără „Salut!"/„Bună!" la fiecare răspuns. Răspunde cu formule de rămas-bun doar dacă clientul încheie CLAR conversația (de ex. „mulțumesc, am terminat", „pa", „asta a fost tot").
+- Adaptează-te la stilul clientului: dacă scrie scurt, direct, grăbit sau prescurtat, răspunde la fel de scurt și direct — NU fi mai formal sau mai politicos decât el. Variază formulările; nu repeta aceleași structuri de la un mesaj la altul.
+- Înțelegi limbajul de zi cu zi: prescurtări, lipsă de diacritice, exprimare grăbită sau telegrafică (ex. „cv 2.0 130k", „motor de 2", „bn aveti loc maine?", „în jumate de oră"). Deduci sensul din context și NU pune clientul să reformuleze; întreabă doar dacă chiar lipsește o informație esențială.`
 
   // Promptul user poate fi gol (userul și-a șters textul din Setări) → cădem pe persona implicită,
   // ca agentul să nu rămână fără ton/instrucțiuni de bază (doar regulile platformei).
@@ -1060,7 +1062,17 @@ async function executeCommand(userId: string, sock: WASocket, jid: string, conta
         break
       }
       const newStatus = statusMap[cmd.type]
-      const { changed, notified } = await setAppointmentStatus(userId, appt, newStatus)
+      // La confirmare owner-ul setează data+ora concretă (ex. „/confirma prg_x 18.06 09:00").
+      let scheduledAt: number | undefined
+      if (cmd.type === 'confirmBooking') {
+        const ts = parseSlotToEpoch(cmd.slotText)
+        if (!ts) {
+          reply = `🗓️ Adaugă data și ora la confirmare:\n/confirma ${appt.publicRef} 18.06 09:00`
+          break
+        }
+        scheduledAt = ts
+      }
+      const { changed, notified } = await setAppointmentStatus(userId, appt, newStatus, scheduledAt)
       if (!changed) {
         reply = `ℹ️ Programarea *${appt.publicRef}* („${appt.serviceName}") era deja ${statusRo[newStatus]}.`
       } else {

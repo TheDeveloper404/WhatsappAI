@@ -255,8 +255,10 @@ export const appointments = pgTable('appointments', {
   serviceName: text('service_name').notNull(),
   // Total preț (bani) al serviciilor programate. 0 = necunoscut/servicii fără preț.
   totalBani: integer('total_bani').notNull().default(0),
-  // Intervalul dorit, ca text liber („vineri pe la 15"). Nu calculăm sloturi reale aici.
+  // Intervalul dorit, ca text liber („vineri pe la 15"). Preferința clientului, NU ora confirmată.
   requestedSlot: text('requested_slot').notNull().default(''),
+  // Dată+oră concretă (epoch ms) setată de owner la confirmare. NULL = neconfirmată/fără oră.
+  scheduledAt: bigint('scheduled_at', { mode: 'number' }),
   details: text('details').notNull().default(''),
   createdAt: bigint('created_at', { mode: 'number' }).notNull(),
   updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),

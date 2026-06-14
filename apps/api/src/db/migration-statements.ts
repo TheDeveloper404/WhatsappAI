@@ -244,6 +244,8 @@ export const migrationStatements = [
   `ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_address TEXT NOT NULL DEFAULT ''`,
   // B10 — programări cu mai multe servicii: total pe programare + tabel de linii (servicii).
   `ALTER TABLE appointments ADD COLUMN IF NOT EXISTS total_bani INTEGER NOT NULL DEFAULT 0`,
+  // Dată+oră concretă setată de owner la confirmare (epoch ms). NULL = încă neconfirmată/fără oră.
+  `ALTER TABLE appointments ADD COLUMN IF NOT EXISTS scheduled_at BIGINT`,
   `CREATE TABLE IF NOT EXISTS appointment_items (
     id TEXT PRIMARY KEY,
     appointment_id TEXT NOT NULL REFERENCES appointments(id) ON DELETE CASCADE,

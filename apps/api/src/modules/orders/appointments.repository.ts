@@ -81,9 +81,13 @@ export const appointmentsRepository = {
     return rows[0] ?? null
   },
 
-  async updateStatus(userId: string, id: string, status: 'pending' | 'confirmed' | 'completed' | 'cancelled'): Promise<void> {
+  // `scheduledAt`: dată+oră concretă setată de owner la confirmare (epoch ms). `undefined` = nu
+  // o atinge (păstrează valoarea existentă); `null` = o golește explicit.
+  async updateStatus(userId: string, id: string, status: 'pending' | 'confirmed' | 'completed' | 'cancelled', scheduledAt?: number | null): Promise<void> {
+    const values: Partial<typeof appointments.$inferInsert> = { status, updatedAt: Date.now() }
+    if (scheduledAt !== undefined) values.scheduledAt = scheduledAt
     await db.update(appointments)
-      .set({ status, updatedAt: Date.now() })
+      .set(values)
       .where(and(eq(appointments.userId, userId), eq(appointments.id, id)))
   },
 

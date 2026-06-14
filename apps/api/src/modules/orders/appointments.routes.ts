@@ -8,6 +8,10 @@ import { Errors } from '../../utils/errors.js'
 
 const statusSchema = z.object({
   status: z.enum(['pending', 'confirmed', 'completed', 'cancelled']),
+  // Dată+oră concretă (epoch ms) — obligatorie la confirmare (owner-ul o setează).
+  scheduledAt: z.number().int().positive().optional(),
+}).refine(d => d.status !== 'confirmed' || d.scheduledAt != null, {
+  message: 'Setează data și ora la confirmare', path: ['scheduledAt'],
 })
 
 export async function appointmentsRoutes(app: FastifyInstance) {
@@ -31,7 +35,7 @@ export async function appointmentsRoutes(app: FastifyInstance) {
 
     // Sursă unică (service): schimbă statusul + notifică clientul la tranziție reală. Folosit și de
     // comenzile owner pe WhatsApp (#6).
-    const { notified } = await setAppointmentStatus(req.user!.id, existing, result.data.status)
+    const { notified } = await setAppointmentStatus(req.user!.id, existing, result.data.status, result.data.scheduledAt)
     return reply.send({ ok: true, notified })
   })
 

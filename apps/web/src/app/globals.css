@@ -71,6 +71,9 @@
        puternic în evidență pe fundalul acid al cardului. */
     --cta-max: #ffffff;
     --cta-max-fg: #0a0f0c;
+    /* Badge „RECOMANDAT" — orange viu (cascadează în ambele teme), text alb pt vizibilitate. */
+    --badge-rec: #f97316;
+    --badge-rec-fg: #ffffff;
     color-scheme: light;
   }
   html.dark {

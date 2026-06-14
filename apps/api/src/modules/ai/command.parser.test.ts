@@ -75,8 +75,12 @@ describe('parseCommand', () => {
 
   // Comenzi programări owner (#6)
   it('/confirma cu ref valid', () => {
-    expect(parseCommand('/confirma prg_a1b2c3')).toEqual({ type: 'confirmBooking', ref: 'prg_a1b2c3' })
-    expect(parseCommand('/CONFIRMA prg_A1B2C3')).toEqual({ type: 'confirmBooking', ref: 'prg_A1B2C3' })
+    expect(parseCommand('/confirma prg_a1b2c3')).toEqual({ type: 'confirmBooking', ref: 'prg_a1b2c3', slotText: '' })
+    expect(parseCommand('/CONFIRMA prg_A1B2C3')).toEqual({ type: 'confirmBooking', ref: 'prg_A1B2C3', slotText: '' })
+  })
+
+  it('/confirma capturează data+ora după ref', () => {
+    expect(parseCommand('/confirma prg_a1b2c3 18.06 09:00')).toEqual({ type: 'confirmBooking', ref: 'prg_a1b2c3', slotText: '18.06 09:00' })
   })
 
   it('/anuleaza și /finalizeaza cu ref valid', () => {
@@ -85,7 +89,7 @@ describe('parseCommand', () => {
   })
 
   it('tolerează diacriticele în numele comenzii', () => {
-    expect(parseCommand('/confirmă prg_a1b2c3')).toEqual({ type: 'confirmBooking', ref: 'prg_a1b2c3' })
+    expect(parseCommand('/confirmă prg_a1b2c3')).toEqual({ type: 'confirmBooking', ref: 'prg_a1b2c3', slotText: '' })
     expect(parseCommand('/anulează prg_a1b2c3')).toEqual({ type: 'cancelBooking', ref: 'prg_a1b2c3' })
   })
 

@@ -415,12 +415,13 @@ export const api = {
         credentials: 'include',
       }),
 
-    updateStatus: (accessToken: string, id: string, status: AppointmentStatus) =>
+    // `scheduledAt` (epoch ms) e obligatoriu la confirmare — owner-ul setează data+ora.
+    updateStatus: (accessToken: string, id: string, status: AppointmentStatus, scheduledAt?: number) =>
       request<{ ok: boolean; notified: boolean }>(`/api/v1/appointments/${id}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
         credentials: 'include',
-        body: JSON.stringify({ status }),
+        body: JSON.stringify(scheduledAt != null ? { status, scheduledAt } : { status }),
       }),
 
     remove: (accessToken: string, id: string) =>
@@ -692,6 +693,7 @@ export interface Appointment {
   serviceName: string
   totalBani: number
   requestedSlot: string
+  scheduledAt: number | null
   details: string
   createdAt: number
   updatedAt: number

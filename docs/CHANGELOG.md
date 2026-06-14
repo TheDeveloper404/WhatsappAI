@@ -6,6 +6,27 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added (2026-06-14) — programări cu dată+oră concretă (owner-ul setează ora la confirmare)
+
+Înainte, programările n-aveau nicio oră reală: `requestedSlot` era doar text liber al clientului („în jumate de oră", „joi dimineață"), iar la confirmare mesajul îl repeta ca și cum ar fi ora confirmată — derutant și inutil ca record. Acum owner-ul setează **data+ora exactă** la confirmare (el e autoritatea pe oră, la fel ca la prețuri AI-ul nu inventează ore).
+- **Date:** coloană nouă `appointments.scheduled_at` (epoch ms, nullable) — migrare idempotentă în `migration-statements.ts` (prod) și `global-setup.ts` (test).
+- **Backend:** `setAppointmentStatus(..., scheduledAt?)` salvează ora la confirmare; mesajul către client devine concret („✅ Programarea ta pentru „X" e confirmată: joi, 18 iunie, ora 09:00. Te așteptăm!") — nu mai repetă `requestedSlot`. Formator RO (`formatSlotRo`) + parser strict de dată (`parseSlotToEpoch`, ora RO, fără librărie de tz, cu test).
+- **Dashboard:** la confirmare apare un selector **dată+oră** (obligatoriu); programările confirmate afișează „Programat: …". Ruta `PATCH /:id/status` cere `scheduledAt` la `confirmed`.
+- **Comandă WhatsApp:** `/confirma prg_xxx 18.06 09:00` (format strict, parsat în cod); fără oră → owner-ul e rugat să o adauge.
+- Mesajele de „cerere înregistrată" clarificate: „proprietarul îți confirmă **data și ora exactă**".
+
+### Fixed (2026-06-14) — notificare programare/comandă: „Clientul a fost notificat" fals
+
+Dashboard-ul afișa „✅ Clientul a fost notificat pe WhatsApp" chiar și când mesajul nu ajungea la client. Cauză: `sendToContact` (`whatsapp.session-manager.ts`) raporta `notified=true` dacă `sock.sendMessage` nu arunca eroare — dar un socket „stale"/în reconectare (frecvent pe Railway după restart) acceptă mesajul fără să-l livreze, iar mesajul se salva în DB (deci apărea și în log/export ca trimis), fără să ajungă efectiv.
+- **Fix:** urmărim starea REALĂ a conexiunii printr-un set `connectedUsers` (populat pe `connection: 'open'`, golit pe `'close'`/deconectare/reset QR), distinct de harta `sessions` (care conține socket-ul și în timpul reconectării). `sendToContact` trimite și raportează `notified=true` DOAR dacă conexiunea e realmente deschisă; altfel întoarce `false` fără să salveze un mesaj fantomă → dashboard-ul spune cinstit „Clientul NU a fost notificat (WhatsApp neconectat)".
+- Mesajul AI de răspuns automat nu e afectat (rulează în contextul unui socket deja conectat care tocmai a primit un mesaj).
+
+### Changed (2026-06-14) — agent AI: conversație mai naturală (salut o dată, oglindește tonul, limbaj informal)
+
+Agentul repeta „Salut!" la (aproape) fiecare răspuns și suna prea formal/de call-center — rupea iluzia „răspunde ca un om". Cauza: o regulă din platform prompt (`message.handler.ts`) care trata ORICE salut al clientului ca o deschidere → saluta din nou de fiecare dată.
+- **Fix (platform prompt, se aplică tuturor):** salută o **singură dată** per conversație (dacă a salutat deja în istoric → nu mai salută); **oglindește stilul clientului** (scurt/direct/prescurtat → răspuns la fel de scurt, fără politețe excesivă, variind formulările); explicit că **înțelege limbaj de zi cu zi** (prescurtări, fără diacritice, telegrafic — „cv 2.0 130k", „motor de 2", „în jumate de oră") și nu pune clientul să reformuleze.
+- Modelul primea deja tot istoricul conversației (`message.handler.ts:746-752`), deci înțelegerea contextului/limbajului informal era ok — problema era strict regula de salut + tonul.
+
 ### Fixed (2026-06-14) — login/signup: în light mode pagina era „pe jumătate albă"
 
 Panoul stâng (hero-ul „răspunde ca tine") din layout-ul de auth avea toate culorile **hardcodate dark** (`#0A0F0C`, `#E8E6E1`, `#C8FB4A`, rgba-uri albe), deci rămânea negru și în light mode → jumătatea stângă neagră, dreapta deschisă.

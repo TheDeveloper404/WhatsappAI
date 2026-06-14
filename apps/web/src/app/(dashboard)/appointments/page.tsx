@@ -10,6 +10,18 @@ function formatDate(ts: number): string {
   return new Date(ts).toLocaleString('ro-RO', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
 }
 
+// Ora confirmată, afișată clar: „joi, 18 iun., 09:00".
+function formatSlot(ts: number): string {
+  return new Date(ts).toLocaleString('ro-RO', { weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+}
+
+// Valoare implicită pentru pickerul de confirmare: peste ~1h, format datetime-local (ora locală = RO).
+function defaultConfirmValue(): string {
+  const d = new Date(Date.now() + 60 * 60 * 1000)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 const STATUS_META: Record<AppointmentStatus, { label: string; color: string }> = {
   pending:   { label: 'În așteptare', color: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300' },
   confirmed: { label: 'Confirmată',   color: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' },
@@ -37,6 +49,9 @@ export default function AppointmentsPage() {
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [currency, setCurrency] = useState('RON')
+  // Confirmare cu dată+oră: id-ul programării în curs de confirmare + valoarea din picker.
+  const [confirmingId, setConfirmingId] = useState<string | null>(null)
+  const [confirmValue, setConfirmValue] = useState('')
 
   useEffect(() => {
     if (!accessToken) return
@@ -52,14 +67,15 @@ export default function AppointmentsPage() {
       .finally(() => setLoading(false))
   }, [accessToken])
 
-  async function handleStatusChange(id: string, status: AppointmentStatus) {
+  async function handleStatusChange(id: string, status: AppointmentStatus, scheduledAt?: number) {
     if (!accessToken) return
     setUpdatingId(id)
     setError(null)
     setNotice(null)
     try {
-      const { notified } = await api.appointments.updateStatus(accessToken, id, status)
-      setAppointments(prev => prev.map(a => a.id === id ? { ...a, status } : a))
+      const { notified } = await api.appointments.updateStatus(accessToken, id, status, scheduledAt)
+      setAppointments(prev => prev.map(a => a.id === id ? { ...a, status, ...(scheduledAt != null ? { scheduledAt } : {}) } : a))
+      setConfirmingId(null)
       // Feedback despre notificarea clientului (doar pentru tranziții care trimit mesaj).
       if (status !== 'pending') {
         setNotice(notified
@@ -72,6 +88,22 @@ export default function AppointmentsPage() {
     } finally {
       setUpdatingId(null)
     }
+  }
+
+  // La confirmare cerem ÎNTÂI data+ora (owner-ul e autoritatea pe oră); restul tranzițiilor merg direct.
+  function onStatusSelect(id: string, status: AppointmentStatus) {
+    if (status === 'confirmed') {
+      setConfirmingId(id)
+      setConfirmValue(defaultConfirmValue())
+    } else {
+      handleStatusChange(id, status)
+    }
+  }
+
+  function submitConfirm(id: string) {
+    const ts = new Date(confirmValue).getTime()
+    if (!confirmValue || Number.isNaN(ts)) return
+    handleStatusChange(id, 'confirmed', ts)
   }
 
   async function handleDelete(id: string) {
@@ -181,6 +213,12 @@ export default function AppointmentsPage() {
                 ) : (
                   <p className="font-mono-ui text-[14px] text-ink mb-1">{appt.serviceName}</p>
                 )}
+                {appt.scheduledAt && (
+                  <p className="font-mono-ui text-[13px] text-ink flex items-center gap-1.5 mt-0.5">
+                    <CalendarClock className="h-3.5 w-3.5 text-acid" />
+                    Programat: {formatSlot(appt.scheduledAt)}
+                  </p>
+                )}
                 {appt.requestedSlot && (
                   <p className="font-mono-ui text-[13px] text-dim flex items-center gap-1.5">
                     <CalendarClock className="h-3.5 w-3.5 text-dimmer" />
@@ -194,11 +232,38 @@ export default function AppointmentsPage() {
                   </p>
                 )}
 
+                {confirmingId === appt.id && (
+                  <div className="mt-3 pt-3 border-t border-line flex flex-col sm:flex-row sm:items-center gap-2">
+                    <label className="font-mono-ui text-[12px] text-dim shrink-0">Data și ora:</label>
+                    <input
+                      type="datetime-local"
+                      value={confirmValue}
+                      onChange={e => setConfirmValue(e.target.value)}
+                      className="font-mono-ui text-[12px] text-ink bg-cardhi border border-line rounded-lg px-3 py-2 focus:outline-hidden focus:ring-2 focus:ring-acid/40"
+                    />
+                    <div className="flex gap-2 sm:ml-auto">
+                      <button
+                        onClick={() => submitConfirm(appt.id)}
+                        disabled={!confirmValue || updatingId === appt.id}
+                        className="font-mono-ui text-[12px] bg-acid text-white dark:text-black rounded-lg px-3 py-2 hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-1.5"
+                      >
+                        {updatingId === appt.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Confirmă & notifică'}
+                      </button>
+                      <button
+                        onClick={() => setConfirmingId(null)}
+                        className="font-mono-ui text-[12px] text-dim hover:text-ink rounded-lg px-3 py-2"
+                      >
+                        Renunță
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex items-center justify-end gap-2 pt-3 mt-3 border-t border-line">
                   <div className="relative">
                     <select
                       value={appt.status}
-                      onChange={e => handleStatusChange(appt.id, e.target.value as AppointmentStatus)}
+                      onChange={e => onStatusSelect(appt.id, e.target.value as AppointmentStatus)}
                       disabled={updatingId === appt.id}
                       className="appearance-none font-mono-ui text-[12px] text-ink bg-cardhi border border-line rounded-lg pl-3 pr-8 py-2 focus:outline-hidden focus:ring-2 focus:ring-acid/40 cursor-pointer disabled:opacity-50"
                     >

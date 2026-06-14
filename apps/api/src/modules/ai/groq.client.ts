@@ -60,7 +60,12 @@ async function callGeminiApi(messages: GroqMessage[], options?: LLMOptions): Pro
       contents,
       generationConfig: {
         temperature: options?.temperature ?? 0.8,
-        maxOutputTokens: options?.max_tokens ?? 300,
+        maxOutputTokens: options?.max_tokens ?? 512,
+        // gemini-2.5-flash e model „thinking": tokenii de raționament se scad din maxOutputTokens.
+        // Fără asta, pe conversații cu istoric lung thinking-ul mănâncă bugetul → răspuns tăiat la
+        // mijloc de propoziție (progresiv mai scurt cu cât crește contextul). Botul imită stilul
+        // owner-ului, nu vrem chain-of-thought → 0 = tot bugetul merge în textul vizibil.
+        thinkingConfig: { thinkingBudget: 0 },
       },
     }),
   })

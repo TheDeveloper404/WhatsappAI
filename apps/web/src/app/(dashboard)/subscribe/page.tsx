@@ -68,18 +68,23 @@ export default function SubscribePage() {
           const price = billing === 'monthly' ? tier.monthly : tier.annual
           const period = billing === 'monthly' ? 'lună' : 'an'
           const saved = annualSavings(tier.monthly, tier.annual)
+          // Cardul recomandat (Max) are fundal acid (ca pe landing) → textul devine on-acid.
+          const rec = tier.recommended
+          const onAcid = rec ? { color: 'var(--on-acid)' } : undefined
+          const onAcidMuted = rec ? { color: 'var(--on-acid-muted)' } : undefined
           return (
             <div
               key={tier.id}
               className={`relative rounded-2xl border p-6 flex flex-col transition-all ${
-                tier.recommended ? 'border-acid bg-cardhi' : 'border-line bg-card'
+                rec ? 'border-transparent shadow-xl' : 'border-line bg-card'
               }`}
+              style={rec ? { background: 'var(--acid)' } : undefined}
             >
-              {tier.recommended && (
+              {rec && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                   <span
-                    className="font-mono-ui text-[10px] tracking-widest px-3 py-1 rounded-full inline-flex items-center gap-1 text-white dark:text-black"
-                    style={{ background: 'var(--acid)' }}
+                    className="font-mono-ui text-[10px] tracking-widest px-3 py-1 rounded-full inline-flex items-center gap-1 font-bold"
+                    style={{ background: 'var(--cta-max)', color: 'var(--cta-max-fg)' }}
                   >
                     <Zap className="h-3 w-3" />
                     recomandat
@@ -88,17 +93,17 @@ export default function SubscribePage() {
               )}
 
               <div className="mb-6">
-                <p className="font-mono-ui text-[10px] text-dimmer tracking-widest uppercase mb-2">{tier.name}</p>
+                <p className="font-mono-ui text-[10px] text-dimmer tracking-widest uppercase mb-2" style={onAcidMuted}>{tier.name}</p>
                 <div className="flex items-end gap-1.5">
-                  <span className="font-display text-[42px] text-ink leading-none">{price}</span>
-                  <span className="font-mono-ui text-[12px] text-dim mb-1">RON / {period}</span>
+                  <span className="font-display text-[42px] text-ink leading-none" style={onAcid}>{price}</span>
+                  <span className="font-mono-ui text-[12px] text-dim mb-1" style={onAcidMuted}>RON / {period}</span>
                 </div>
                 {billing === 'annual' && (
-                  <p className="font-mono-ui text-[11px] text-acid mt-1">
+                  <p className="font-mono-ui text-[11px] text-acid mt-1" style={onAcid}>
                     ~{perMonthFromAnnual(tier.annual)} RON / lună · economisești {saved} RON / an
                   </p>
                 )}
-                <p className="font-mono-ui text-[12px] text-dim mt-2">{tier.tagline}</p>
+                <p className="font-mono-ui text-[12px] text-dim mt-2" style={onAcidMuted}>{tier.tagline}</p>
               </div>
 
               <ul className="flex flex-col gap-2 mb-8 flex-1">
@@ -108,8 +113,9 @@ export default function SubscribePage() {
                     className={`flex items-start gap-2 font-mono-ui text-[12px] ${
                       i === 0 && tier.id === 'max' ? 'text-ink font-semibold' : 'text-dim'
                     }`}
+                    style={onAcid}
                   >
-                    <Check className="h-3.5 w-3.5 text-acid shrink-0 mt-0.5" />
+                    <Check className="h-3.5 w-3.5 text-acid shrink-0 mt-0.5" style={onAcid} />
                     {f}
                   </li>
                 ))}
@@ -119,7 +125,8 @@ export default function SubscribePage() {
                 onClick={() => handleSelect(tier.id)}
                 disabled={loading !== null}
                 loading={loading === tier.id}
-                variant={tier.recommended ? 'primary' : 'secondary'}
+                variant={rec ? 'accent' : 'primary'}
+                size={rec ? 'lg' : 'md'}
                 className="w-full"
               >
                 începe trial gratuit →

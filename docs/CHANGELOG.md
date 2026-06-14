@@ -6,6 +6,21 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed (2026-06-14) — Next 16: `middleware.ts` → `proxy.ts` (convenție nouă)
+
+Next 16 a depreciat convenția `middleware` (build-ul avertiza „use proxy instead"). Migrat la noua convenție:
+- `apps/web/src/middleware.ts` → `apps/web/src/proxy.ts`; funcția exportată `middleware` → `proxy`; `config`/matcher neschimbat.
+- **Runtime:** `proxy` rulează pe **nodejs** (nu edge, neconfigurabil) → nonce-ul folosește acum `import { randomUUID } from 'node:crypto'` explicit, nu globalul Web Crypto.
+- **Neschimbat funcțional:** CSP cu nonce per-request, `'strict-dynamic'`, gating-ul de auth la edge pe rutele de dashboard, matcher-ul. Comentarii actualizate în `next.config.mjs` + `layout.tsx`.
+- **Verificat:** `pnpm --filter web build` verde, `ƒ Proxy (Middleware)` recunoscut, warning-ul de deprecation dispărut.
+
+### Fixed (2026-06-14) — client API web: răspuns non-JSON (Cloudflare) crăpa cu eroare opacă
+
+`lib/api.ts` apela `res.json()` necondiționat în 3 locuri (`sameOriginRequest`, `request` și calea de retry după refresh). Când Cloudflare întoarce HTML (pagina „Just a moment…" la challenge sau un 5xx), parsarea pica cu un `SyntaxError` opac („Unexpected token <") în loc de un mesaj util.
+- **Fix:** helper comun `parseJsonResponse(res)` — verifică `content-type` înainte de parsare; non-JSON → `ApiRequestError` clară cu statusul real (5xx → „Serviciul este temporar indisponibil", altfel „Răspuns neașteptat de la server"); JSON malformat → „Răspuns invalid de la server". Folosit în toate cele 3 căi (DRY). `tryRefreshToken` rămâne neatins (deja prins în try/catch).
+
+`tsc` + `next lint` verzi pe web.
+
 ### Fixed (2026-06-14) — RAG / embeddings: model Gemini retras → upload document pica cu 404
 
 Încărcarea documentelor în baza de cunoștințe (`POST /api/v1/knowledge/documents`) eșua cu „Serviciul de embedding nu este disponibil: Gemini embed error 404 … models/text-embedding-004 is not found for API version v1beta". Google a retras `text-embedding-004` de pe `v1beta`.

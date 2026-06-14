@@ -66,6 +66,11 @@
     --danger: #e04a3a;
     --on-acid: #ffffff;
     --on-acid-muted: rgba(255, 255, 255, 0.72);
+    /* CTA „închis" pe cardul accent (Max). Definit DOAR aici → cascadează și în dark (nu se
+       suprascrie): pilula rămâne near-black în ambele teme, ca să iasă în evidență atât pe
+       acidul teal (light) cât și pe lime (dark). Înlocuiește albul hardcodat de dinainte. */
+    --acid-cta: #0a0f0c;
+    --acid-cta-fg: #f6f4ef;
     color-scheme: light;
   }
   html.dark {

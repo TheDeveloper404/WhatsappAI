@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
 import { BackButton } from '@/components/BackButton'
 import { DeleteAccountButton } from '@/components/DeleteAccountButton'
-import { ScrollRestoreTop } from '@/components/ScrollRestoreTop'
 
 export const metadata: Metadata = {
   title: 'GDPR — waai.',
@@ -10,7 +9,6 @@ export const metadata: Metadata = {
 export default function GdprPage() {
   return (
     <main className="max-w-[760px] mx-auto px-6 py-20 fade-in">
-      <ScrollRestoreTop />
       <BackButton />
 
       <h1 className="font-display text-[36px] sm:text-[52px] text-ink mb-4">gdpr.</h1>

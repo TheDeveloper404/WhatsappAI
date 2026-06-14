@@ -1,6 +1,5 @@
 import type { Metadata } from 'next'
 import { BackButton } from '@/components/BackButton'
-import { ScrollRestoreTop } from '@/components/ScrollRestoreTop'
 import { CookieResetButton } from '@/components/CookieResetButton'
 
 export const metadata: Metadata = {
@@ -10,7 +9,6 @@ export const metadata: Metadata = {
 export default function CookiesPage() {
   return (
     <main className="max-w-[760px] mx-auto px-6 py-20 fade-in">
-      <ScrollRestoreTop />
       <BackButton />
 
       <h1 className="font-display text-[36px] sm:text-[52px] text-ink mb-4">cookies.</h1>

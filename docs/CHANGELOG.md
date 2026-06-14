@@ -6,6 +6,12 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed (2026-06-14) — afișare prețuri: fără zecimale inutile la sume întregi („450,00" → „450")
+
+Prețurile întregi se afișau cu „,00"/„.00" redundant (ex. „450,00 lei", iar în preview-ul de import CSV „450.00 lei" cu punct). Acum zecimalele apar **doar când suma chiar are bani** (450,50 rămâne „450,50"; 450 devine „450").
+- **Web:** `formatAmount` (`lib/format.ts`) folosește `minimumFractionDigits` 0 sau 2 după caz — se propagă în listele de produse, comenzi și programări. Preview-ul de import (`products/page.tsx`) trecut și el pe `formatAmount` (era `toFixed(2)` → punct, inconsecvent).
+- **Backend (mesaje WhatsApp către client):** helper nou `utils/money.ts` `formatAmount(bani)` (scoate „.00" pentru sume întregi). Aplicat în rezumatele de comandă/programare și totaluri din `message.handler.ts`. Liniile de catalog din system prompt (`formatCatalogLine`) rămân pe `toFixed(2)` — input pentru model, nu UI; nu le atingem.
+
 ### Added (2026-06-14) — programări cu dată+oră concretă (owner-ul setează ora la confirmare)
 
 Înainte, programările n-aveau nicio oră reală: `requestedSlot` era doar text liber al clientului („în jumate de oră", „joi dimineață"), iar la confirmare mesajul îl repeta ca și cum ar fi ora confirmată — derutant și inutil ca record. Acum owner-ul setează **data+ora exactă** la confirmare (el e autoritatea pe oră, la fel ca la prețuri AI-ul nu inventează ore).

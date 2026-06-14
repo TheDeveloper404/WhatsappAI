@@ -19,8 +19,13 @@ export function currencyLabel(currency: string): string {
 }
 
 // Doar suma formatată, fără etichetă (pentru cazuri în care eticheta e separată stilistic).
+// Zecimalele apar doar când suma are bani (450,50); pentru sume întregi afișăm „450", nu „450,00".
 export function formatAmount(bani: number): string {
-  return (bani / 100).toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  const hasCents = bani % 100 !== 0
+  return (bani / 100).toLocaleString('ro-RO', {
+    minimumFractionDigits: hasCents ? 2 : 0,
+    maximumFractionDigits: 2,
+  })
 }
 
 // Sumă + etichetă monedă (ex: „100,00 lei").

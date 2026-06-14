@@ -6,6 +6,15 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed (2026-06-14) — RAG / embeddings: model Gemini retras → upload document pica cu 404
+
+Încărcarea documentelor în baza de cunoștințe (`POST /api/v1/knowledge/documents`) eșua cu „Serviciul de embedding nu este disponibil: Gemini embed error 404 … models/text-embedding-004 is not found for API version v1beta". Google a retras `text-embedding-004` de pe `v1beta`.
+- **Fix:** `GEMINI_EMBED_MODEL` schimbat la **`gemini-embedding-001`** (`groq.client.ts:7`), înlocuitorul oficial pe **același** endpoint `batchEmbedContents`, cu aceeași structură de request (`requests[].model` + `content.parts` + `taskType`).
+- **Fără impact pe schemă:** embedding-ul e `jsonb` (array de float), nu `pgvector` cu dimensiune fixă; noul model dă 3072 dim (vs 768), iar `cosineSimilarity` împarte la magnitudini → invariant la dimensiune/normalizare. Comentarii aduse la zi (`groq.client.ts`, `schema.ts`).
+- **De știut:** documentele indexate **înainte** de fix (dacă există vectori 768 dim) nu se mai potrivesc cu query-urile 3072 dim (length mismatch → score 0, fără crash) → **re-încarcă documentele** după deploy.
+
+`tsc` verde pe api.
+
 ### Added (2026-06-13) — upgrade Pro → Max in-place (proration), nu mai creează abonament nou
 
 Butoanele „Treci pe Max" (leads + settings) duceau la `/subscribe` → `createCheckout`, care crea un **al doilea abonament Stripe + alt trial de 7 zile** pentru un abonat existent. Înlocuit cu un flux de upgrade real, **in-place**:

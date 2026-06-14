@@ -293,7 +293,7 @@ export const documentChunks = pgTable('document_chunks', {
   userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   chunkIndex: integer('chunk_index').notNull(),
   content: text('content').notNull(),
-  // Vector embedding (Gemini text-embedding-004), stocat ca array de float.
+  // Vector embedding (Gemini gemini-embedding-001, 3072 dim), stocat ca array de float.
   embedding: jsonb('embedding').$type<number[]>().notNull(),
   createdAt: bigint('created_at', { mode: 'number' }).notNull(),
 })

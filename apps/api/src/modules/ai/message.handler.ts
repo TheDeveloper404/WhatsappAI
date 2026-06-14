@@ -14,6 +14,7 @@ import { recordOwnerReply, isOwnerActive } from './inactivity.tracker.js'
 import { logger, maskPhone } from '../../utils/logger.js'
 import { appEvents } from '../../utils/events.js'
 import type { AiSettings } from '../../db/schema.js'
+import { formatAmount } from '../../utils/money.js'
 
 function extractText(msg: any): string | null {
   const m = msg.message
@@ -403,8 +404,8 @@ async function sendAiResponse(userId: string, contactPhone: string, jid: string,
         const hasEstimate = svcs.some(s => s.isEstimate)
         const combinedName = svcs.map(s => s.name).join(' + ')
         const totalBani = svcs.reduce((sum, s) => sum + s.priceBani, 0)
-        const totalText = `${hasEstimate ? 'de la ' : ''}${(totalBani / 100).toFixed(2)} ${cur}`
-        const svcLines = svcs.map(s => `• ${s.name} — ${s.isEstimate ? 'de la ' : ''}${(s.priceBani / 100).toFixed(2)} ${cur}`).join('\n')
+        const totalText = `${hasEstimate ? 'de la ' : ''}${formatAmount(totalBani)} ${cur}`
+        const svcLines = svcs.map(s => `• ${s.name} — ${s.isEstimate ? 'de la ' : ''}${formatAmount(s.priceBani)} ${cur}`).join('\n')
 
         // Anti-dublură: aceeași MULȚIME de servicii + același interval, în ultimele 12h → nu recrea.
         const RECENT_MS = 12 * 60 * 60 * 1000
@@ -525,9 +526,9 @@ async function sendAiResponse(userId: string, contactPhone: string, jid: string,
       }
 
       const cur = curLabel(settings.currency)
-      const lines = items.map(it => `• ${it.quantity}× ${it.productName} — ${((it.unitPriceBani * it.quantity) / 100).toFixed(2)} ${cur}`).join('\n')
+      const lines = items.map(it => `• ${it.quantity}× ${it.productName} — ${formatAmount(it.unitPriceBani * it.quantity)} ${cur}`).join('\n')
       const totalBani = items.reduce((s, it) => s + it.unitPriceBani * it.quantity, 0)
-      const totalLei = (totalBani / 100).toFixed(2)
+      const totalLei = formatAmount(totalBani)
       const signature = items.map(it => `${it.productId}x${it.quantity}`).sort().join('|')
 
       // Anti-dublură: dacă există deja o comandă recentă identică, nu o recreăm —
@@ -550,7 +551,7 @@ async function sendAiResponse(userId: string, contactPhone: string, jid: string,
         const statusLabel = existing.status === 'pending' ? 'în așteptare de confirmare'
           : existing.status === 'confirmed' ? 'confirmată'
           : existing.status === 'completed' ? 'finalizată' : 'anulată'
-        activeOrderNote = `Clientul are deja o comandă înregistrată (${statusLabel}):\n${lines}\nTotal: ${(existing.totalBani / 100).toFixed(2)} ${cur}.\nNU crea o comandă nouă și NU repeta confirmarea de înregistrare. Răspunde firesc la mesajul curent al clientului. Confirmarea și anularea se fac DOAR de proprietar (din dashboard), iar sistemul trimite AUTOMAT clientului mesajul de status la fiecare schimbare — așadar NU anunța tu „a fost confirmată/anulată" și NU pretinde că ai înregistrat o cerere de confirmare/anulare. Dacă clientul cere anulare, confirmă-i scurt că transmiți proprietarului, fără a repeta statusul. Dacă nu cunoști un detaliu exact, spune-i că proprietarul confirmă în scurt timp.`
+        activeOrderNote = `Clientul are deja o comandă înregistrată (${statusLabel}):\n${lines}\nTotal: ${formatAmount(existing.totalBani)} ${cur}.\nNU crea o comandă nouă și NU repeta confirmarea de înregistrare. Răspunde firesc la mesajul curent al clientului. Confirmarea și anularea se fac DOAR de proprietar (din dashboard), iar sistemul trimite AUTOMAT clientului mesajul de status la fiecare schimbare — așadar NU anunța tu „a fost confirmată/anulată" și NU pretinde că ai înregistrat o cerere de confirmare/anulare. Dacă clientul cere anulare, confirmă-i scurt că transmiți proprietarului, fără a repeta statusul. Dacă nu cunoști un detaliu exact, spune-i că proprietarul confirmă în scurt timp.`
         logger.info(`[AI][${userId.slice(0, 8)}] comandă duplicată ignorată`, { orderId: existing.id })
 
       } else if (stockIssues.length > 0) {

@@ -423,7 +423,7 @@ export default function ProductsPage() {
                     <tr key={i} className="font-mono-ui text-[12px] text-ink">
                       <td className="px-3 py-2">{p.name}</td>
                       <td className="px-3 py-2 text-dim">{p.category || '—'}</td>
-                      <td className="px-3 py-2 text-right">{p.priceLei.toFixed(2)} lei</td>
+                      <td className="px-3 py-2 text-right">{formatAmount(Math.round(p.priceLei * 100))} lei</td>
                       <td className="px-3 py-2 text-center">{p.isAvailable ? '✓' : '—'}</td>
                     </tr>
                   ))}

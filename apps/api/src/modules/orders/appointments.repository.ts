@@ -39,6 +39,7 @@ export const appointmentsRepository = {
       serviceName: combinedName,
       totalBani,
       requestedSlot: data.requestedSlot,
+      scheduledAt: null, // owner-ul setează data+ora exactă abia la confirmare
       details: data.details,
       createdAt: now,
       updatedAt: now,

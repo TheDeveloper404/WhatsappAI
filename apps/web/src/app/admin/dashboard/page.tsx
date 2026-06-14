@@ -717,19 +717,22 @@ export default function AdminDashboard() {
           ))}
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-1 border-b border-line overflow-x-auto nice-scroll">
+        {/* Tabs — pe mobil cele 4 încap egal (flex-1) fără scroll orizontal: un container
+            overflow-x-auto cu 4 tab-uri lungi devenea pe iOS un scroller imbricat care se
+            „plimba" la atingere / declanșa zoom. Iconițele se ascund sub `sm` (rămân doar
+            etichetele, încap comod); pe desktop revine la lățime pe conținut, aliniat stânga. */}
+        <div className="flex gap-1 border-b border-line">
           {([['overview', 'Overview', Activity], ['users', 'Useri', Users], ['activity', 'Activitate', Bell], ['config', 'Configurare', Settings]] as const).map(([tab, label, Icon]) => (
             <button
               key={tab}
               onClick={() => selectTab(tab)}
-              className={`flex items-center gap-1.5 px-4 py-2.5 font-mono-ui text-xs tracking-wide border-b-2 -mb-px whitespace-nowrap shrink-0 transition-colors ${
+              className={`flex flex-1 sm:flex-none items-center justify-center gap-1.5 px-2 sm:px-4 py-2.5 font-mono-ui text-[11px] sm:text-xs tracking-wide border-b-2 -mb-px whitespace-nowrap transition-colors ${
                 activeTab === tab
                   ? 'border-acid text-acid'
                   : 'border-transparent text-dim hover:text-ink'
               }`}
             >
-              <Icon className="h-3.5 w-3.5" />{label}
+              <Icon className="hidden sm:block h-3.5 w-3.5" />{label}
             </button>
           ))}
         </div>

@@ -865,7 +865,7 @@ function Pricing() {
               return (
                 <div key={tier.id} className="rounded-2xl p-5 flex flex-col relative transition-shadow hover:shadow-xl cursor-default" style={{ background: 'var(--acid)' }}>
                   <div className="absolute -top-3 right-5 font-mono-ui text-[9px] font-bold px-2.5 py-0.5 rounded-full"
-                    style={{ background: 'var(--acid-cta)', color: 'var(--acid-cta-fg)' }}>★ RECOMANDAT</div>
+                    style={{ background: 'var(--cta-max)', color: 'var(--cta-max-fg)' }}>★ RECOMANDAT</div>
                   <div className="flex items-start justify-between mb-3">
                     <div className="font-display text-[18px] leading-none" style={{ color: 'var(--on-acid)' }}>{tier.name}</div>
                     <div className="text-right">
@@ -887,8 +887,8 @@ function Pricing() {
                       </li>
                     ))}
                   </ul>
-                  <Link href="/signup" className="block text-center font-mono-ui font-medium text-[12px] py-2.5 rounded-full transition-opacity hover:opacity-90"
-                    style={{ background: 'var(--acid-cta)', color: 'var(--acid-cta-fg)' }}>
+                  <Link href="/signup" className="block text-center font-mono-ui font-bold text-[13px] py-3 rounded-full transition-opacity hover:opacity-90"
+                    style={{ background: 'var(--cta-max)', color: 'var(--cta-max-fg)' }}>
                     Începe trialul de 7 zile
                   </Link>
                 </div>
@@ -918,7 +918,7 @@ function Pricing() {
                     </li>
                   ))}
                 </ul>
-                <Link href="/signup" className="block text-center border border-line text-ink font-mono-ui font-medium text-[12px] py-2.5 rounded-full hover:bg-cardhi transition-colors">
+                <Link href="/signup" className="block text-center bg-acid text-white dark:text-black font-mono-ui font-medium text-[12px] py-2.5 rounded-full hover:opacity-90 transition-opacity">
                   Începe trialul de 7 zile
                 </Link>
               </div>

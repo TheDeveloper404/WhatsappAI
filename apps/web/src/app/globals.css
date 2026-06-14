@@ -66,11 +66,11 @@
     --danger: #e04a3a;
     --on-acid: #ffffff;
     --on-acid-muted: rgba(255, 255, 255, 0.72);
-    /* CTA „închis" pe cardul accent (Max). Definit DOAR aici → cascadează și în dark (nu se
-       suprascrie): pilula rămâne near-black în ambele teme, ca să iasă în evidență atât pe
-       acidul teal (light) cât și pe lime (dark). Înlocuiește albul hardcodat de dinainte. */
-    --acid-cta: #0a0f0c;
-    --acid-cta-fg: #f6f4ef;
+    /* CTA „inversat" pe cardul recomandat (Max), care are fundal acid. Flip pe temă (definit în
+       ambele): ALB pe teal în light, NEGRU pe lime în dark → contrast maxim, butonul iese
+       puternic în evidență pe fundalul acid al cardului. */
+    --cta-max: #ffffff;
+    --cta-max-fg: #0a0f0c;
     color-scheme: light;
   }
   html.dark {
@@ -86,6 +86,9 @@
     --danger: #ff5c4d;
     --on-acid: #0a0f0c;
     --on-acid-muted: rgba(10, 15, 12, 0.65);
+    /* flip față de light: negru pe lime, text alb */
+    --cta-max: #0a0f0c;
+    --cta-max-fg: #ffffff;
     color-scheme: dark;
   }
 
@@ -302,11 +305,5 @@
   }
   .lift:hover {
     transform: translateY(-2px);
-  }
-  .nice-scroll::-webkit-scrollbar {
-    display: none;
-  }
-  .nice-scroll {
-    scrollbar-width: none;
   }
 }

@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils'
 import { Loader2 } from 'lucide-react'
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'ghost' | 'danger'
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'accent'
   size?: 'sm' | 'md' | 'lg'
   loading?: boolean
 }
@@ -15,6 +15,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 
     const variants = {
       primary: 'bg-acid text-white dark:text-black hover:opacity-90 active:scale-[0.98]',
+      // CTA inversat „standout" (cardul Max): alb/negru flip pe temă, definit prin token --cta-max.
+      accent: 'bg-(--cta-max) text-(color:--cta-max-fg) hover:opacity-90 active:scale-[0.98]',
       secondary: 'border border-line bg-cardhi text-ink hover:bg-card',
       ghost: 'text-dim hover:bg-cardhi hover:text-ink',
       danger: 'bg-(--danger) text-white hover:opacity-90',

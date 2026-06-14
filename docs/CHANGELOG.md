@@ -6,12 +6,27 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
-### Changed (2026-06-14) — buton „Începe trialul" pe cardul Max: alb hardcodat → pilulă închisă tokenizată
+### Fixed (2026-06-14) — admin dashboard: bara de tab-uri „se plimba" / zoom pe mobil
 
-Butonul de trial de pe cardul recomandat (Max) era singurul din pagină cu culoare hardcodată (`background:#ffffff`), ignorând tema. În dark mode, alb pe acidul lime (`#c8fb4a`) = două suprafețe deschise, contrast slab (~1.1:1), aspect dur.
-- **Fix:** token nou `--acid-cta` (#0a0f0c) + `--acid-cta-fg` (#f6f4ef) în `:root` (cascadează și în dark, fix în ambele teme). Butonul devine o **pilulă închisă** care iese în evidență atât pe teal (light) cât și pe lime (dark) — premium. Și badge-ul „RECOMANDAT" trecut pe aceleași token-uri (era `var(--ink)` → deschis pe lime în dark) → acum închis în ambele teme, cohesiv cu butonul. Pro rămâne ghost (CTA secundar, ierarhie intenționată).
+Pe mobil (iOS Safari) bara de tab-uri din admin (Overview/Useri/Activitate/Configurare) se comporta ca un scroller orizontal independent — se putea trage stânga/dreapta, părea zoomabilă, nu era „fixă".
+- **Cauză:** cele 4 tab-uri (cu „Configurare" lung + iconițe, `px-4`) depășeau lățimea viewport-ului, iar `overflow-x-auto` le făcea un container cu scroll orizontal propriu → pe iOS, scroller imbricat cu rubber-banding + zoom pe element. (`maximumScale: 1` din viewport e ignorat intenționat de iOS, nu poate preveni asta.)
+- **Fix:** scos `overflow-x-auto`; pe mobil tab-urile sunt `flex-1` (împart egal lățimea, încap fără scroll), iconițele ascunse sub `sm` (rămân etichetele), text `text-[11px]`. Pe desktop (`sm+`) revine la aspectul actual (lățime pe conținut, aliniat stânga, cu iconițe).
 
-`tsc` + `next lint` + build verzi pe web.
+### Fixed (2026-06-14) — răspunsuri AI tăiate la mijloc de propoziție (Gemini thinking tokens)
+
+Răspunsurile generate erau trunchiate la mijloc de frază, **progresiv mai scurte** pe măsură ce creștea istoricul conversației (vizibil în export-ul CSV: „...ne-ar ajuta să știm câteva", „În regulă, înțeleg perfect. Este", etc.). Nu era o problemă de trimitere WhatsApp, ci de generare LLM.
+- **Cauză:** `gemini-2.5-flash` (modelul conversațional primar) e un model „thinking" — tokenii de raționament se scad din același `maxOutputTokens`. Apelul conversațional (`askGroq` → `callGroq` → `callGeminiApi`) nu seta `thinkingConfig`, deci Gemini gândea liber și consuma din bugetul de 300 tokeni; ce rămânea pentru textul vizibil se tăia. Cu cât istoricul era mai lung → cu atât gândea mai mult → cu atât mai puțin text → semnătura „progresiv mai scurt".
+- **Fix:** în `groq.client.ts` (`callGeminiApi`, `generationConfig`): `thinkingConfig: { thinkingBudget: 0 }` (dezactivează thinking-ul; sintaxă confirmată cu Context7 pe v1beta `generateContent`) + ridicat `maxOutputTokens` default 300→512 ca margine de siguranță. Botul imită stilul owner-ului → nu vrem chain-of-thought oricum, tot bugetul merge în răspunsul real.
+- **Note:** aplicabil când prod rulează `LLM_PROVIDER=gemini` (Gemini primar). Pe `gemini-2.5-flash` `thinkingBudget: 0` e suportat (pe 2.5 Pro nu s-ar putea dezactiva).
+
+### Changed (2026-06-14) — carduri de prețuri (Pro/Max): ierarhie de butoane consecventă pe landing + subscribe
+
+Butoanele de pe cardurile Pro/Max erau inconsecvente între cele două pagini și nu respectau ierarhia dorită. Standardizat în ambele locuri (`page.tsx` landing + `(dashboard)/subscribe`):
+- **Pro** = CTA umplut cu acid (`bg-acid`): teal/text alb în light, lime/text negru în dark.
+- **Max** (recomandat) = CTA **inversat „standout"** + mărit: alb/text negru în light, negru/text alb în dark — contrast maxim pe fundalul acid al cardului. Token nou `--cta-max`/`--cta-max-fg` (flip pe temă, definit în ambele) — înlocuiește vechiul `--acid-cta` (era near-black fix în ambele teme). Variantă nouă `accent` în componenta `Button`.
+- **Card Max pe subscribe** aliniat la landing: fundal **acid plin** (era neutru cu bordură), text → `--on-acid`, badge „recomandat" pe `--cta-max`. Acum cardul recomandat arată identic pe ambele pagini.
+
+Userul rulează `next lint`/build pe web pentru validare.
 
 ### Fixed (2026-06-14) — paginile legale: „Înapoi" cu flash de hero + scroll inconsecvent
 

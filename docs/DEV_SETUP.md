@@ -30,6 +30,8 @@ pnpm --filter api db:migrate
 > ```
 > Pe Windows, PostgreSQL creează implicit cu encoding WIN1252 → diacriticele românești generează eroare `22P05`.
 
+> **Host de conectare:** folosește `127.0.0.1`, NU `localhost`. Pe Windows `localhost` rezolvă întâi la IPv6 (`::1`) → conexiunea la Postgres dă timeout. PostgreSQL local **nu e serviciu Windows** — se pornește manual cu `pg_ctl` (vezi mai jos).
+
 ## Teste
 
 ```bash
@@ -69,6 +71,8 @@ cd D:\production_mode\WhatsappAI\apps\e2e
 pnpm exec playwright test           # toate
 pnpm exec playwright test settings  # țintit
 ```
+
+> **Turnstile în E2E:** cheia de test `1x...AA` din `apps/web/.env.local` auto-trece widget-ul Cloudflare Turnstile. Testele apelează `waitForTurnstile()` înainte de submit.
 
 ## Stripe CLI
 

@@ -864,8 +864,8 @@ function Pricing() {
             if (tier.recommended) {
               return (
                 <div key={tier.id} className="rounded-2xl p-5 flex flex-col relative transition-shadow hover:shadow-xl cursor-default" style={{ background: 'var(--acid)' }}>
-                  <div className="absolute -top-3 right-5 font-mono-ui text-[9px] font-bold px-2.5 py-0.5 rounded-full"
-                    style={{ background: 'var(--cta-max)', color: 'var(--cta-max-fg)' }}>★ RECOMANDAT</div>
+                  <div className="absolute -top-3 right-5 font-mono-ui text-[11px] font-bold px-3 py-1 rounded-full"
+                    style={{ background: 'var(--badge-rec)', color: 'var(--badge-rec-fg)' }}>★ RECOMANDAT</div>
                   <div className="flex items-start justify-between mb-3">
                     <div className="font-display text-[18px] leading-none" style={{ color: 'var(--on-acid)' }}>{tier.name}</div>
                     <div className="text-right">

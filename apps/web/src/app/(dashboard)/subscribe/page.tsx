@@ -83,10 +83,10 @@ export default function SubscribePage() {
               {rec && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                   <span
-                    className="font-mono-ui text-[10px] tracking-widest px-3 py-1 rounded-full inline-flex items-center gap-1 font-bold"
-                    style={{ background: 'var(--cta-max)', color: 'var(--cta-max-fg)' }}
+                    className="font-mono-ui text-[12px] tracking-widest px-3.5 py-1.5 rounded-full inline-flex items-center gap-1 font-bold"
+                    style={{ background: 'var(--badge-rec)', color: 'var(--badge-rec-fg)' }}
                   >
-                    <Zap className="h-3 w-3" />
+                    <Zap className="h-3.5 w-3.5" />
                     recomandat
                   </span>
                 </div>

@@ -6,6 +6,11 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed (2026-06-14) — login/signup: în light mode pagina era „pe jumătate albă"
+
+Panoul stâng (hero-ul „răspunde ca tine") din layout-ul de auth avea toate culorile **hardcodate dark** (`#0A0F0C`, `#E8E6E1`, `#C8FB4A`, rgba-uri albe), deci rămânea negru și în light mode → jumătatea stângă neagră, dreapta deschisă.
+- **Fix:** panoul stâng trecut pe token-urile de temă (`bg-base`, `text-ink`, `text-acid`, `text-dim`, `text-dimmer`, `bg-card`, `border-line`); glow-ul și bulele de chat pe `color-mix(... var(--acid) ...)`. Acum urmează tema: light complet în light, identic ca înainte în dark. Decorul (`gridlines`, `card-elevated`) folosea deja token-uri.
+
 ### Fixed (2026-06-14) — admin dashboard: bara de tab-uri „se plimba" / zoom pe mobil
 
 Pe mobil (iOS Safari) bara de tab-uri din admin (Overview/Useri/Activitate/Configurare) se comporta ca un scroller orizontal independent — se putea trage stânga/dreapta, părea zoomabilă, nu era „fixă".
@@ -24,7 +29,8 @@ Răspunsurile generate erau trunchiate la mijloc de frază, **progresiv mai scur
 Butoanele de pe cardurile Pro/Max erau inconsecvente între cele două pagini și nu respectau ierarhia dorită. Standardizat în ambele locuri (`page.tsx` landing + `(dashboard)/subscribe`):
 - **Pro** = CTA umplut cu acid (`bg-acid`): teal/text alb în light, lime/text negru în dark.
 - **Max** (recomandat) = CTA **inversat „standout"** + mărit: alb/text negru în light, negru/text alb în dark — contrast maxim pe fundalul acid al cardului. Token nou `--cta-max`/`--cta-max-fg` (flip pe temă, definit în ambele) — înlocuiește vechiul `--acid-cta` (era near-black fix în ambele teme). Variantă nouă `accent` în componenta `Button`.
-- **Card Max pe subscribe** aliniat la landing: fundal **acid plin** (era neutru cu bordură), text → `--on-acid`, badge „recomandat" pe `--cta-max`. Acum cardul recomandat arată identic pe ambele pagini.
+- **Card Max pe subscribe** aliniat la landing: fundal **acid plin** (era neutru cu bordură), text → `--on-acid`. Acum cardul recomandat arată identic pe ambele pagini.
+- **Badge „RECOMANDAT"** mărit + fundal **orange** (token nou `--badge-rec`/`--badge-rec-fg`, text alb pt vizibilitate) pe ambele carduri — iese mai bine în evidență decât pilula albă/neagră de dinainte.
 
 Userul rulează `next lint`/build pe web pentru validare.
 

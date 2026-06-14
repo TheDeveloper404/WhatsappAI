@@ -22,51 +22,48 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
     <div className="min-h-screen flex bg-base">
 
       {/* ── LEFT PANEL ────────────────────────────────────────────── */}
-      <div
-        className="hidden lg:flex flex-col justify-between w-[46%] relative overflow-hidden p-12"
-        style={{ background: '#0A0F0C' }}
-      >
+      <div className="hidden lg:flex flex-col justify-between w-[46%] relative overflow-hidden p-12 bg-base">
         {/* grid overlay */}
         <div className="absolute inset-0 gridlines opacity-30 pointer-events-none" />
-        {/* glow */}
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full blur-[140px] pointer-events-none" style={{ background: 'rgba(200,251,74,0.06)' }} />
+        {/* glow — acid tint (teal în light, lime în dark) */}
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full blur-[140px] pointer-events-none" style={{ background: 'color-mix(in oklab, var(--acid) 8%, transparent)' }} />
 
         {/* Logo */}
         <Link href="/" className="relative flex items-center gap-2.5 z-10">
           <span className="inline-flex items-center justify-center w-9 h-9 rounded-full" style={{ background: '#25D366' }}>
             <WaIcon size={20} />
           </span>
-          <span className="font-mono-ui text-[20px] font-semibold" style={{ color: '#E8E6E1' }}>
-            wa<span style={{ color: '#C8FB4A' }}>ai.</span>
+          <span className="font-mono-ui text-[20px] font-semibold text-ink">
+            wa<span className="text-acid">ai.</span>
           </span>
         </Link>
 
         {/* Hero copy */}
         <div className="relative z-10 flex-1 flex flex-col justify-center py-10">
-          <div className="font-mono-ui text-[11px] tracking-widest mb-6" style={{ color: '#C8FB4A' }}>
+          <div className="font-mono-ui text-[11px] tracking-widest mb-6 text-acid">
             → AGENT ACTIV
           </div>
-          <h2 className="font-display text-[44px] lg:text-[52px] leading-none mb-6" style={{ color: '#E8E6E1' }}>
+          <h2 className="font-display text-[44px] lg:text-[52px] leading-none mb-6 text-ink">
             răspunde ca tine.<br />
-            <em className="not-italic" style={{ color: '#C8FB4A' }}>chiar când nu ești.</em>
+            <em className="not-italic text-acid">chiar când nu ești.</em>
           </h2>
-          <p className="text-[14px] leading-relaxed max-w-[320px] mb-10" style={{ color: 'rgba(232,230,225,0.55)' }}>
+          <p className="text-[14px] leading-relaxed max-w-[320px] mb-10 text-dim">
             AI-ul tău analizează stilul tău de scriere și preia conversațiile când ești ocupat.
           </p>
 
           {/* Mini chat mockup */}
-          <div className="rounded-2xl p-5 space-y-3" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(232,230,225,0.08)' }}>
+          <div className="rounded-2xl p-5 space-y-3 bg-card border border-line">
             <div className="flex items-center gap-2 mb-4">
-              <span className="w-2 h-2 rounded-full pulse-dot" style={{ background: '#C8FB4A' }} />
-              <span className="font-mono-ui text-[10px] tracking-widest" style={{ color: '#C8FB4A' }}>AGENT ACTIV · 0.6s</span>
+              <span className="w-2 h-2 rounded-full pulse-dot bg-acid" />
+              <span className="font-mono-ui text-[10px] tracking-widest text-acid">AGENT ACTIV · 0.6s</span>
             </div>
             {CHAT_LINES.map((line, i) => (
               <div key={i} className={`flex ${line.side === 'right' ? 'justify-end' : 'justify-start'}`}>
                 <div
                   className={`px-3 py-2 text-[12px] max-w-[80%] ${line.side === 'right' ? 'bubble-r' : 'bubble-l'}`}
                   style={line.side === 'right'
-                    ? { background: 'rgba(200,251,74,0.15)', color: '#E8E6E1', border: '1px solid rgba(200,251,74,0.2)' }
-                    : { background: 'rgba(255,255,255,0.06)', color: 'rgba(232,230,225,0.7)', border: '1px solid rgba(232,230,225,0.08)' }
+                    ? { background: 'color-mix(in oklab, var(--acid) 15%, transparent)', color: 'var(--ink)', border: '1px solid color-mix(in oklab, var(--acid) 25%, transparent)' }
+                    : { background: 'var(--card-hi)', color: 'var(--dim)', border: '1px solid var(--line)' }
                   }
                 >
                   {line.text}
@@ -82,14 +79,14 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <div className="mt-8 flex gap-8">
             {[{ v: '7 zile', l: 'trial gratuit' }, { v: '60s', l: 'setup' }, { v: '99%', l: 'uptime' }].map(s => (
               <div key={s.l}>
-                <div className="font-display text-[24px]" style={{ color: '#C8FB4A' }}>{s.v}</div>
-                <div className="font-mono-ui text-[10px] mt-0.5" style={{ color: 'rgba(232,230,225,0.4)' }}>{s.l}</div>
+                <div className="font-display text-[24px] text-acid">{s.v}</div>
+                <div className="font-mono-ui text-[10px] mt-0.5 text-dimmer">{s.l}</div>
               </div>
             ))}
           </div>
         </div>
 
-        <p className="relative z-10 font-mono-ui text-[10px]" style={{ color: 'rgba(232,230,225,0.25)' }}>
+        <p className="relative z-10 font-mono-ui text-[10px] text-dimmer">
           © 2026 ACL Smart Software SRL · nu suntem afiliați cu Meta
         </p>
       </div>

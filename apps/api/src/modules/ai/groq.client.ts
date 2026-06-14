@@ -4,7 +4,7 @@ import { logger } from '../../utils/logger.js'
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions'
 const GROQ_WHISPER_URL = 'https://api.groq.com/openai/v1/audio/transcriptions'
 const GEMINI_MODEL = 'gemini-2.5-flash'
-const GEMINI_EMBED_MODEL = 'text-embedding-004'
+const GEMINI_EMBED_MODEL = 'gemini-embedding-001'
 // Model vision Groq (failover pentru extractFromImage). Multimodal, OpenAI-compatible chat.
 // NB: Groq limitează imaginea base64 la 4MB (~3MB raw) — sub garda de 5MB din message.handler,
 // deci o imagine 3-5MB merge pe Gemini (primar) dar ar pica pe fallback-ul Groq → caller fail-open.
@@ -161,7 +161,7 @@ export async function extractFromImage(buffer: Buffer, mimeType: string, hint: s
   }
 }
 
-// Embeddings pentru RAG (Gemini text-embedding-004). `taskType` ajustează vectorul pentru rolul lui:
+// Embeddings pentru RAG (Gemini gemini-embedding-001, 3072 dim). `taskType` ajustează vectorul pentru rolul lui:
 // RETRIEVAL_DOCUMENT la indexarea chunk-urilor, RETRIEVAL_QUERY la întrebarea clientului — îmbunătățește
 // potrivirea. Întoarce un vector per text, în aceeași ordine. Aruncă dacă lipsește cheia sau API-ul
 // dă alt număr de vectori (apelantul decide fail-open). Fără conținut în logs.

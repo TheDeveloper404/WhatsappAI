@@ -441,7 +441,7 @@ async function sendAiResponse(userId: string, contactPhone: string, jid: string,
 
             const slotLine = booking.requestedSlot.trim() ? `\n🗓️ Interval dorit: ${booking.requestedSlot.trim()}` : ''
             const totalLine = svcs.length > 1 ? `\n\n*Total: ${totalText}*` : ''
-            const reply = `Am notat cererea ta de programare (*${appt.publicRef}*):\n${svcLines}${slotLine}${totalLine}\n\nProprietarul îți confirmă data și ora exactă în scurt timp. Mulțumim!${multiServiceNote}`
+            const reply = `Am notat cererea ta de programare (*${appt.publicRef}*):\n${svcLines}${slotLine}${totalLine}\n\nVerificăm disponibilitatea și îți confirmăm programarea în scurt timp. Mulțumim!${multiServiceNote}`
             await sock.sendMessage(jid, { text: reply })
             await aiRepository.saveMessage(userId, contactPhone, true, reply, Date.now(), true)
 

@@ -6,6 +6,11 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed (2026-06-15) — programare: mesajul de „cerere înregistrată" suna redundant
+
+La crearea unei programări, mesajul către client spunea „Proprietarul îți confirmă **data și ora exactă** în scurt timp" — dar clientul tocmai dăduse ora dorită, așa că suna ca și cum owner-ul i-ar *da* o oră pe care el o spusese deja; iar când venea confirmarea cu aceeași oră, părea redundant/confuz (observat în transcript demo: „păi deja mi-ați spus ora"). Pasul owner-ului e de fapt **confirmare de disponibilitate** (slotul cerut e o cerere, nu un loc garantat), nu „owner-ul inventează ora".
+- **Fix (wording, `message.handler.ts`):** „Proprietarul îți confirmă data și ora exactă în scurt timp." → „**Verificăm disponibilitatea și îți confirmăm programarea în scurt timp.**" Mesajul de confirmare ulterior (`✅ ... e confirmată: …`) rămâne neschimbat — acum se citește natural ca „slotul cerut e liber".
+
 ### Changed (2026-06-14) — afișare prețuri: fără zecimale inutile la sume întregi („450,00" → „450")
 
 Prețurile întregi se afișau cu „,00"/„.00" redundant (ex. „450,00 lei", iar în preview-ul de import CSV „450.00 lei" cu punct). Acum zecimalele apar **doar când suma chiar are bani** (450,50 rămâne „450,50"; 450 devine „450").

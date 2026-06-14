@@ -6,6 +6,21 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed (2026-06-14) — buton „Începe trialul" pe cardul Max: alb hardcodat → pilulă închisă tokenizată
+
+Butonul de trial de pe cardul recomandat (Max) era singurul din pagină cu culoare hardcodată (`background:#ffffff`), ignorând tema. În dark mode, alb pe acidul lime (`#c8fb4a`) = două suprafețe deschise, contrast slab (~1.1:1), aspect dur.
+- **Fix:** token nou `--acid-cta` (#0a0f0c) + `--acid-cta-fg` (#f6f4ef) în `:root` (cascadează și în dark, fix în ambele teme). Butonul devine o **pilulă închisă** care iese în evidență atât pe teal (light) cât și pe lime (dark) — premium. Și badge-ul „RECOMANDAT" trecut pe aceleași token-uri (era `var(--ink)` → deschis pe lime în dark) → acum închis în ambele teme, cohesiv cu butonul. Pro rămâne ghost (CTA secundar, ierarhie intenționată).
+
+`tsc` + `next lint` + build verzi pe web.
+
+### Fixed (2026-06-14) — paginile legale: „Înapoi" cu flash de hero + scroll inconsecvent
+
+Pe cele 4 pagini din footer (termeni/confidențialitate/gdpr/cookies), butonul „Înapoi" arăta hero-ul ~1s apoi sărea la footer, iar back-ul de browser ateriza pe altă secțiune (Operator Live). Cauză: trei mecanisme care se băteau cap în cap — `BackButton` făcea reload complet (`window.location.href='/'`) + flag `scrollToFooter` (de aici flash-ul); linkurile legale din footer aveau `<Link scroll={false}>` care dezactiva scroll-restoration nativ al Next; iar `ScrollRestoreTop` compensa la dus, dar back-ul de browser rămânea stricat.
+- **Fix:** `BackButton` → `router.back()` (SPA, instant, fără flash), cu fallback la `/` dacă nu există istoric. Scos `scroll={false}` de pe cele 4 linkuri legale + scos `<ScrollRestoreTop>` din cele 4 pagini (Next face scroll-to-top nativ la dus și restaurează corect la întoarcere). Scos `useEffect`-ul `scrollToFooter` din `page.tsx`; șters componenta `ScrollRestoreTop` (dead code).
+- **Rezultat:** ambele „înapoi" (UI + browser) sunt acum consistente, fără flash; te întorc unde erai.
+
+`tsc` + `next lint` + build verzi pe web (pagini legale rămân statice).
+
 ### Changed (2026-06-14) — Next 16: `middleware.ts` → `proxy.ts` (convenție nouă)
 
 Next 16 a depreciat convenția `middleware` (build-ul avertiza „use proxy instead"). Migrat la noua convenție:

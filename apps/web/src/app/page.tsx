@@ -865,7 +865,7 @@ function Pricing() {
               return (
                 <div key={tier.id} className="rounded-2xl p-5 flex flex-col relative transition-shadow hover:shadow-xl cursor-default" style={{ background: 'var(--acid)' }}>
                   <div className="absolute -top-3 right-5 font-mono-ui text-[9px] font-bold px-2.5 py-0.5 rounded-full"
-                    style={{ background: 'var(--ink)', color: 'var(--on-acid)' }}>★ RECOMANDAT</div>
+                    style={{ background: 'var(--acid-cta)', color: 'var(--acid-cta-fg)' }}>★ RECOMANDAT</div>
                   <div className="flex items-start justify-between mb-3">
                     <div className="font-display text-[18px] leading-none" style={{ color: 'var(--on-acid)' }}>{tier.name}</div>
                     <div className="text-right">
@@ -888,7 +888,7 @@ function Pricing() {
                     ))}
                   </ul>
                   <Link href="/signup" className="block text-center font-mono-ui font-medium text-[12px] py-2.5 rounded-full transition-opacity hover:opacity-90"
-                    style={{ background: '#ffffff', color: '#0A0F0C' }}>
+                    style={{ background: 'var(--acid-cta)', color: 'var(--acid-cta-fg)' }}>
                     Începe trialul de 7 zile
                   </Link>
                 </div>
@@ -1070,10 +1070,10 @@ function Footer() {
           <div className="lg:col-span-3">
             <div className="font-mono-ui text-[10.5px] text-dimmer tracking-widest uppercase mb-4">LEGAL</div>
             <div className="flex flex-col gap-3 font-mono-ui text-[14px]">
-              <Link href="/termeni" scroll={false} className="text-dim hover:text-ink transition-colors w-fit pb-0.5 border-b border-transparent hover:border-acid">termeni și condiții</Link>
-              <Link href="/confidentialitate" scroll={false} className="text-dim hover:text-ink transition-colors w-fit pb-0.5 border-b border-transparent hover:border-acid">confidențialitate</Link>
-              <Link href="/gdpr" scroll={false} className="text-dim hover:text-ink transition-colors w-fit pb-0.5 border-b border-transparent hover:border-acid">gdpr</Link>
-              <Link href="/cookies" scroll={false} className="text-dim hover:text-ink transition-colors w-fit pb-0.5 border-b border-transparent hover:border-acid">cookies</Link>
+              <Link href="/termeni" className="text-dim hover:text-ink transition-colors w-fit pb-0.5 border-b border-transparent hover:border-acid">termeni și condiții</Link>
+              <Link href="/confidentialitate" className="text-dim hover:text-ink transition-colors w-fit pb-0.5 border-b border-transparent hover:border-acid">confidențialitate</Link>
+              <Link href="/gdpr" className="text-dim hover:text-ink transition-colors w-fit pb-0.5 border-b border-transparent hover:border-acid">gdpr</Link>
+              <Link href="/cookies" className="text-dim hover:text-ink transition-colors w-fit pb-0.5 border-b border-transparent hover:border-acid">cookies</Link>
             </div>
           </div>
 
@@ -1143,15 +1143,6 @@ function ScrollToTop() {
 
 // ─── PAGE ─────────────────────────────────────────────────────────────────────
 export default function LandingPage() {
-  useEffect(() => {
-    if (sessionStorage.getItem('scrollToFooter') === '1') {
-      sessionStorage.removeItem('scrollToFooter')
-      document.documentElement.style.scrollBehavior = 'auto'
-      document.getElementById('footer')?.scrollIntoView()
-      document.documentElement.style.scrollBehavior = ''
-    }
-  }, [])
-
   return (
     <div className="bg-base min-h-screen">
       <Navbar />

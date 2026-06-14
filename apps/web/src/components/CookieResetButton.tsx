@@ -1,8 +1,8 @@
 'use client'
 
 // Buton mic de reset al consimțământului pentru cookies. Izolat ca client component ca pagina
-// `/cookies` să rămână server component (poate exporta `metadata` + folosi `ScrollRestoreTop`,
-// consecvent cu celelalte pagini legale).
+// `/cookies` să rămână server component (poate exporta `metadata`), consecvent cu celelalte
+// pagini legale.
 export function CookieResetButton() {
   return (
     <button

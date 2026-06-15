@@ -515,7 +515,7 @@ export async function analyzeBookingIntent(
 
   const intakeBlock = intakePrompt.trim()
     ? `INFORMAȚII de colectat pentru o programare la acest business:\n${intakePrompt.trim()}\n`
-    : `INFORMAȚII de colectat: serviciul dorit, intervalul (zi + oră) și numele clientului.\n`
+    : `INFORMAȚII de colectat: serviciul dorit, un reper de timp (zi/oră EXACTĂ sau un reper relativ — vezi regulile) și numele clientului.\n`
 
   // Context temporal: permite LLM-ului să normalizeze cereri relative („mâine", „vineri") la o zi a săptămânii.
   const now = new Date()
@@ -533,16 +533,17 @@ ${convoText}
 
 Stabilește "phase":
 - "none": clientul NU vrea o programare (doar întreabă de preț/program/servicii, salută, mulțumește).
-- "collecting": clientul VREA o programare, dar lipsește serviciul clar, intervalul (zi/oră) sau numele. Pune în "missingInfo" ce mai trebuie cerut.
-- "ready": clientul a cerut clar cel puțin un serviciu din listă ȘI a indicat un interval (zi/oră).
+- "collecting": clientul VREA o programare, dar lipsește serviciul clar SAU orice reper de timp (nici zi/oră, nici reper relativ), SAU numele. Pune în "missingInfo" DOAR ce mai trebuie cerut.
+- "ready": clientul a cerut clar cel puțin un serviciu din listă ȘI a indicat un reper de timp — fie o zi/oră concretă, fie un reper relativ ("după pre-ITP", "după ce termin", "când aveți loc", "voi decideți"). Un reper relativ E SUFICIENT pentru "ready"; ora exactă o stabilește proprietarul la confirmare.
 
 REGULI:
 - "serviceIds" = listă cu UNUL SAU MAI MULTE id-uri din lista de mai sus, dacă clientul a cerut mai multe servicii pentru aceeași programare (ex: „tuns și barbă" → ambele id-uri). Pune DOAR id-uri din listă; dacă niciunul nu e clar, lasă lista goală și treci serviciul în "missingInfo".
-- "requestedSlot" = intervalul dorit, exact cum l-a spus clientul (ex: "vineri pe la 15", "mâine dimineață").
-- "slotWeekday" = ziua săptămânii a intervalului cerut, normalizată față de data de azi, DOAR dacă e clară: una din mon, tue, wed, thu, fri, sat, sun. „mâine"/„poimâine"/„vineri"/„pe 20.06" → calculează ziua. Dacă e vag sau relativ neclar („voi decideți", „după ce termin"), lasă GOL.
-- "slotTime" = ora cerută în format 24h "HH:MM", DOAR dacă e clară (ex. „pe la 15" → "15:00", „2 după-amiaza" → "14:00"). Dacă lipsește sau e vagă („dimineața"), lasă GOL.
+- "requestedSlot" = reperul de timp dorit, exact cum l-a spus clientul. Poate fi concret ("vineri pe la 15", "mâine dimineață") SAU relativ ("după pre-ITP", "după ce termin", "când aveți loc", "voi decideți"). Pune textul lui și în cazul relativ — NU-l lăsa gol doar fiindcă nu e o oră fixă.
+- "slotWeekday" = ziua săptămânii a intervalului cerut, normalizată față de data de azi, DOAR dacă e clară: una din mon, tue, wed, thu, fri, sat, sun. „mâine"/„poimâine"/„vineri"/„pe 20.06" → calculează ziua. Dacă e vag sau relativ („voi decideți", „după ce termin", „după pre-ITP"), lasă GOL — e normal, proprietarul stabilește ziua.
+- "slotTime" = ora cerută în format 24h "HH:MM", DOAR dacă e clară (ex. „pe la 15" → "15:00", „2 după-amiaza" → "14:00"). Dacă lipsește, e vagă („dimineața") sau relativă, lasă GOL — e normal, proprietarul stabilește ora.
 - "customerNote" = numele clientului dacă l-a dat, plus observații scurte.
-- NU inventa zile, ore sau servicii. Completează "slotWeekday"/"slotTime" DOAR cu ce reiese clar din mesajele clientului. NU trece la "ready" dacă lipsește serviciul sau intervalul.
+- NU cere „ora exactă" și NU o pune în "missingInfo" dacă clientul a dat deja un reper de timp (chiar relativ) sau a amânat deliberat alegerea orei — proprietarul o fixează la confirmare. Ora intră în "missingInfo" DOAR dacă clientul nu a dat NICIUN reper de timp.
+- NU inventa zile, ore sau servicii. Completează "slotWeekday"/"slotTime" DOAR cu ce reiese clar din mesajele clientului. NU trece la "ready" dacă lipsește serviciul sau orice reper de timp.
 
 Răspunde STRICT cu JSON valid, fără text în plus:
 {"phase":"none|collecting|ready","serviceIds":["<id>"],"requestedSlot":"<interval sau gol>","slotWeekday":"<mon..sun sau gol>","slotTime":"<HH:MM sau gol>","details":"<observații sau gol>","missingInfo":["<ce mai trebuie cerut>"],"customerNote":"<nume/observații sau gol>"}`

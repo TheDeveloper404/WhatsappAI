@@ -12,7 +12,8 @@ CI-ul `audit` a picat cu 3 advisory-uri HIGH noi (tranzitive via Baileys / vites
 - **`ws` GHSA-96hv-2xvq-fx4p** (memory exhaustion DoS) — runtime (socket WA). **Fixat** prin `pnpm.overrides` la `>=8.21.0`.
 - **`form-data` GHSA-hmw2-7cc7-3qxx** (CRLF injection în multipart) — runtime. **Fixat** prin `pnpm.overrides` la `>=4.0.6`.
 - **`vite` GHSA-fx2h-pf6j-xcff** (`server.fs.deny` bypass pe Windows) — **DEV/TEST-ONLY** (vitest/coverage-v8, nu rulează în prod). Adăugat în BASELINE-ul din `scripts/audit-check.mjs` cu notă, nu forțat prin override.
-- **Files:** `package.json` (pnpm.overrides nou), `scripts/audit-check.mjs` (baseline `vite`). Verificat: `pnpm audit` nu mai raportează `ws`/`form-data` ca high; gate-ul iese 0.
+- **`protobufjs` GHSA-wcpc-wj8m-hjx6** (DoS prin unbounded Any expansion la conversie JSON) — runtime (Baileys/libsignal). **Fixat** prin `pnpm.overrides` la `>=7.6.1`. (apărut ulterior, pe PR #133)
+- **Files:** `package.json` (pnpm.overrides nou), `scripts/audit-check.mjs` (baseline `vite`). Verificat: `pnpm audit` nu mai raportează `ws`/`form-data`/`protobufjs` ca high; gate-ul iese 0.
 
 ### Added (2026-06-15) — Setări AI: contor de caractere sub câmpurile de text
 

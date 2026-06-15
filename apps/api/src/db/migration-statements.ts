@@ -186,6 +186,9 @@ export const migrationStatements = [
   // Serviciu rezervabil (programare): frizerie/clinică/salon. Default FALSE ⇒ produsele existente
   // rămân „comandabile". Pentru cele rezervabile, agentul face programare (handoff owner), nu comandă.
   `ALTER TABLE products ADD COLUMN IF NOT EXISTS is_bookable BOOLEAN NOT NULL DEFAULT FALSE`,
+  // 0.5.1 — serviciu „pe bază de deviz" (service auto reparații/revizii): fără preț, deschide cerere de
+  // deviz (handoff), nu comandă/programare cu preț. Default FALSE ⇒ produsele existente neschimbate.
+  `ALTER TABLE products ADD COLUMN IF NOT EXISTS is_quote BOOLEAN NOT NULL DEFAULT FALSE`,
   // Programări (N1): handoff ușor — agentul strânge serviciul + intervalul dorit + numele și creează
   // o programare 'pending'; owner-ul confirmă intervalul. Fără calcul de sloturi/disponibilitate.
   `CREATE TABLE IF NOT EXISTS appointments (
@@ -246,6 +249,8 @@ export const migrationStatements = [
   `ALTER TABLE appointments ADD COLUMN IF NOT EXISTS total_bani INTEGER NOT NULL DEFAULT 0`,
   // Dată+oră concretă setată de owner la confirmare (epoch ms). NULL = încă neconfirmată/fără oră.
   `ALTER TABLE appointments ADD COLUMN IF NOT EXISTS scheduled_at BIGINT`,
+  // 0.5.1/0.5.6 — marcaj „cerere de deviz" pe programare (badge dashboard). Default FALSE ⇒ existente neschimbate.
+  `ALTER TABLE appointments ADD COLUMN IF NOT EXISTS is_quote BOOLEAN NOT NULL DEFAULT FALSE`,
   `CREATE TABLE IF NOT EXISTS appointment_items (
     id TEXT PRIMARY KEY,
     appointment_id TEXT NOT NULL REFERENCES appointments(id) ON DELETE CASCADE,
@@ -274,4 +279,6 @@ export const migrationStatements = [
   // Default 'user'; backfill pe tipurile cunoscute de admin ca rândurile existente să nu „scape".
   `ALTER TABLE notifications ADD COLUMN IF NOT EXISTS audience TEXT NOT NULL DEFAULT 'user'`,
   `UPDATE notifications SET audience = 'admin' WHERE type IN ('new_user','payment_failed','subscription_canceled','subscription_updated')`,
+  // 0.5.3 — program de funcționare per business (JSON serializat). Gol = neconfigurat → fail-open.
+  `ALTER TABLE ai_settings ADD COLUMN IF NOT EXISTS working_hours TEXT NOT NULL DEFAULT ''`,
 ]

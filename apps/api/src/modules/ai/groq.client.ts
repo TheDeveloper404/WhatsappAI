@@ -1,5 +1,6 @@
 import { env } from '../../config/env.js'
 import { logger } from '../../utils/logger.js'
+import { WEEKDAYS, type Weekday } from './working-hours.js'
 
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions'
 const GROQ_WHISPER_URL = 'https://api.groq.com/openai/v1/audio/transcriptions'
@@ -436,12 +437,16 @@ export type BookingIntent = {
   phase: 'none' | 'collecting' | 'ready'
   serviceIds: string[]       // unul sau mai multe id-uri din catalogul rezervabil (B10 multi-serviciu)
   requestedSlot: string      // intervalul dorit, text liber („vineri pe la 15")
+  // Slot NORMALIZAT (0.5.3): zi a săptămânii + oră, extrase de LLM DOAR când sunt clare. Folosite de
+  // guard-ul determinist de program. Vag/relativ neclar („voi decideți") → ambele goale → guard tace.
+  slotWeekday: Weekday | ''
+  slotTime: string           // 'HH:MM' (24h) sau gol
   details: string
   missingInfo: string[]
   customerNote: string       // numele clientului / observații
 }
 
-const EMPTY_BOOKING: BookingIntent = { phase: 'none', serviceIds: [], requestedSlot: '', details: '', missingInfo: [], customerNote: '' }
+const EMPTY_BOOKING: BookingIntent = { phase: 'none', serviceIds: [], requestedSlot: '', slotWeekday: '', slotTime: '', details: '', missingInfo: [], customerNote: '' }
 
 // Validare strictă a output-ului LLM (extrasă pentru test fără rețea). Plasă de siguranță:
 // id-uri în afara catalogului eliminate; „ready" fără niciun serviciu sau fără interval → retrogradat.
@@ -463,6 +468,14 @@ export function parseBookingIntent(raw: string, validIds: Set<string>): BookingI
     rawIds.filter((id): id is string => typeof id === 'string' && validIds.has(id)),
   )].slice(0, 10)
   const requestedSlot = typeof parsed.requestedSlot === 'string' ? parsed.requestedSlot.slice(0, 200) : ''
+  // Slot normalizat (0.5.3): acceptăm DOAR valori valide; orice altceva → gol (guard tace, fail-open).
+  const slotWeekday: Weekday | '' =
+    typeof parsed.slotWeekday === 'string' && (WEEKDAYS as readonly string[]).includes(parsed.slotWeekday)
+      ? parsed.slotWeekday as Weekday : ''
+  const slotTimeMatch = typeof parsed.slotTime === 'string'
+    ? parsed.slotTime.trim().match(/^([01]?\d|2[0-3]):([0-5]\d)$/) : null
+  const slotTime = slotTimeMatch
+    ? `${slotTimeMatch[1].padStart(2, '0')}:${slotTimeMatch[2]}` : ''
   const details = typeof parsed.details === 'string' ? parsed.details.slice(0, 1000) : ''
   const customerNote = typeof parsed.customerNote === 'string' ? parsed.customerNote.slice(0, 500) : ''
   const missingInfo = (Array.isArray(parsed.missingInfo) ? parsed.missingInfo : [])
@@ -483,7 +496,7 @@ export function parseBookingIntent(raw: string, validIds: Set<string>): BookingI
     phase = 'none'
   }
 
-  return { phase, serviceIds, requestedSlot, details, missingInfo, customerNote }
+  return { phase, serviceIds, requestedSlot, slotWeekday, slotTime, details, missingInfo, customerNote }
 }
 
 export async function analyzeBookingIntent(
@@ -504,7 +517,13 @@ export async function analyzeBookingIntent(
     ? `INFORMAȚII de colectat pentru o programare la acest business:\n${intakePrompt.trim()}\n`
     : `INFORMAȚII de colectat: serviciul dorit, intervalul (zi + oră) și numele clientului.\n`
 
+  // Context temporal: permite LLM-ului să normalizeze cereri relative („mâine", „vineri") la o zi a săptămânii.
+  const now = new Date()
+  const todayRo = new Intl.DateTimeFormat('ro-RO', { timeZone: 'Europe/Bucharest', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(now)
+
   const prompt = `Ești un sistem care analizează o conversație WhatsApp de business și decide în ce fază se află o PROGRAMARE la un serviciu.
+
+CONTEXT: Azi este ${todayRo} (fus orar România).
 
 SERVICII REZERVABILE (folosește DOAR aceste id-uri pentru "serviceIds"):
 ${serviceText}
@@ -520,14 +539,115 @@ Stabilește "phase":
 REGULI:
 - "serviceIds" = listă cu UNUL SAU MAI MULTE id-uri din lista de mai sus, dacă clientul a cerut mai multe servicii pentru aceeași programare (ex: „tuns și barbă" → ambele id-uri). Pune DOAR id-uri din listă; dacă niciunul nu e clar, lasă lista goală și treci serviciul în "missingInfo".
 - "requestedSlot" = intervalul dorit, exact cum l-a spus clientul (ex: "vineri pe la 15", "mâine dimineață").
+- "slotWeekday" = ziua săptămânii a intervalului cerut, normalizată față de data de azi, DOAR dacă e clară: una din mon, tue, wed, thu, fri, sat, sun. „mâine"/„poimâine"/„vineri"/„pe 20.06" → calculează ziua. Dacă e vag sau relativ neclar („voi decideți", „după ce termin"), lasă GOL.
+- "slotTime" = ora cerută în format 24h "HH:MM", DOAR dacă e clară (ex. „pe la 15" → "15:00", „2 după-amiaza" → "14:00"). Dacă lipsește sau e vagă („dimineața"), lasă GOL.
 - "customerNote" = numele clientului dacă l-a dat, plus observații scurte.
-- NU inventa zile, ore sau servicii. NU trece la "ready" dacă lipsește serviciul sau intervalul.
+- NU inventa zile, ore sau servicii. Completează "slotWeekday"/"slotTime" DOAR cu ce reiese clar din mesajele clientului. NU trece la "ready" dacă lipsește serviciul sau intervalul.
 
 Răspunde STRICT cu JSON valid, fără text în plus:
-{"phase":"none|collecting|ready","serviceIds":["<id>"],"requestedSlot":"<interval sau gol>","details":"<observații sau gol>","missingInfo":["<ce mai trebuie cerut>"],"customerNote":"<nume/observații sau gol>"}`
+{"phase":"none|collecting|ready","serviceIds":["<id>"],"requestedSlot":"<interval sau gol>","slotWeekday":"<mon..sun sau gol>","slotTime":"<HH:MM sau gol>","details":"<observații sau gol>","missingInfo":["<ce mai trebuie cerut>"],"customerNote":"<nume/observații sau gol>"}`
 
   const raw = await callGroq([{ role: 'user', content: prompt }], { max_tokens: 400, temperature: 0 })
   return parseBookingIntent(raw, new Set(services.map(s => s.id)))
+}
+
+// ─── Flux deviz (0.5.1) ──────────────────────────────────────────────────────
+// Pentru servicii „pe bază de deviz" (service auto reparații/revizii). Modelul DOAR clasifică/extrage;
+// codul deschide cererea de deviz și predă owner-ului. Spre deosebire de booking: NU are interval/oră
+// (ora vine cu devizul) și NU are preț (owner-ul îl stabilește). Botul strânge ce cere owner-ul prin
+// intakePrompt (talon/VIN/descriere/poză), apoi handoff.
+export type QuoteIntent = {
+  phase: 'none' | 'collecting' | 'ready'
+  serviceIds: string[]
+  details: string           // ce a strâns botul (talon/VIN/descriere/simptome)
+  missingInfo: string[]
+  customerNote: string
+}
+
+const EMPTY_QUOTE: QuoteIntent = { phase: 'none', serviceIds: [], details: '', missingInfo: [], customerNote: '' }
+
+// Validare strictă a output-ului LLM (fără rețea, testabilă). Id-uri din afara catalogului eliminate;
+// „ready" fără niciun serviciu valid → retrogradat la collecting.
+export function parseQuoteIntent(raw: string, validIds: Set<string>): QuoteIntent {
+  const match = raw.match(/\{[\s\S]*\}/)
+  if (!match) return EMPTY_QUOTE
+  let parsed: Partial<QuoteIntent> & { serviceId?: unknown }
+  try {
+    parsed = JSON.parse(match[0]) as Partial<QuoteIntent> & { serviceId?: unknown }
+  } catch {
+    return EMPTY_QUOTE
+  }
+
+  const rawIds: unknown[] = Array.isArray(parsed.serviceIds)
+    ? parsed.serviceIds
+    : (typeof parsed.serviceId === 'string' ? [parsed.serviceId] : [])
+  const serviceIds = [...new Set(
+    rawIds.filter((id): id is string => typeof id === 'string' && validIds.has(id)),
+  )].slice(0, 10)
+  const details = typeof parsed.details === 'string' ? parsed.details.slice(0, 1000) : ''
+  const customerNote = typeof parsed.customerNote === 'string' ? parsed.customerNote.slice(0, 500) : ''
+  const missingInfo = (Array.isArray(parsed.missingInfo) ? parsed.missingInfo : [])
+    .filter((s): s is string => typeof s === 'string' && s.trim().length > 0)
+    .map(s => s.trim().slice(0, 120))
+    .slice(0, 8)
+
+  let phase: QuoteIntent['phase'] =
+    parsed.phase === 'collecting' || parsed.phase === 'ready' || parsed.phase === 'none'
+      ? parsed.phase
+      : 'none'
+
+  // „ready" fără niciun serviciu valid → nu putem deschide cererea → collecting.
+  if (phase === 'ready' && serviceIds.length === 0) phase = 'collecting'
+  // non-none complet gol → nu e cerere de deviz.
+  if (phase !== 'none' && serviceIds.length === 0 && missingInfo.length === 0 && !details.trim()) {
+    phase = 'none'
+  }
+
+  return { phase, serviceIds, details, missingInfo, customerNote }
+}
+
+export async function analyzeQuoteIntent(
+  services: CatalogProduct[],   // DOAR serviciile pe bază de deviz
+  intakePrompt: string,
+  messages: Array<{ fromMe: boolean; body: string }>,
+): Promise<QuoteIntent> {
+  if (services.length === 0) return EMPTY_QUOTE
+
+  const serviceText = services
+    .map(s => `- id:${s.id} | ${s.name}${s.category ? ` (${s.category})` : ''}`)
+    .join('\n')
+  const convoText = messages
+    .map(m => `${m.fromMe ? 'Vânzător' : 'Client'}: ${m.body}`)
+    .join('\n')
+
+  const intakeBlock = intakePrompt.trim()
+    ? `INFORMAȚII de colectat înainte de a deschide cererea de deviz:\n${intakePrompt.trim()}\n`
+    : `INFORMAȚII de colectat: ce lucrare/serviciu vrea clientul și detaliile necesare pentru o ofertă (ex. date despre obiect/situație, o descriere a problemei).\n`
+
+  const prompt = `Ești un sistem care analizează o conversație WhatsApp de business și decide în ce fază se află o CERERE DE DEVIZ (lucrare evaluată de proprietar — NU are preț fix și NU se programează cu oră acum; oferta o trimite omul).
+
+SERVICII PE BAZĂ DE DEVIZ (folosește DOAR aceste id-uri pentru "serviceIds"):
+${serviceText}
+
+${intakeBlock}CONVERSAȚIE:
+${convoText}
+
+Stabilește "phase":
+- "none": clientul NU vrea o lucrare pe deviz (doar salută, mulțumește, întreabă generic).
+- "collecting": clientul VREA o lucrare pe deviz, dar mai lipsesc detalii din lista de colectat. Pune în "missingInfo" ce mai trebuie cerut.
+- "ready": clientul a cerut clar cel puțin un serviciu din listă ȘI a oferit detaliile de colectat.
+
+REGULI:
+- "serviceIds" = id-uri din lista de mai sus (una sau mai multe). Doar id-uri din listă; dacă niciunul nu e clar, lasă gol și treci serviciul în "missingInfo".
+- "details" = ce a oferit clientul relevant pentru deviz (date de identificare, descrierea problemei/simptome), pe scurt.
+- "customerNote" = numele clientului dacă l-a dat.
+- NU inventa preț, NU propune oră/programare, NU inventa servicii. NU trece la "ready" dacă lipsește serviciul sau detaliile esențiale.
+
+Răspunde STRICT cu JSON valid, fără text în plus:
+{"phase":"none|collecting|ready","serviceIds":["<id>"],"details":"<detalii sau gol>","missingInfo":["<ce mai trebuie cerut>"],"customerNote":"<nume sau gol>"}`
+
+  const raw = await callGroq([{ role: 'user', content: prompt }], { max_tokens: 400, temperature: 0 })
+  return parseQuoteIntent(raw, new Set(services.map(s => s.id)))
 }
 
 // Gatekeeper LLM: clasifică intenția ultimului mesaj al clientului.

@@ -73,11 +73,45 @@ describe('parseBookingIntent', () => {
 
   it('fallback gol când nu există JSON', () => {
     expect(parseBookingIntent('nu am putut analiza', VALID)).toEqual({
-      phase: 'none', serviceIds: [], requestedSlot: '', details: '', missingInfo: [], customerNote: '',
+      phase: 'none', serviceIds: [], requestedSlot: '', slotWeekday: '', slotTime: '', details: '', missingInfo: [], customerNote: '',
     })
   })
 
   it('fallback gol la JSON invalid', () => {
     expect(parseBookingIntent('{phase: ready, serviceId: }', VALID).phase).toBe('none')
+  })
+
+  // ─── Slot normalizat (0.5.3): LLM-ul extrage zi+oră, codul le validează strict ───
+  it('extrage slot normalizat valid (zi + oră) și normalizează padding-ul', () => {
+    const r = parseBookingIntent(
+      '{"phase":"ready","serviceIds":["s1"],"requestedSlot":"sâmbătă la 9","slotWeekday":"sat","slotTime":"9:00","missingInfo":[]}',
+      VALID,
+    )
+    expect(r.slotWeekday).toBe('sat')
+    expect(r.slotTime).toBe('09:00')
+  })
+
+  it('zi a săptămânii invalidă → slotWeekday gol (guard tace)', () => {
+    const r = parseBookingIntent(
+      '{"phase":"ready","serviceIds":["s1"],"requestedSlot":"cândva","slotWeekday":"saturday","slotTime":"14:00","missingInfo":[]}',
+      VALID,
+    )
+    expect(r.slotWeekday).toBe('')
+    expect(r.slotTime).toBe('14:00')
+  })
+
+  it('oră invalidă → slotTime gol', () => {
+    const r = parseBookingIntent(
+      '{"phase":"ready","serviceIds":["s1"],"requestedSlot":"sâmbătă","slotWeekday":"sat","slotTime":"25:99","missingInfo":[]}',
+      VALID,
+    )
+    expect(r.slotWeekday).toBe('sat')
+    expect(r.slotTime).toBe('')
+  })
+
+  it('câmpuri de slot absente → goale (compat output vechi)', () => {
+    const r = parseBookingIntent('{"phase":"ready","serviceIds":["s1"],"requestedSlot":"mâine","missingInfo":[]}', VALID)
+    expect(r.slotWeekday).toBe('')
+    expect(r.slotTime).toBe('')
   })
 })

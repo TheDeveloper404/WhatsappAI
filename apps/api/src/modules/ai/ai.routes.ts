@@ -6,6 +6,7 @@ import { requireTier } from '../../middleware/requireTier.js'
 import { userHasEntitlement, userTier, minTimerMinutes } from '../billing/entitlement.js'
 import { aiService } from './ai.service.js'
 import { getActiveLLMProvider } from './groq.client.js'
+import { validateWorkingHours, serializeWorkingHours } from './working-hours.js'
 import { Errors } from '../../utils/errors.js'
 import { appEvents } from '../../utils/events.js'
 import { createStreamToken, verifyStreamToken } from '../../utils/tokens.js'
@@ -28,9 +29,22 @@ export async function aiRoutes(app: FastifyInstance) {
       leadCriteria: z.string().max(2000).optional(),
       currency: z.enum(['RON', 'EUR', 'USD', 'GBP']).optional(),
       orderIntakePrompt: z.string().max(2000).optional(),
+      // Program de funcționare (0.5.3): obiect structurat per zi. Regulile (format/ordine ore)
+      // se validează cu validateWorkingHours — sursă unică de adevăr, nu duplicăm în zod.
+      workingHours: z.unknown().optional(),
     })
     const result = schema.safeParse(req.body)
     if (!result.success) throw Errors.validation(result.error.issues.map(e => ({ field: String(e.path[0]), message: e.message })))
+    // Validăm + serializăm programul aici; restul câmpurilor merg ca atare la service.
+    const { workingHours: rawWorkingHours, ...rest } = result.data
+    const data: Parameters<typeof aiService.updateSettings>[1] = { ...rest }
+    if (rawWorkingHours !== undefined) {
+      try {
+        data.workingHours = serializeWorkingHours(validateWorkingHours(rawWorkingHours))
+      } catch (e) {
+        throw Errors.validation([{ field: 'workingHours', message: e instanceof Error ? e.message : 'Program invalid' }])
+      }
+    }
     // Timer minim pe tier (Etapa 2.2a, pas 3): Pro min 5 min, Max min 1 min. Fail-closed: legacy/null → Pro.
     if (result.data.timerMinutes !== undefined) {
       const min = minTimerMinutes(await userTier(req.user!.id))
@@ -38,7 +52,7 @@ export async function aiRoutes(app: FastifyInstance) {
         throw Errors.validation([{ field: 'timerMinutes', message: `Timer-ul minim pe planul tău este ${min} min. Treci pe Max pentru valori mai mici.` }])
       }
     }
-    const settings = await aiService.updateSettings(req.user!.id, result.data)
+    const settings = await aiService.updateSettings(req.user!.id, data)
     return reply.send({ settings })
   })
 

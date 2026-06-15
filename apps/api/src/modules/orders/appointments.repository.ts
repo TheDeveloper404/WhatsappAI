@@ -20,6 +20,8 @@ export type AppointmentInput = {
   services: AppointmentServiceInput[]
   requestedSlot: string
   details: string
+  // 0.5.1: cerere de deviz (nu programare clasică) — marcaj pentru dashboard. Default false.
+  isQuote?: boolean
 }
 
 export const appointmentsRepository = {
@@ -40,6 +42,7 @@ export const appointmentsRepository = {
       totalBani,
       requestedSlot: data.requestedSlot,
       scheduledAt: null, // owner-ul setează data+ora exactă abia la confirmare
+      isQuote: data.isQuote ?? false,
       details: data.details,
       createdAt: now,
       updatedAt: now,

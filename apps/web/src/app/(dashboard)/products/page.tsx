@@ -17,10 +17,11 @@ type FormState = {
   isAvailable: boolean
   isEstimate: boolean  // preț „începând de la" (proiecte custom) — agentul nu propune total fix
   isBookable: boolean  // serviciu rezervabil — agentul face programare cu handoff la owner
+  isQuote: boolean     // pe bază de deviz — fără preț; agentul deschide o cerere de deviz (handoff)
   stock: string  // '' = nelimitat; altfel număr întreg >= 0
 }
 
-const EMPTY_FORM: FormState = { name: '', description: '', priceLei: '', category: '', isAvailable: true, isEstimate: false, isBookable: false, stock: '' }
+const EMPTY_FORM: FormState = { name: '', description: '', priceLei: '', category: '', isAvailable: true, isEstimate: false, isBookable: false, isQuote: false, stock: '' }
 
 export default function ProductsPage() {
   const { accessToken } = useAuthStore()
@@ -72,6 +73,7 @@ export default function ProductsPage() {
       isAvailable: p.isAvailable,
       isEstimate: p.isEstimate ?? false,
       isBookable: p.isBookable ?? false,
+      isQuote: p.isQuote ?? false,
       stock: p.stock === null || p.stock === undefined ? '' : String(p.stock),
     })
     setFormError(null)
@@ -86,9 +88,10 @@ export default function ProductsPage() {
   async function handleSave() {
     if (!accessToken) return
     const name = form.name.trim()
-    const priceLei = parseFloat(form.priceLei.replace(',', '.'))
     if (!name) { setFormError('Numele este obligatoriu.'); return }
-    if (isNaN(priceLei) || priceLei < 0) { setFormError('Prețul trebuie să fie un număr valid.'); return }
+    // Serviciu pe bază de deviz (0.5.1): n-are preț → prețul e opțional (devine 0). Altfel, obligatoriu.
+    const priceLei = form.isQuote ? (parseFloat(form.priceLei.replace(',', '.')) || 0) : parseFloat(form.priceLei.replace(',', '.'))
+    if (!form.isQuote && (isNaN(priceLei) || priceLei < 0)) { setFormError('Prețul trebuie să fie un număr valid.'); return }
 
     // Stoc: gol → null (nelimitat); altfel întreg >= 0.
     let stock: number | null = null
@@ -109,6 +112,7 @@ export default function ProductsPage() {
         isAvailable: form.isAvailable,
         isEstimate: form.isEstimate,
         isBookable: form.isBookable,
+        isQuote: form.isQuote,
         stock,
       }
       if (editingId) {
@@ -275,7 +279,7 @@ export default function ProductsPage() {
         <label className="flex items-center gap-3 cursor-pointer">
           <button
             type="button"
-            onClick={() => setForm(f => ({ ...f, isEstimate: !f.isEstimate }))}
+            onClick={() => setForm(f => ({ ...f, isEstimate: !f.isEstimate, isQuote: f.isEstimate ? f.isQuote : false }))}
             style={form.isEstimate ? { background: 'var(--acid)' } : undefined}
             className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-hidden ${
               form.isEstimate ? '' : 'bg-cardhi border border-line'
@@ -291,7 +295,7 @@ export default function ProductsPage() {
         <label className="flex items-center gap-3 cursor-pointer">
           <button
             type="button"
-            onClick={() => setForm(f => ({ ...f, isBookable: !f.isBookable }))}
+            onClick={() => setForm(f => ({ ...f, isBookable: !f.isBookable, isQuote: f.isBookable ? f.isQuote : false }))}
             style={form.isBookable ? { background: 'var(--acid)' } : undefined}
             className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-hidden ${
               form.isBookable ? '' : 'bg-cardhi border border-line'
@@ -301,6 +305,22 @@ export default function ProductsPage() {
           </button>
           <span className="font-mono-ui text-[13px] text-dim">
             Rezervabil {form.isBookable ? '— serviciu pe programare; agentul strânge intervalul, tu confirmi' : '— fără programare'}
+          </span>
+        </label>
+
+        <label className="flex items-center gap-3 cursor-pointer">
+          <button
+            type="button"
+            onClick={() => setForm(f => ({ ...f, isQuote: !f.isQuote, isEstimate: f.isQuote ? f.isEstimate : false, isBookable: f.isQuote ? f.isBookable : false }))}
+            style={form.isQuote ? { background: 'var(--acid)' } : undefined}
+            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-hidden ${
+              form.isQuote ? '' : 'bg-cardhi border border-line'
+            }`}
+          >
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-xs transition-transform ${form.isQuote ? 'translate-x-6' : 'translate-x-1'}`} />
+          </button>
+          <span className="font-mono-ui text-[13px] text-dim">
+            Pe bază de deviz {form.isQuote ? '— fără preț; agentul strânge detaliile și deschide o cerere de deviz, tu trimiți oferta' : '— pentru reparații/lucrări evaluate de tine'}
           </span>
         </label>
 
@@ -423,7 +443,7 @@ export default function ProductsPage() {
                     <tr key={i} className="font-mono-ui text-[12px] text-ink">
                       <td className="px-3 py-2">{p.name}</td>
                       <td className="px-3 py-2 text-dim">{p.category || '—'}</td>
-                      <td className="px-3 py-2 text-right">{formatAmount(Math.round(p.priceLei * 100))} lei</td>
+                      <td className="px-3 py-2 text-right">{p.isQuote ? 'pe bază de deviz' : `${formatAmount(Math.round(p.priceLei * 100))} lei`}</td>
                       <td className="px-3 py-2 text-center">{p.isAvailable ? '✓' : '—'}</td>
                     </tr>
                   ))}
@@ -491,6 +511,9 @@ export default function ProductsPage() {
                     {p.isBookable && (
                       <span className="font-mono-ui text-[10px] text-acid bg-acid/10 px-2 py-0.5 rounded-full">rezervabil</span>
                     )}
+                    {p.isQuote && (
+                      <span className="font-mono-ui text-[10px] text-acid bg-acid/10 px-2 py-0.5 rounded-full">pe bază de deviz</span>
+                    )}
                     {p.stock !== null && p.stock !== undefined && (
                       p.stock === 0
                         ? <span className="font-mono-ui text-[10px] text-red-700 dark:text-red-400 bg-red-100 dark:bg-red-900/30 px-2 py-0.5 rounded-full">epuizat</span>
@@ -500,9 +523,13 @@ export default function ProductsPage() {
                   {p.description && (
                     <p className="font-mono-ui text-[12px] text-dimmer mt-0.5 truncate">{p.description}</p>
                   )}
-                  <span className="font-display text-[16px] text-ink mt-1 block sm:hidden">{formatAmount(p.priceBani)} <span className="text-[11px] text-dim">{currencyLabel(currency)}</span></span>
+                  {p.isQuote
+                    ? <span className="font-mono-ui text-[12px] text-dim mt-1 block sm:hidden">pe bază de deviz</span>
+                    : <span className="font-display text-[16px] text-ink mt-1 block sm:hidden">{formatAmount(p.priceBani)} <span className="text-[11px] text-dim">{currencyLabel(currency)}</span></span>}
                 </div>
-                <span className="font-display text-[18px] text-ink shrink-0 hidden sm:block">{formatAmount(p.priceBani)} <span className="text-[12px] text-dim">{currencyLabel(currency)}</span></span>
+                {p.isQuote
+                  ? <span className="font-mono-ui text-[12px] text-dim shrink-0 hidden sm:block">pe bază de deviz</span>
+                  : <span className="font-display text-[18px] text-ink shrink-0 hidden sm:block">{formatAmount(p.priceBani)} <span className="text-[12px] text-dim">{currencyLabel(currency)}</span></span>}
                 <div className="flex items-center gap-1 shrink-0">
                   <button
                     onClick={() => openEdit(p)}

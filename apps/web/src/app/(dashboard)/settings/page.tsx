@@ -1,12 +1,26 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { useAuthStore } from '@/store/auth'
-import { api, ApiRequestError, type AiSettings, type WhatsappSession, type KnowledgeDocument } from '@/lib/api'
+import { api, ApiRequestError, type AiSettings, type WhatsappSession, type KnowledgeDocument, type WorkingHours, type Weekday } from '@/lib/api'
 import { CURRENCIES, currencyLabel } from '@/lib/format'
-import { Loader2, Save, Plus, X, Bot, Clock, Shield, Terminal, Flame, FileText, Upload, Trash2 } from 'lucide-react'
+import { Loader2, Save, Plus, X, Bot, Clock, Shield, Terminal, Flame, FileText, Upload, Trash2, CalendarClock } from 'lucide-react'
 import { UpgradeToMaxButton } from '@/components/UpgradeToMaxButton'
 
 const inputCls = 'w-full rounded-xl border border-line px-3 py-2.5 text-[13px] text-ink bg-cardhi focus:outline-hidden focus:ring-2 focus:ring-acid/40 focus:border-acid transition-colors resize-y'
+
+// Program de funcționare (0.5.3): zilele în ordine RO (luni-first) + etichete.
+const WEEKDAYS: { id: Weekday; label: string }[] = [
+  { id: 'mon', label: 'Luni' }, { id: 'tue', label: 'Marți' }, { id: 'wed', label: 'Miercuri' },
+  { id: 'thu', label: 'Joi' }, { id: 'fri', label: 'Vineri' }, { id: 'sat', label: 'Sâmbătă' }, { id: 'sun', label: 'Duminică' },
+]
+// Parsează JSON-ul din DB într-un obiect; gol/corupt → {} (neconfigurat). UI tolerant, ca backend-ul.
+function parseWorkingHours(raw: string | undefined): WorkingHours {
+  if (!raw || !raw.trim()) return {}
+  try {
+    const o = JSON.parse(raw)
+    return o && typeof o === 'object' && !Array.isArray(o) ? o as WorkingHours : {}
+  } catch { return {} }
+}
 
 const TABS = [
   { id: 'agent', label: 'Agent', icon: Bot },
@@ -26,6 +40,9 @@ export default function SettingsPage() {
   const [leadCriteria, setLeadCriteria] = useState('')
   const [orderIntakePrompt, setOrderIntakePrompt] = useState('')
   const [currency, setCurrency] = useState('RON')
+  const [workingHours, setWorkingHours] = useState<WorkingHours>({})
+  const [savingHours, setSavingHours] = useState(false)
+  const [savedHours, setSavedHours] = useState(false)
   const [llmProvider, setLlmProvider] = useState<{ provider: 'groq' | 'gemini'; fallback: 'groq' | 'gemini' | null } | null>(null)
   const [savingStyle, setSavingStyle] = useState(false)
   const [savedStyle, setSavedStyle] = useState(false)
@@ -80,6 +97,7 @@ export default function SettingsPage() {
         setLeadCriteria(s.leadCriteria ?? '')
         setOrderIntakePrompt(s.orderIntakePrompt ?? '')
         setCurrency(s.currency ?? 'RON')
+        setWorkingHours(parseWorkingHours(s.workingHours))
         setTimerMinutes(s.timerMinutes)
         // `tier` owner-aware (owner → 'max'); `subscription.tier` ar fi null pentru owner.
         setTier(tier === 'max' ? 'max' : 'pro')
@@ -157,6 +175,31 @@ export default function SettingsPage() {
       setTimeout(() => setSavedCurrency(false), 3000)
     } catch { setError('Eroare la salvarea monedei.') }
     finally { setSavingCurrency(false) }
+  }
+
+  // Comutare deschis/închis pe o zi. La deschidere folosim un interval implicit rezonabil.
+  function toggleDay(day: Weekday, open: boolean) {
+    setWorkingHours(prev => ({ ...prev, [day]: open ? (prev[day] ?? { open: '09:00', close: '17:00' }) : null }))
+  }
+  function setDayTime(day: Weekday, field: 'open' | 'close', value: string) {
+    setWorkingHours(prev => {
+      const cur = prev[day] ?? { open: '09:00', close: '17:00' }
+      return { ...prev, [day]: { ...cur, [field]: value } }
+    })
+  }
+
+  async function handleSaveHours() {
+    if (!accessToken) return
+    setSavingHours(true); setSavedHours(false); setError(null)
+    try {
+      // Trimitem doar zilele atinse (cheile din state); backend-ul validează format + ordine ore.
+      const { settings: updated } = await api.ai.updateSettings(accessToken, { workingHours })
+      setSettings(updated); setWorkingHours(parseWorkingHours(updated.workingHours)); setSavedHours(true)
+      setTimeout(() => setSavedHours(false), 3000)
+    } catch (err) {
+      const msg = err instanceof ApiRequestError ? err.details?.[0]?.message ?? err.message : 'Eroare la salvarea programului.'
+      setError(msg)
+    } finally { setSavingHours(false) }
   }
 
   async function handleAnalyzeStyle() {
@@ -441,6 +484,68 @@ export default function SettingsPage() {
                 Salvează
               </button>
               {savedCurrency && <span className="font-mono-ui text-[12px] text-green-600 dark:text-green-400 font-medium">Salvat!</span>}
+            </div>
+          </div>
+
+          {/* Program de funcționare (0.5.3) */}
+          <div className="py-7">
+            <div className="flex items-center gap-2 mb-5">
+              <CalendarClock className="h-4 w-4 text-dimmer" />
+              <p className="font-mono-ui text-[11px] text-dimmer uppercase tracking-widest">Program de funcționare</p>
+            </div>
+            <p className="font-mono-ui text-[13px] text-dim mb-5">
+              Orele în care primești clienți. Agentul le folosește la programări — nu confirmă sloturi în afara programului
+              (ex. sâmbătă după închidere). Lasă gol pentru a nu valida nimic.
+            </p>
+            <div className="divide-y divide-(--line)">
+              {WEEKDAYS.map(({ id, label }) => {
+                const hours = workingHours[id]
+                const isOpen = !!hours
+                return (
+                  <div key={id} className="flex items-center gap-3 py-2.5 flex-wrap">
+                    <button
+                      onClick={() => toggleDay(id, !isOpen)}
+                      style={isOpen ? { background: 'var(--acid)' } : undefined}
+                      className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus:outline-hidden ${isOpen ? '' : 'bg-cardhi border border-line'}`}
+                      aria-label={`${label} ${isOpen ? 'deschis' : 'închis'}`}
+                    >
+                      <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-xs transition-transform ${isOpen ? 'translate-x-4.5' : 'translate-x-1'}`} />
+                    </button>
+                    <span className="font-mono-ui text-[13px] text-ink w-20">{label}</span>
+                    {isOpen ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="time"
+                          value={hours.open}
+                          onChange={e => setDayTime(id, 'open', e.target.value)}
+                          className="rounded-lg border border-line px-2.5 py-1.5 text-[13px] text-ink bg-cardhi focus:outline-hidden focus:ring-2 focus:ring-acid/40 focus:border-acid transition-colors"
+                        />
+                        <span className="font-mono-ui text-[13px] text-dim">–</span>
+                        <input
+                          type="time"
+                          value={hours.close}
+                          onChange={e => setDayTime(id, 'close', e.target.value)}
+                          className="rounded-lg border border-line px-2.5 py-1.5 text-[13px] text-ink bg-cardhi focus:outline-hidden focus:ring-2 focus:ring-acid/40 focus:border-acid transition-colors"
+                        />
+                      </div>
+                    ) : (
+                      <span className="font-mono-ui text-[13px] text-dimmer">închis</span>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+            <div className="flex items-center gap-3 mt-5">
+              <button
+                onClick={handleSaveHours}
+                disabled={savingHours}
+                style={{ background: 'var(--acid)', color: 'var(--on-acid)' }}
+                className="flex items-center gap-2 font-mono-ui text-[13px] px-4 py-2.5 rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+              >
+                {savingHours ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                Salvează programul
+              </button>
+              {savedHours && <span className="font-mono-ui text-[12px] text-green-600 dark:text-green-400 font-medium">Salvat!</span>}
             </div>
           </div>
 

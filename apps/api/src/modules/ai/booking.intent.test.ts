@@ -114,4 +114,18 @@ describe('parseBookingIntent', () => {
     expect(r.slotWeekday).toBe('')
     expect(r.slotTime).toBe('')
   })
+
+  // ─── Slot relativ (0.5.2): reper de timp ne-concret = slot valid, guard-ul tace ───
+  it('slot relativ („după pre-ITP") cu zi/oră goale rămâne „ready"', () => {
+    const r = parseBookingIntent(
+      '{"phase":"ready","serviceIds":["s1"],"requestedSlot":"după pre-ITP","slotWeekday":"","slotTime":"","missingInfo":[]}',
+      VALID,
+    )
+    // requestedSlot ne-gol → NU se retrogradează; zi/oră goale → guard-ul de program nu se declanșează
+    // (owner-ul fixează ora la confirmare). Asta e exact comportamentul cerut de 0.5.2.
+    expect(r.phase).toBe('ready')
+    expect(r.requestedSlot).toBe('după pre-ITP')
+    expect(r.slotWeekday).toBe('')
+    expect(r.slotTime).toBe('')
+  })
 })

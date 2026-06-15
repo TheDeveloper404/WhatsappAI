@@ -6,6 +6,12 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed (2026-06-15) — programări: agentul accepta sloturi cu reper relativ (0.5.2)
+
+Botul cerea insistent „ora exactă" și respingea reperele de timp relative („programează-mă **după pre-ITP**", „**voi decideți**", „**după ce termin**") — 3 pushback-uri într-un singur transcript demo. Infrastructura permitea deja slotul relativ (`requestedSlot` e text liber; retrogradarea cere doar slot ne-gol, nu zi+oră; guard-ul de program 0.5.3 tace când `slotWeekday`/`slotTime` sunt goale) — buba era **pur în instrucțiunea de extracție** a `analyzeBookingIntent`, care definea un interval valid strict ca „zi/oră" → modelul punea „ora exactă" în `missingInfo` și handler-ul o cerea la nesfârșit.
+- **Fix (prompt, `groq.client.ts`):** definiția `ready`/`collecting` și regulile de slot acceptă acum explicit un **reper de timp relativ** ca slot valid (→ `ready` cu `slotWeekday`/`slotTime` goale; ora o fixează owner-ul la confirmare). Modelul nu mai cere „ora exactă" și nu o mai pune în `missingInfo` dacă clientul a dat orice reper de timp sau a amânat deliberat alegerea orei. Fără atingere de schemă/cod de business — guard-ul de program rămâne neschimbat (slot relativ ⇒ zi/oră goale ⇒ guard tace).
+- **Teste:** `booking.intent.test.ts` extins — slot relativ („după pre-ITP") cu zi/oră goale rămâne `ready`.
+
 ### Added (2026-06-15) — servicii „pe bază de deviz" (0.5.1)
 
 Un service auto nu vinde piese alese de client și nu poate da preț fix la reparații/revizii — prețul îl stabilește mecanicul printr-un **deviz** (după talon/VIN sau diagnoză). Bug-ul: o „revizie" (care merge pe deviz) era mapată în catalog ca produs cu preț fix → ieșea „Schimb ulei 80 lei" (serviciu + preț greșit). Acum un serviciu poate fi marcat **„pe bază de deviz"**: botul nu dă preț, strânge detaliile cerute de owner și deschide o **cerere de deviz** (handoff), fără preț și fără oră. Devizul = trăsătură **opțională per serviciu** (coexistă cu serviciile cu preț fix, care rămân programabile direct), nu un model global.

@@ -8,6 +8,23 @@ import { UpgradeToMaxButton } from '@/components/UpgradeToMaxButton'
 
 const inputCls = 'w-full rounded-xl border border-line px-3 py-2.5 text-[13px] text-ink bg-cardhi focus:outline-hidden focus:ring-2 focus:ring-acid/40 focus:border-acid transition-colors resize-y'
 
+// Limite de caractere per câmp — oglindesc validarea Zod din apps/api/src/modules/ai/ai.routes.ts.
+// Trebuie ținute sincronizate cu backend-ul: dacă acolo se schimbă .max(), schimbă și aici.
+const FIELD_LIMITS = {
+  systemPrompt: 2000,
+  writingStyle: 2000,
+  knowledgeBase: 5000,
+  leadCriteria: 2000,
+  orderIntakePrompt: 2000,
+} as const
+
+// Counter „x / max" sub textarea: dimmer normal, acid la ≥90%, roșu la limită.
+function CharCount({ value, max }: { value: string; max: number }) {
+  const n = value.length
+  const color = n >= max ? 'text-red-500' : n / max >= 0.9 ? 'text-acid' : 'text-dimmer'
+  return <p className={`font-mono-ui text-[12px] text-right mt-1.5 ${color}`}>{n} / {max}</p>
+}
+
 // Program de funcționare (0.5.3): zilele în ordine RO (luni-first) + etichete.
 const WEEKDAYS: { id: Weekday; label: string }[] = [
   { id: 'mon', label: 'Luni' }, { id: 'tue', label: 'Marți' }, { id: 'wed', label: 'Miercuri' },
@@ -594,9 +611,11 @@ export default function SettingsPage() {
               value={systemPrompt}
               onChange={e => setSystemPrompt(e.target.value)}
               rows={8}
+              maxLength={FIELD_LIMITS.systemPrompt}
               className={`${inputCls} font-mono`}
               placeholder="Ești un asistent WhatsApp helpful..."
             />
+            <CharCount value={systemPrompt} max={FIELD_LIMITS.systemPrompt} />
             <div className="flex items-center gap-3 mt-4">
               <button
                 onClick={handleSavePrompt}
@@ -631,9 +650,11 @@ export default function SettingsPage() {
               value={writingStyle}
               onChange={e => setWritingStyle(e.target.value)}
               rows={4}
+              maxLength={FIELD_LIMITS.writingStyle}
               className={inputCls}
               placeholder="Ex: Scriu scurt și direct, fără formule de politețe exagerate. Folosesc uneori emoji 😊."
             />
+            <CharCount value={writingStyle} max={FIELD_LIMITS.writingStyle} />
             <div className="flex items-center gap-3 mt-4">
               <button
                 onClick={handleSaveStyle}
@@ -658,9 +679,11 @@ export default function SettingsPage() {
               value={knowledgeBase}
               onChange={e => setKnowledgeBase(e.target.value)}
               rows={6}
+              maxLength={FIELD_LIMITS.knowledgeBase}
               className={inputCls}
               placeholder={'Exemplu:\n\nServicii oferite:\n- Creare site WordPress\n- Aplicații web custom\n\nProgram: Luni–Vineri 09:00–17:00'}
             />
+            <CharCount value={knowledgeBase} max={FIELD_LIMITS.knowledgeBase} />
             <div className="flex items-center gap-3 mt-4">
               <button
                 onClick={handleSaveKB}
@@ -742,9 +765,11 @@ export default function SettingsPage() {
               value={leadCriteria}
               onChange={e => setLeadCriteria(e.target.value)}
               rows={4}
+              maxLength={FIELD_LIMITS.leadCriteria}
               className={inputCls}
               placeholder="ex: Un lead bun întreabă de preț sau disponibilitate, vrea programare, sau menționează un buget. Un lead slab doar întreabă lucruri generale."
             />
+            <CharCount value={leadCriteria} max={FIELD_LIMITS.leadCriteria} />
             <div className="flex items-center gap-3 mt-4">
               <button
                 onClick={handleSaveLead}
@@ -773,9 +798,11 @@ export default function SettingsPage() {
               value={orderIntakePrompt}
               onChange={e => setOrderIntakePrompt(e.target.value)}
               rows={5}
+              maxLength={FIELD_LIMITS.orderIntakePrompt}
               className={inputCls}
               placeholder={'Ex. (optică): pentru lentile cere SPH/CYL/AX pentru fiecare ochi, materialul și tratamentul.\nEx. (pizzerie): cere adresa de livrare și ora dorită.'}
             />
+            <CharCount value={orderIntakePrompt} max={FIELD_LIMITS.orderIntakePrompt} />
             <div className="flex items-center gap-3 mt-4">
               <button
                 onClick={handleSaveIntake}

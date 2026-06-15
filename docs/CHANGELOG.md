@@ -6,6 +6,19 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Security (2026-06-15) — dependency audit gate: 3 advisory-uri HIGH noi triajate
+
+CI-ul `audit` a picat cu 3 advisory-uri HIGH noi (tranzitive via Baileys / vitest):
+- **`ws` GHSA-96hv-2xvq-fx4p** (memory exhaustion DoS) — runtime (socket WA). **Fixat** prin `pnpm.overrides` la `>=8.21.0`.
+- **`form-data` GHSA-hmw2-7cc7-3qxx** (CRLF injection în multipart) — runtime. **Fixat** prin `pnpm.overrides` la `>=4.0.6`.
+- **`vite` GHSA-fx2h-pf6j-xcff** (`server.fs.deny` bypass pe Windows) — **DEV/TEST-ONLY** (vitest/coverage-v8, nu rulează în prod). Adăugat în BASELINE-ul din `scripts/audit-check.mjs` cu notă, nu forțat prin override.
+- **Files:** `package.json` (pnpm.overrides nou), `scripts/audit-check.mjs` (baseline `vite`). Verificat: `pnpm audit` nu mai raportează `ws`/`form-data` ca high; gate-ul iese 0.
+
+### Added (2026-06-15) — Setări AI: contor de caractere sub câmpurile de text
+
+Salvarea unui prompt prea lung pica cu o eroare 400 mută (validarea Zod `.max()` din `ai.routes.ts` respingea requestul, fără ca userul să afle de ce — vezi promptul demo ACL AUTO FIX, ~2300 caractere peste limita de 2000). Acum fiecare câmp text din Setări → Agent are sub el un contor `x / max` și `maxLength` pe textarea, deci depășirea limitei e prevenită vizual, nu raportată ca eroare opacă.
+- **Frontend (`settings/page.tsx`):** helper `CharCount` (dimmer normal → `acid` la ≥90% → roșu la limită) + `maxLength` pe toate cele 5 textarea-uri (System prompt, Stil de scriere, Informații business, Criterii lead, Colectare comandă). Limitele stau într-o constantă `FIELD_LIMITS` care oglindește `.max()` din backend — de ținut sincronizate. Zero schimbare de backend sau de logică de salvare.
+
 ### Fixed (2026-06-15) — program de funcționare: orele se afișau AM/PM în loc de 24h
 
 Editorul de program (Setări → Agent → Program de funcționare) afișa orele în format AM/PM pentru utilizatorii cu browser pe locale en-US, deși publicul e RO/Europa (24h). Datele erau deja corecte (mereu `HH:MM` 24h) — doar widget-ul `<input type="time">` urma locale-ul browserului.

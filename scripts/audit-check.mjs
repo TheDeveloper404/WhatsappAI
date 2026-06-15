@@ -37,6 +37,7 @@ const BASELINE = {
   'GHSA-qx2v-qp2m-jg93': 'postcss <8.5.10 XSS via </style> în CSS Stringify — bundled de next@16; vector build-time (nu procesăm CSS ostil la runtime). Se închide la bump-ul postcss din Next.',
   'GHSA-w5hq-g745-h8pq': 'uuid bounds check v3/v5/v6 cu `buf` — tranzitiv via Baileys; codul nostru folosește crypto.randomUUID (nu calea afectată).',
   'GHSA-g7r4-m6w7-qqqr': 'esbuild dev-server arbitrary file read — DEV-ONLY (nu rulează în prod).',
+  'GHSA-fx2h-pf6j-xcff': 'vite server.fs.deny bypass pe Windows alternate paths — DEV/TEST-ONLY (tranzitiv via vitest/@vitest/coverage-v8; nu rulează în prod pe Railway/Vercel). ws (GHSA-96hv) și form-data (GHSA-hmw2) sunt în schimb fixate prin pnpm.overrides.',
 }
 
 function runAudit() {

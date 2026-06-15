@@ -516,6 +516,7 @@ export default function SettingsPage() {
                       <div className="flex items-center gap-2">
                         <input
                           type="time"
+                          lang="ro-RO"
                           value={hours.open}
                           onChange={e => setDayTime(id, 'open', e.target.value)}
                           className="rounded-lg border border-line px-2.5 py-1.5 text-[13px] text-ink bg-cardhi focus:outline-hidden focus:ring-2 focus:ring-acid/40 focus:border-acid transition-colors"
@@ -523,6 +524,7 @@ export default function SettingsPage() {
                         <span className="font-mono-ui text-[13px] text-dim">–</span>
                         <input
                           type="time"
+                          lang="ro-RO"
                           value={hours.close}
                           onChange={e => setDayTime(id, 'close', e.target.value)}
                           className="rounded-lg border border-line px-2.5 py-1.5 text-[13px] text-ink bg-cardhi focus:outline-hidden focus:ring-2 focus:ring-acid/40 focus:border-acid transition-colors"

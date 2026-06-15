@@ -6,6 +6,11 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed (2026-06-15) — program de funcționare: orele se afișau AM/PM în loc de 24h
+
+Editorul de program (Setări → Agent → Program de funcționare) afișa orele în format AM/PM pentru utilizatorii cu browser pe locale en-US, deși publicul e RO/Europa (24h). Datele erau deja corecte (mereu `HH:MM` 24h) — doar widget-ul `<input type="time">` urma locale-ul browserului.
+- **Fix (`settings/page.tsx`):** `lang="ro-RO"` pe ambele inputuri `type="time"` → afișaj 24h (5 PM → „17:00"). Zero schimbare în date/logică. Funcționează pe Chromium (Chrome/Edge); Firefox urmează în continuare setările regionale ale OS-ului.
+
 ### Fixed (2026-06-15) — WhatsApp: card blocat pe „Asociere…" la nesfârșit
 
 După deconectare, cardul WhatsApp din dashboard rămânea afișat „Asociere…" deși owner-ul nu inițiase nicio asociere. Cauza: statusul `pairing` era **„lipicios"** — codul QR expiră în 60s (`pairingCodeExpiresAt`), dar nimic nu reseta starea înapoi la `disconnected`. Două căi ajungeau acolo: (a) QR generat dar nescanat; (b) o **reconectare de fundal** după un drop care, cu credențiale moarte, re-aprinde un QR și setează singur `pairing` (fără acțiunea owner-ului). `pairingCodeExpiresAt` se salva, dar nu se aplica nicăieri (nici backend la `getSession`, nici frontend).

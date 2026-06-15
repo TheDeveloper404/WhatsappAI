@@ -20,6 +20,7 @@ scripts/db-up.ps1
 apps/api/data/
 /pentest
 /scripts
+/prompts
 catalog-barber-test.csv
 
 # Artefacte Playwright MCP (snapshot-uri/log-uri de debug din sesiuni browser — throwaway)

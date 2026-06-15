@@ -22,7 +22,7 @@ Salvarea unui prompt prea lung pica cu o eroare 400 mută (validarea Zod `.max()
 ### Fixed (2026-06-15) — program de funcționare: orele se afișau AM/PM în loc de 24h
 
 Editorul de program (Setări → Agent → Program de funcționare) afișa orele în format AM/PM pentru utilizatorii cu browser pe locale en-US, deși publicul e RO/Europa (24h). Datele erau deja corecte (mereu `HH:MM` 24h) — doar widget-ul `<input type="time">` urma locale-ul browserului.
-- **Fix (`settings/page.tsx`):** `lang="ro-RO"` pe ambele inputuri `type="time"` → afișaj 24h (5 PM → „17:00"). Zero schimbare în date/logică. Funcționează pe Chromium (Chrome/Edge); Firefox urmează în continuare setările regionale ale OS-ului.
+- **Fix (`settings/page.tsx`):** `lang="ro-RO"` mergea doar pe Chromium — Firefox ignoră `lang` pe `<input type="time">` și urmează locale-ul OS (tot AM/PM). Înlocuit pickerul nativ cu o componentă `TimeSelect` = două `<select>` (oră 00–23 + minut 00/15/30/45) → afișaj 24h **garantat pe orice browser**. Valorile rămân `HH:MM` 24h — zero schimbare în date/logică/guard de program; minutele în afara grilei se păstrează ca opțiune.
 
 ### Fixed (2026-06-15) — WhatsApp: card blocat pe „Asociere…" la nesfârșit
 

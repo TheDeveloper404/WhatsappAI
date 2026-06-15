@@ -23,6 +23,8 @@ const createSchema = z.object({
   isEstimate: z.boolean().optional().default(false),
   // Serviciu rezervabil (programare): agentul face programare cu handoff la owner, nu comandă.
   isBookable: z.boolean().optional().default(false),
+  // Serviciu pe bază de deviz (0.5.1): fără preț, deschide cerere de deviz (handoff), nu comandă/programare.
+  isQuote: z.boolean().optional().default(false),
   stock: stockSchema.optional().default(null),
 })
 
@@ -34,8 +36,16 @@ const updateSchema = z.object({
   isAvailable: z.boolean().optional(),
   isEstimate: z.boolean().optional(),
   isBookable: z.boolean().optional(),
+  isQuote: z.boolean().optional(),
   stock: stockSchema.optional(),
 })
+
+// Modurile de serviciu sunt mutual exclusive (0.5.1): un serviciu e SAU pe deviz, SAU rezervabil,
+// SAU estimativ, SAU preț-fix. Deviz are prioritate (n-are sens cu preț/oră). Normalizăm defensiv aici
+// — UI trimite radio, dar importul CSV vine din date externe și poate avea combinații.
+function normalizeServiceMode<T extends { isQuote?: boolean; isBookable?: boolean; isEstimate?: boolean }>(d: T): T {
+  return d.isQuote ? { ...d, isBookable: false, isEstimate: false } : d
+}
 
 // Import în masă din CSV (parsat în browser, trimis ca JSON).
 // Limităm la 1000 de rânduri per import ca să nu abuzeze nimeni payload-ul.
@@ -48,6 +58,7 @@ const importSchema = z.object({
     isAvailable: z.boolean().optional().default(true),
     isEstimate: z.boolean().optional().default(false),
     isBookable: z.boolean().optional().default(false),
+    isQuote: z.boolean().optional().default(false),
     stock: stockSchema.optional().default(null),
   })).min(1).max(1000),
 })
@@ -66,9 +77,9 @@ export async function productsRoutes(app: FastifyInstance) {
     if (await productsRepository.countForUser(req.user!.id) >= limit) {
       throw Errors.tierRequired(`Ai atins plafonul de ${limit} produse al planului tău. Treci pe Max pentru mai multe.`)
     }
-    const { name, description, priceLei, category, isAvailable, isEstimate, isBookable, stock } = result.data
+    const { name, description, priceLei, category, isAvailable, isEstimate, isBookable, isQuote, stock } = normalizeServiceMode(result.data)
     const product = await productsRepository.create(req.user!.id, {
-      name, description, priceBani: leiToBani(priceLei), category, isAvailable, isEstimate, isBookable, stock,
+      name, description, priceBani: leiToBani(priceLei), category, isAvailable, isEstimate, isBookable, isQuote, stock,
     })
     return reply.status(201).send({ product })
   })
@@ -81,7 +92,7 @@ export async function productsRoutes(app: FastifyInstance) {
     const existing = await productsRepository.findById(req.user!.id, id)
     if (!existing) throw Errors.notFound('Product')
 
-    const { priceLei, ...rest } = result.data
+    const { priceLei, ...rest } = normalizeServiceMode(result.data)
     await productsRepository.update(req.user!.id, id, {
       ...rest,
       ...(priceLei !== undefined ? { priceBani: leiToBani(priceLei) } : {}),
@@ -100,16 +111,20 @@ export async function productsRoutes(app: FastifyInstance) {
       throw Errors.tierRequired(`Importul ar depăși plafonul de ${limit} produse al planului tău (ai deja ${existing}). Treci pe Max pentru mai multe.`)
     }
 
-    const count = await productsRepository.createMany(req.user!.id, result.data.items.map(it => ({
-      name: it.name,
-      description: it.description,
-      priceBani: leiToBani(it.priceLei),
-      category: it.category,
-      isAvailable: it.isAvailable,
-      isEstimate: it.isEstimate,
-      isBookable: it.isBookable,
-      stock: it.stock,
-    })))
+    const count = await productsRepository.createMany(req.user!.id, result.data.items.map(it => {
+      const m = normalizeServiceMode(it)
+      return {
+        name: m.name,
+        description: m.description,
+        priceBani: leiToBani(m.priceLei),
+        category: m.category,
+        isAvailable: m.isAvailable,
+        isEstimate: m.isEstimate,
+        isBookable: m.isBookable,
+        isQuote: m.isQuote,
+        stock: m.stock,
+      }
+    }))
     return reply.status(201).send({ imported: count })
   })
 

@@ -10,6 +10,7 @@ function product(over: Partial<Parameters<typeof formatCatalogLine>[0]> = {}) {
     isAvailable: true,
     isEstimate: false,
     isBookable: false,
+    isQuote: false,
     stock: null as number | null,
     ...over,
   }
@@ -121,6 +122,21 @@ describe('formatCatalogLine', () => {
     expect(line).toContain('de la 1000.00 €')
     expect(line).toContain('preț estimativ')
     expect(line).toContain('NU da un total fix')
+  })
+
+  it('pe bază de deviz: fără preț, marcaj care interzice estimarea, fără programare', () => {
+    const line = formatCatalogLine(product({ name: 'Revizie', priceBani: 0, isQuote: true }), 'lei')
+    expect(line).toContain('pe bază de deviz')
+    expect(line).toContain('FĂRĂ PREȚ')
+    expect(line).not.toContain('0.00 lei')
+    expect(line).not.toContain('REZERVABIL')
+  })
+
+  it('deviz are prioritate față de estimativ/rezervabil (mutual exclusiv)', () => {
+    const line = formatCatalogLine(product({ name: 'Reparație', isQuote: true, isEstimate: true, isBookable: true }), 'lei')
+    expect(line).toContain('FĂRĂ PREȚ')
+    expect(line).not.toContain('de la')
+    expect(line).not.toContain('REZERVABIL')
   })
 
   it('include categoria între paranteze când există', () => {

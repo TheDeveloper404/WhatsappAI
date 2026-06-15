@@ -61,7 +61,7 @@ export function parseCsv(text: string): Record<string, string>[] {
 
 // Mapează rândurile CSV la produse. Acceptă mai multe denumiri de coloane (RO/EN).
 // Returnează produsele valide + erorile pe rânduri (pentru feedback utilizator).
-export type ParsedProduct = { name: string; description: string; priceLei: number; category: string; isAvailable: boolean; isEstimate: boolean; isBookable: boolean }
+export type ParsedProduct = { name: string; description: string; priceLei: number; category: string; isAvailable: boolean; isEstimate: boolean; isBookable: boolean; isQuote: boolean }
 
 function pick(row: Record<string, string>, keys: string[]): string {
   for (const k of keys) {
@@ -101,9 +101,15 @@ export function rowsToProducts(rows: Record<string, string>[]): { products: Pars
     const priceRaw = pick(row, ['pret', 'preț', 'price', 'pret_lei', 'lei'])
 
     if (!name) { errors.push(`Rândul ${lineNo}: lipsește numele.`); return }
-    if (!priceRaw) { errors.push(`Rândul ${lineNo}: lipsește prețul.`); return }
 
-    const priceLei = parsePriceLei(priceRaw)
+    // Serviciu pe bază de deviz (0.5.1): n-are preț → prețul e opțional (devine 0). Citim flag-ul ÎNAINTE
+    // de validarea prețului ca să nu respingem un rând de deviz fără preț.
+    const quoteRaw = pick(row, ['deviz', 'quote', 'pe_baza_de_deviz']).toLowerCase()
+    const isQuote = ['da', 'yes', 'true', '1', 'deviz'].includes(quoteRaw)
+
+    if (!priceRaw && !isQuote) { errors.push(`Rândul ${lineNo}: lipsește prețul.`); return }
+
+    const priceLei = priceRaw ? parsePriceLei(priceRaw) : 0
     if (isNaN(priceLei) || priceLei < 0) { errors.push(`Rândul ${lineNo}: preț invalid ("${priceRaw}").`); return }
 
     const availRaw = pick(row, ['disponibil', 'available', 'stoc', 'activ']).toLowerCase()
@@ -124,8 +130,10 @@ export function rowsToProducts(rows: Record<string, string>[]): { products: Pars
       priceLei,
       category: pick(row, ['categorie', 'category', 'tip']).slice(0, 60),
       isAvailable,
-      isEstimate,
-      isBookable,
+      // Deviz are prioritate: un serviciu pe deviz nu e și estimativ/rezervabil (normalizat și în backend).
+      isEstimate: isQuote ? false : isEstimate,
+      isBookable: isQuote ? false : isBookable,
+      isQuote,
     })
   })
 

@@ -1,7 +1,7 @@
 import type { WASocket } from '@whiskeysockets/baileys'
 import { downloadMediaMessage } from '@whiskeysockets/baileys'
 import { aiRepository, DEFAULT_PROMPT, aiUsagePeriod } from './ai.repository.js'
-import { askGroq, extractContactMemory, transcribeAudio, classifyScopeLLM, analyzeOrderIntent, analyzeBookingIntent, classifyOrderConfirmation, classifyBookingConfirmation, parseConfirmationSignal, extractFromImage, type GroqMessage } from './groq.client.js'
+import { askGroq, extractContactMemory, transcribeAudio, classifyScopeLLM, analyzeOrderIntent, analyzeBookingIntent, analyzeQuoteIntent, classifyOrderConfirmation, classifyBookingConfirmation, parseConfirmationSignal, extractFromImage, type GroqMessage } from './groq.client.js'
 import { productsRepository } from '../orders/products.repository.js'
 import { ordersRepository } from '../orders/orders.repository.js'
 import { appointmentsRepository } from '../orders/appointments.repository.js'
@@ -10,6 +10,7 @@ import { knowledgeService } from '../knowledge/knowledge.service.js'
 import { userHasEntitlement, userTier, monthlyAiLimit, visionAllowed, multiServiceAllowed, minTimerMinutes } from '../billing/entitlement.js'
 import { allowIncomingMessage } from './incoming.rate-limiter.js'
 import { parseCommand, HELP_TEXT } from './command.parser.js'
+import { parseWorkingHours, formatWorkingHoursRo, checkWeekdayTime, describeDayRo } from './working-hours.js'
 import { recordOwnerReply, isOwnerActive } from './inactivity.tracker.js'
 import { logger, maskPhone } from '../../utils/logger.js'
 import { appEvents } from '../../utils/events.js'
@@ -43,13 +44,19 @@ const curLabel = (c: string) => CURRENCY_LABEL[c] ?? c
 // marcaj „de la / preț estimativ" pentru serviciile pe proiect custom. Pur și exportat ca să-l
 // putem testa fără rețea/DB: e ceea ce vede efectiv modelul, deci comportamentul lui depinde de el.
 export function formatCatalogLine(
-  p: { name: string; category: string; priceBani: number; isAvailable: boolean; isEstimate: boolean; isBookable: boolean; stock: number | null },
+  p: { name: string; category: string; priceBani: number; isAvailable: boolean; isEstimate: boolean; isBookable: boolean; isQuote: boolean; stock: number | null },
   currencyLabel: string,
 ): string {
   let state = ''
   if (!p.isAvailable) state = ' [INDISPONIBIL — nu îl oferi]'
   else if (p.stock === 0) state = ' [EPUIZAT — spune că momentan nu mai e pe stoc]'
   else if (p.stock !== null) state = ` [stoc: ${p.stock}]`
+  // Serviciu pe bază de deviz (0.5.1): NU are preț. Prioritate față de estimativ/rezervabil (mutual
+  // exclusiv). Modelul nu pronunță și nu inventează niciun preț — strânge detaliile cerute și predă
+  // owner-ului pentru deviz. Ora NU se cere acum (vine cu devizul).
+  if (p.isQuote) {
+    return `- ${p.name}${p.category ? ` (${p.category})` : ''}: pe bază de deviz [FĂRĂ PREȚ — NU pronunța și NU estima niciun preț. Strânge detaliile cerute (vezi instrucțiunile de colectare) și spune-i că proprietarul îi pregătește un deviz personalizat. NU propune oră/programare aici.]${state}`
+  }
   // Preț estimativ: afișăm „de la X€" + marcaj, ca modelul să nu pronunțe un total fix.
   const price = `${(p.priceBani / 100).toFixed(2)} ${currencyLabel}`
   const priceText = p.isEstimate
@@ -353,7 +360,10 @@ async function sendAiResponse(userId: string, contactPhone: string, jid: string,
   const catalog = await productsRepository.list(userId)
   // Serviciile rezervabile merg pe fluxul de PROGRAMĂRI, restul pe fluxul de COMENZI (disjuncte).
   const bookableServices = catalog.filter(p => p.isBookable)
-  const orderableCatalog = catalog.filter(p => !p.isBookable)
+  // Servicii pe bază de deviz (0.5.1): flux propriu (intake-deviz + handoff). Le scoatem din catalogul
+  // comandabil ca să NU intre pe fluxul de comandă (n-au preț, nu se „comandă").
+  const quoteServices = catalog.filter(p => p.isQuote)
+  const orderableCatalog = catalog.filter(p => !p.isBookable && !p.isQuote)
 
   // Flux programări (N1): pentru servicii rezervabile, mașină de stare în 3 faze. Handoff ușor —
   // agentul strânge serviciu + interval + nume, creează o programare 'pending' și predă owner-ului.
@@ -384,6 +394,21 @@ async function sendAiResponse(userId: string, contactPhone: string, jid: string,
         settings.orderIntakePrompt ?? '',
         ordered,
       )
+
+      // Guard program (0.5.3): dacă clientul a cerut un slot concret (zi+oră) în afara programului,
+      // NU propunem/creăm — răspundem determinist cu programul real și cerem un interval valid.
+      // Sursa de adevăr e codul, nu LLM-ul. Fail-open: program neconfigurat sau slot vag → guard tace.
+      const workingHours = parseWorkingHours(settings.workingHours)
+      if (booking.phase !== 'none' && booking.slotWeekday && booking.slotTime && workingHours) {
+        const check = checkWeekdayTime(workingHours, booking.slotWeekday, booking.slotTime)
+        if (!check.ok) {
+          const reply = `${describeDayRo(workingHours, check.day)}. Îți pot propune un alt interval, în program — ce zi și oră ți-ar conveni?`
+          await sock.sendMessage(jid, { text: reply })
+          await aiRepository.saveMessage(userId, contactPhone, true, reply, Date.now(), true)
+          logger.info(`[AI][${userId.slice(0, 8)}] slot respins de guard program`, { day: check.day, reason: check.reason })
+          return
+        }
+      }
 
       if (booking.phase === 'ready' && booking.serviceIds.length > 0) {
         // B10: una sau mai multe servicii pentru aceeași programare. Păstrăm ordinea din catalog.
@@ -482,6 +507,74 @@ async function sendAiResponse(userId: string, contactPhone: string, jid: string,
       }
     } catch (err) {
       logger.error(`[AI][${userId.slice(0, 8)}] eroare analiză programare`, { err: String(err) })
+    }
+  }
+
+  // Flux deviz (0.5.1): servicii „pe bază de deviz" — botul strânge detaliile cerute (orderIntakePrompt:
+  // talon/VIN/descriere/poză), deschide o CERERE DE DEVIZ (handoff) și predă owner-ului. FĂRĂ preț și
+  // FĂRĂ oră (ora vine cu devizul). Container = appointment pending (total 0, slot gol). Fără poartă de
+  // confirmare: clientul decide DUPĂ ce primește oferta; anti-dublură previne recrearea. Fail-open la eroare.
+  let activeQuoteNote = ''
+  if (quoteServices.length > 0) {
+    try {
+      const quote = await analyzeQuoteIntent(
+        quoteServices.map(p => ({ id: p.id, name: p.name, priceBani: p.priceBani, category: p.category })),
+        settings.orderIntakePrompt ?? '',
+        ordered,
+      )
+
+      if (quote.phase === 'ready' && quote.serviceIds.length > 0) {
+        const svcs = quote.serviceIds
+          .map(id => catalog.find(p => p.id === id))
+          .filter((p): p is NonNullable<typeof p> => Boolean(p))
+        const combinedName = svcs.map(s => s.name).join(' + ')
+
+        // Anti-dublură: aceeași mulțime de servicii-deviz, necancelată, în ultimele 12h → nu recrea.
+        const recent = await appointmentsRepository.listRecentForContact(userId, contactPhone)
+        const RECENT_MS = 12 * 60 * 60 * 1000
+        const since = Date.now() - RECENT_MS
+        const setKey = (name: string) => name.split(' + ').map(s => s.trim().toLowerCase()).sort().join('|')
+        const nameKey = setKey(combinedName)
+        const dup = recent.find(a => a.status !== 'cancelled' && a.createdAt >= since && setKey(a.serviceName) === nameKey)
+
+        if (dup) {
+          activeQuoteNote = `Clientul are deja o cerere de deviz înregistrată pentru „${combinedName}" — NU crea alta. Spune-i firesc că proprietarul revine cu oferta.`
+          logger.info(`[AI][${userId.slice(0, 8)}] cerere deviz duplicată ignorată`, { apptId: dup.id })
+        } else {
+          // Container = appointment pending fără preț/oră. Owner trimite devizul, apoi confirmă cu oră.
+          const appt = await appointmentsRepository.create(userId, contactPhone, {
+            services: svcs.map(s => ({ productId: s.id, serviceName: s.name, unitPriceBani: 0 })),
+            requestedSlot: '',
+            details: quote.details,
+            isQuote: true,
+          })
+          logger.info(`[AI][${userId.slice(0, 8)}] cerere deviz înregistrată`, { apptId: appt.id, services: svcs.length })
+
+          const detLine = quote.details.trim() ? `\n📝 ${quote.details.trim()}` : ''
+          const reply = `Am notat cererea ta de deviz (*${appt.publicRef}*) pentru *${combinedName}*.${detLine}\n\nProprietarul îți pregătește o ofertă personalizată și revine în scurt timp. Mulțumim!`
+          await sock.sendMessage(jid, { text: reply })
+          await aiRepository.saveMessage(userId, contactPhone, true, reply, Date.now(), true)
+
+          const ownerJid = sock.user?.id
+          if (ownerJid) {
+            const name = quote.customerNote.trim() ? `\nClient: ${quote.customerNote.trim()}` : ''
+            const det = quote.details.trim() ? `\nDetalii: ${quote.details.trim()}` : ''
+            sock.sendMessage(ownerJid, {
+              text: `📋 Cerere de deviz nouă ${appt.publicRef} de la +${contactPhone}\nServiciu: ${combinedName}${det}${name}\n\nTrimite-i devizul, apoi confirmă programarea din dashboard.`,
+            }).catch(() => {})
+          }
+          return
+        }
+      } else if (quote.phase === 'collecting') {
+        const missing = quote.missingInfo.length > 0
+          ? `\nMai trebuie clarificat: ${quote.missingInfo.join('; ')}.`
+          : ''
+        const collectingNote = `Clientul vrea o lucrare PE BAZĂ DE DEVIZ, dar mai lipsesc detalii.${missing}\nVerifică ÎNTÂI istoricul conversației: NU re-cere ce a oferit deja. Cere-i natural, într-un mesaj scurt, DOAR ce încă lipsește. NU pronunța și NU estima niciun preț, NU propune oră sau programare. Spune sincer că aduni detaliile și că proprietarul îi pregătește o ofertă personalizată — NU pretinde că ai trimis deja un deviz sau că ai anunțat un coleg.`
+        activeQuoteNote = activeQuoteNote ? `${activeQuoteNote}\n${collectingNote}` : collectingNote
+        logger.info(`[AI][${userId.slice(0, 8)}] cerere deviz în colectare`, { missing: quote.missingInfo.length })
+      }
+    } catch (err) {
+      logger.error(`[AI][${userId.slice(0, 8)}] eroare analiză deviz`, { err: String(err) })
     }
   }
 
@@ -705,6 +798,13 @@ REGULI OBLIGATORII pentru acest caz:
   if (settings.knowledgeBase?.trim()) {
     systemPrompt += `\n\n---\n[Servicii și informații despre business]\n${settings.knowledgeBase.trim()}`
   }
+  // Program de funcționare (0.5.3): dacă e configurat, agentul îl știe și NU mai propune/confirmă
+  // sloturi în afara lui. Sursa de adevăr a validării rămâne în cod (guard, pas 6); aici e ancorarea
+  // conversațională. Neconfigurat → blocul lipsește (fail-open, ca înainte).
+  const workingHours = parseWorkingHours(settings.workingHours)
+  if (workingHours) {
+    systemPrompt += `\n\n---\n[Program de funcționare — orele în care businessul primește clienți]\n${formatWorkingHoursRo(workingHours)}\n\nCând clientul cere o programare: propune și acceptă DOAR intervale în acest program. Dacă cere o zi/oră în afara lui (ex. o zi închisă sau după ora de închidere), spune-i firesc programul real și propune-i cea mai apropiată variantă validă. NU confirma ore în afara programului.`
+  }
   if (catalog.length > 0) {
     const catalogText = catalog
       .map(p => formatCatalogLine(p, curLabel(settings.currency)))
@@ -727,6 +827,9 @@ REGULI OBLIGATORII pentru acest caz:
   }
   if (activeBookingNote) {
     systemPrompt += `\n\n---\n[Programare activă a clientului]\n${activeBookingNote}`
+  }
+  if (activeQuoteNote) {
+    systemPrompt += `\n\n---\n[Cerere de deviz a clientului]\n${activeQuoteNote}`
   }
 
   // RAG: caută în documentele businessului bucățile relevante la ultima întrebare a clientului

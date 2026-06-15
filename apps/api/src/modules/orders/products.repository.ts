@@ -26,7 +26,7 @@ export const productsRepository = {
   },
 
   async create(userId: string, data: {
-    name: string; description: string; priceBani: number; category: string; isAvailable: boolean; isEstimate?: boolean; isBookable?: boolean; stock?: number | null
+    name: string; description: string; priceBani: number; category: string; isAvailable: boolean; isEstimate?: boolean; isBookable?: boolean; isQuote?: boolean; stock?: number | null
   }): Promise<Product> {
     const now = Date.now()
     const row = {
@@ -39,6 +39,7 @@ export const productsRepository = {
       isAvailable: data.isAvailable,
       isEstimate: data.isEstimate ?? false,
       isBookable: data.isBookable ?? false,
+      isQuote: data.isQuote ?? false,
       stock: data.stock ?? null,
       createdAt: now,
       updatedAt: now,
@@ -49,7 +50,7 @@ export const productsRepository = {
 
   // Import în masă (CSV). Inserează toate produsele primite într-un singur batch.
   async createMany(userId: string, items: Array<{
-    name: string; description: string; priceBani: number; category: string; isAvailable: boolean; isEstimate?: boolean; isBookable?: boolean; stock?: number | null
+    name: string; description: string; priceBani: number; category: string; isAvailable: boolean; isEstimate?: boolean; isBookable?: boolean; isQuote?: boolean; stock?: number | null
   }>): Promise<number> {
     if (items.length === 0) return 0
     const now = Date.now()
@@ -63,6 +64,7 @@ export const productsRepository = {
       isAvailable: it.isAvailable,
       isEstimate: it.isEstimate ?? false,
       isBookable: it.isBookable ?? false,
+      isQuote: it.isQuote ?? false,
       stock: it.stock ?? null,
       createdAt: now,
       updatedAt: now,
@@ -72,7 +74,7 @@ export const productsRepository = {
   },
 
   async update(userId: string, id: string, data: Partial<{
-    name: string; description: string; priceBani: number; category: string; isAvailable: boolean; isEstimate: boolean; isBookable: boolean; stock: number | null
+    name: string; description: string; priceBani: number; category: string; isAvailable: boolean; isEstimate: boolean; isBookable: boolean; isQuote: boolean; stock: number | null
   }>): Promise<void> {
     await db.update(products)
       .set({ ...data, updatedAt: Date.now() })

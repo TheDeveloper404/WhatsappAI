@@ -255,7 +255,7 @@ export const api = {
         body: '{}',
       }),
 
-    updateSettings: (accessToken: string, data: { isActive?: boolean; timerMinutes?: number; systemPrompt?: string; knowledgeBase?: string; writingStyle?: string; notifyOnAiTakeover?: boolean; leadCriteria?: string; currency?: string; orderIntakePrompt?: string }) =>
+    updateSettings: (accessToken: string, data: { isActive?: boolean; timerMinutes?: number; systemPrompt?: string; knowledgeBase?: string; writingStyle?: string; notifyOnAiTakeover?: boolean; leadCriteria?: string; currency?: string; orderIntakePrompt?: string; workingHours?: WorkingHours }) =>
       request<{ settings: AiSettings }>('/api/v1/ai/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
@@ -353,7 +353,7 @@ export const api = {
         credentials: 'include',
       }),
 
-    create: (accessToken: string, data: { name: string; description?: string; priceLei: number; category?: string; isAvailable?: boolean; isEstimate?: boolean; isBookable?: boolean; stock?: number | null }) =>
+    create: (accessToken: string, data: { name: string; description?: string; priceLei: number; category?: string; isAvailable?: boolean; isEstimate?: boolean; isBookable?: boolean; isQuote?: boolean; stock?: number | null }) =>
       request<{ product: Product }>('/api/v1/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
@@ -361,7 +361,7 @@ export const api = {
         body: JSON.stringify(data),
       }),
 
-    update: (accessToken: string, id: string, data: { name?: string; description?: string; priceLei?: number; category?: string; isAvailable?: boolean; isEstimate?: boolean; isBookable?: boolean; stock?: number | null }) =>
+    update: (accessToken: string, id: string, data: { name?: string; description?: string; priceLei?: number; category?: string; isAvailable?: boolean; isEstimate?: boolean; isBookable?: boolean; isQuote?: boolean; stock?: number | null }) =>
       request<{ ok: boolean }>(`/api/v1/products/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
@@ -376,7 +376,7 @@ export const api = {
         credentials: 'include',
       }),
 
-    import: (accessToken: string, items: Array<{ name: string; description?: string; priceLei: number; category?: string; isAvailable?: boolean; isEstimate?: boolean; isBookable?: boolean; stock?: number | null }>) =>
+    import: (accessToken: string, items: Array<{ name: string; description?: string; priceLei: number; category?: string; isAvailable?: boolean; isEstimate?: boolean; isBookable?: boolean; isQuote?: boolean; stock?: number | null }>) =>
       request<{ imported: number }>('/api/v1/products/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
@@ -565,10 +565,17 @@ export interface AiSettings {
   leadCriteria: string
   currency: string
   orderIntakePrompt: string
+  // Program de funcționare (0.5.3): JSON serializat per zi, sau '' (neconfigurat). Vezi WorkingHours.
+  workingHours: string
   pauseUntil: number | null
   createdAt: number
   updatedAt: number
 }
+
+// Program de funcționare per business (0.5.3). Cheie = zi (mon..sun); null sau cheie lipsă = închis.
+export type Weekday = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun'
+export type DayHours = { open: string; close: string }
+export type WorkingHours = Partial<Record<Weekday, DayHours | null>>
 
 export type LeadStatus = 'hot' | 'warm' | 'cold'
 
@@ -642,6 +649,7 @@ export interface Product {
   isAvailable: boolean
   isEstimate: boolean
   isBookable: boolean
+  isQuote: boolean
   stock: number | null
   createdAt: number
   updatedAt: number
@@ -694,6 +702,7 @@ export interface Appointment {
   totalBani: number
   requestedSlot: string
   scheduledAt: number | null
+  isQuote: boolean
   details: string
   createdAt: number
   updatedAt: number

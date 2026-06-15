@@ -6,6 +6,27 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added (2026-06-15) — servicii „pe bază de deviz" (0.5.1)
+
+Un service auto nu vinde piese alese de client și nu poate da preț fix la reparații/revizii — prețul îl stabilește mecanicul printr-un **deviz** (după talon/VIN sau diagnoză). Bug-ul: o „revizie" (care merge pe deviz) era mapată în catalog ca produs cu preț fix → ieșea „Schimb ulei 80 lei" (serviciu + preț greșit). Acum un serviciu poate fi marcat **„pe bază de deviz"**: botul nu dă preț, strânge detaliile cerute de owner și deschide o **cerere de deviz** (handoff), fără preț și fără oră. Devizul = trăsătură **opțională per serviciu** (coexistă cu serviciile cu preț fix, care rămân programabile direct), nu un model global.
+- **Date:** coloană nouă `products.is_quote` (BOOLEAN, default FALSE → produsele existente neschimbate) — migrare idempotentă în `migration-statements.ts` + `global-setup.ts`.
+- **Catalog (API/CSV/UI):** `isQuote` în create/update/import cu normalizare defensivă (deviz e mutual exclusiv cu `isEstimate`/`isBookable` — `normalizeServiceMode`); CSV acceptă coloana `deviz` și face prețul opțional pe acele rânduri; UI nou toggle „Pe bază de deviz" (radio-like, preț opțional), afișare „pe bază de deviz" + badge în listă și preview import.
+- **Agent — context:** `formatCatalogLine` marchează serviciul-deviz „FĂRĂ PREȚ — nu estima, strânge detaliile, owner pregătește devizul, fără oră", cu prioritate față de estimativ/rezervabil.
+- **Agent — flux (inima fix-ului):** funcție nouă `analyzeQuoteIntent` (LLM extrage, codul validează — fără preț/oră); serviciile-deviz sunt scoase din fluxul de comandă. La `ready` se creează o cerere de deviz = **appointment pending** (total 0, slot gol), cu notificare owner („📋 Cerere de deviz nouă… trimite devizul, apoi confirmă din dashboard") și mesaj client („proprietarul îți pregătește o ofertă personalizată"). Anti-dublură 12h; fără poartă de confirmare (clientul decide după ofertă). Ce strânge botul = configurabil prin `orderIntakePrompt` (talon/VIN/descriere/poză — nu hardcodat).
+- **Container:** reutilizează `appointments` — cerere deviz → owner trimite oferta → confirmă cu oră (pending→confirmed existent). Coloană nouă `appointments.is_quote` (marcaj, setat la creare) → în dashboard cererile de deviz au badge **„cerere deviz"**, distincte de programările normale pending.
+- **Teste:** `quote.intent.test.ts` (validare `parseQuoteIntent`) + cazuri deviz în `message.handler.test.ts` (`formatCatalogLine`).
+- **Roadmap:** 0.5.4 / 0.5.5 închise fără cod (erau simptome ale modelării „service = magazin de piese", rezolvate prin demo v2).
+
+### Added (2026-06-15) — programări: guard de program de funcționare (0.5.3)
+
+Agentul accepta și înregistra sloturi în afara programului (observat în transcript demo: a confirmat „sâmbătă 20.06 ora 14:00" deși sâmbăta se închide la 13:00). Cauza reală: nu exista nicio reprezentare structurată a programului — exista doar text liber în knowledge base, deci codul n-avea cum să valideze. Acum businessul are un **program de funcționare configurabil**, iar agentul nu mai propune/confirmă ore în afara lui. Filozofia proiectului respectată: **LLM-ul extrage slotul, codul validează determinist** (programul nu intră niciodată în logica de decizie a modelului).
+- **Date:** coloană nouă `ai_settings.working_hours` (TEXT, JSON serializat per zi `{mon:{open,close}|null, …}`) — migrare idempotentă în `migration-statements.ts` (prod) și `global-setup.ts` (test). Gol = neconfigurat → **fail-open** (comportament ca înainte, nicio regresie).
+- **Domeniu:** modul nou `ai/working-hours.ts` — `validateWorkingHours` (strict, la save, mesaje RO), `parseWorkingHours` (tolerant, la citire), `checkWeekdayTime` (guard pe zi+oră, interval `[open, close)`, fail-open pe program lipsă / oră ne-parsabilă), `describeDayRo` (mesaj client). Owner-ul rămâne autoritatea pe oră — nu validăm ce setează el manual la confirmare.
+- **API/UI:** `PATCH /ai/settings` acceptă `workingHours` (obiect, validat → 400 cu mesaj RO clar); editor nou în Setări → tab **Agent → „Program de funcționare"** (7 zile, toggle deschis/închis + ore, input `time`).
+- **Agent:** programul (când e configurat) e injectat în `systemPrompt` cu instrucțiune să nu propună ore în afara lui (ancorare conversațională); `analyzeBookingIntent` extrage acum `slotWeekday`+`slotTime` normalizate (primește data curentă RO ca să rezolve „mâine"/„vineri"), validate strict în `parseBookingIntent`.
+- **Guard (inima fix-ului):** în `message.handler.ts`, dacă slotul normalizat cade în afara programului → agentul NU mai creează/propune programarea, ci răspunde determinist cu programul real al zilei și cere alt interval.
+- **Teste:** `working-hours.test.ts` (validare + guard + fail-open, inclusiv cazul exact din transcript) și `booking.intent.test.ts` extins (extragere slot normalizat).
+
 ### Fixed (2026-06-15) — programare: mesajul de „cerere înregistrată" suna redundant
 
 La crearea unei programări, mesajul către client spunea „Proprietarul îți confirmă **data și ora exactă** în scurt timp" — dar clientul tocmai dăduse ora dorită, așa că suna ca și cum owner-ul i-ar *da* o oră pe care el o spusese deja; iar când venea confirmarea cu aceeași oră, părea redundant/confuz (observat în transcript demo: „păi deja mi-ați spus ora"). Pasul owner-ului e de fapt **confirmare de disponibilitate** (slotul cerut e o cerere, nu un loc garantat), nu „owner-ul inventează ora".

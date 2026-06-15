@@ -185,6 +185,9 @@ export default function AppointmentsPage() {
                       {appt.publicRef && (
                         <span className="font-mono-ui text-[11px] text-dim bg-cardhi rounded-md px-1.5 py-0.5">{appt.publicRef}</span>
                       )}
+                      {appt.isQuote && (
+                        <span className="font-mono-ui text-[10px] text-acid bg-acid/10 rounded-full px-2 py-0.5">cerere deviz</span>
+                      )}
                     </div>
                     <p className="font-mono-ui text-[11px] text-dimmer mt-0.5">{formatDate(appt.createdAt)}</p>
                   </div>

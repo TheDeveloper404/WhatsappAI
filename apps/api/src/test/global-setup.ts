@@ -202,6 +202,7 @@ export async function setup() {
     `ALTER TABLE products ADD COLUMN IF NOT EXISTS stock INTEGER`,
     `ALTER TABLE products ADD COLUMN IF NOT EXISTS is_estimate BOOLEAN NOT NULL DEFAULT FALSE`,
     `ALTER TABLE products ADD COLUMN IF NOT EXISTS is_bookable BOOLEAN NOT NULL DEFAULT FALSE`,
+    `ALTER TABLE products ADD COLUMN IF NOT EXISTS is_quote BOOLEAN NOT NULL DEFAULT FALSE`,
     `ALTER TABLE orders ADD COLUMN IF NOT EXISTS public_ref TEXT`,
     `CREATE TABLE IF NOT EXISTS appointments (
       id TEXT PRIMARY KEY,
@@ -241,6 +242,9 @@ export async function setup() {
     `ALTER TABLE appointments ADD COLUMN IF NOT EXISTS total_bani INTEGER NOT NULL DEFAULT 0`,
     // Dată+oră concretă setată de owner la confirmare (epoch ms). NULL = încă neconfirmată.
     `ALTER TABLE appointments ADD COLUMN IF NOT EXISTS scheduled_at BIGINT`,
+    // 0.5.3 — program de funcționare per business (JSON serializat). Gol = neconfigurat → fail-open.
+    `ALTER TABLE ai_settings ADD COLUMN IF NOT EXISTS working_hours TEXT NOT NULL DEFAULT ''`,
+    `ALTER TABLE appointments ADD COLUMN IF NOT EXISTS is_quote BOOLEAN NOT NULL DEFAULT FALSE`,
     `CREATE TABLE IF NOT EXISTS appointment_items (
       id TEXT PRIMARY KEY,
       appointment_id TEXT NOT NULL REFERENCES appointments(id) ON DELETE CASCADE,

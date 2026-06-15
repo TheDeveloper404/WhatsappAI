@@ -88,6 +88,10 @@ export const aiSettings = pgTable('ai_settings', {
   orderIntakePrompt: text('order_intake_prompt').notNull().default(''),
   // Moneda businessului (RON/EUR/USD/GBP). Banii rămân stocați ca integer subunitate; se schimbă doar eticheta.
   currency: text('currency').notNull().default('RON'),
+  // Program de funcționare (per business), JSON serializat: { mon:{open,close}|null, ..., sun:... }.
+  // Sursă de adevăr pentru validarea sloturilor de programare (0.5.3). Gol = neconfigurat → fail-open
+  // (nu validăm nimic, comportament ca înainte). Vezi `working-hours.ts` pentru schema și parsare.
+  workingHours: text('working_hours').notNull().default(''),
   pauseUntil: bigint('pause_until', { mode: 'number' }),
   createdAt: bigint('created_at', { mode: 'number' }).notNull(),
   updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
@@ -201,6 +205,12 @@ export const products = pgTable('products', {
   // ci rezervă un interval. Agentul strânge serviciul + intervalul dorit + numele, creează o programare
   // 'pending' și predă owner-ului să confirme intervalul (handoff ușor, fără verificare de disponibilitate).
   isBookable: boolean('is_bookable').notNull().default(false),
+  // Serviciu „pe bază de deviz" (0.5.1). TRUE = service auto reparații/revizii: NU are preț fix și NU
+  // se programează cu oră la cerere — botul nu propune/afișează preț, strânge datele cerute de owner
+  // (orderIntakePrompt: talon/VIN/descriere/poză) și deschide o cerere de deviz (appointment pending,
+  // total 0); mecanicul trimite devizul, ora vine după acceptare. Mutual exclusiv cu isBookable/isEstimate
+  // în flux (un serviciu e SAU preț-fix-programabil, SAU estimativ, SAU pe deviz). FALSE = comportament normal.
+  isQuote: boolean('is_quote').notNull().default(false),
   // Stoc numeric. NULL = nelimitat (servicii, producție la cerere). N = cantitate reală,
   // scade atomic la confirmarea comenzii de către client. 0 = epuizat (dar produsul există).
   stock: integer('stock'),
@@ -259,6 +269,10 @@ export const appointments = pgTable('appointments', {
   requestedSlot: text('requested_slot').notNull().default(''),
   // Dată+oră concretă (epoch ms) setată de owner la confirmare. NULL = neconfirmată/fără oră.
   scheduledAt: bigint('scheduled_at', { mode: 'number' }),
+  // Cerere de deviz (0.5.1/0.5.6): TRUE = nu e o programare clasică, ci o cerere de deviz (serviciu
+  // isQuote) — fără preț/oră la creare; owner-ul trimite oferta, apoi confirmă cu oră. Marcaj pentru
+  // dashboard (badge „deviz"), ca owner-ul s-o distingă de o programare normală pending.
+  isQuote: boolean('is_quote').notNull().default(false),
   details: text('details').notNull().default(''),
   createdAt: bigint('created_at', { mode: 'number' }).notNull(),
   updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),

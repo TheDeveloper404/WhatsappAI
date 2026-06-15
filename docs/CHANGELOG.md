@@ -6,6 +6,12 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed (2026-06-15) — WhatsApp: card blocat pe „Asociere…" la nesfârșit
+
+După deconectare, cardul WhatsApp din dashboard rămânea afișat „Asociere…" deși owner-ul nu inițiase nicio asociere. Cauza: statusul `pairing` era **„lipicios"** — codul QR expiră în 60s (`pairingCodeExpiresAt`), dar nimic nu reseta starea înapoi la `disconnected`. Două căi ajungeau acolo: (a) QR generat dar nescanat; (b) o **reconectare de fundal** după un drop care, cu credențiale moarte, re-aprinde un QR și setează singur `pairing` (fără acțiunea owner-ului). `pairingCodeExpiresAt` se salva, dar nu se aplica nicăieri (nici backend la `getSession`, nici frontend).
+- **Fix (`whatsapp.service.ts`, `getSession`):** normalizare la CITIRE — un `pairing` cu codul expirat se raportează ca `disconnected` (`pairingCode` golit). Read pur (fără write pe GET), central → acoperă ambele căi și toate intrările (load inițial + poll). Fix pe backend dinadins (nu frontend cu `Date.now()` în render — ar fi picat regula ESLint a React Compiler).
+- **Teste:** `whatsapp.integration.test.ts` — pairing cu cod expirat → GET întoarce `disconnected`.
+
 ### Fixed (2026-06-15) — programări: agentul accepta sloturi cu reper relativ (0.5.2)
 
 Botul cerea insistent „ora exactă" și respingea reperele de timp relative („programează-mă **după pre-ITP**", „**voi decideți**", „**după ce termin**") — 3 pushback-uri într-un singur transcript demo. Infrastructura permitea deja slotul relativ (`requestedSlot` e text liber; retrogradarea cere doar slot ne-gol, nu zi+oră; guard-ul de program 0.5.3 tace când `slotWeekday`/`slotTime` sunt goale) — buba era **pur în instrucțiunea de extracție** a `analyzeBookingIntent`, care definea un interval valid strict ca „zi/oră" → modelul punea „ora exactă" în `missingInfo` și handler-ul o cerea la nesfârșit.

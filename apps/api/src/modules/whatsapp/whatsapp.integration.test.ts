@@ -28,7 +28,8 @@ vi.mock('./whatsapp.session-manager.js', () => ({
 
 import { sendVerificationEmail } from '../../utils/email.js'
 import { db } from '../../config/database.js'
-import { subscriptions } from '../../db/schema.js'
+import { subscriptions, whatsappSessions } from '../../db/schema.js'
+import { eq } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 
 let app: FastifyInstance
@@ -98,6 +99,24 @@ describe('GET /whatsapp/session', () => {
     })
     expect(res.statusCode).toBe(200)
     expect(res.json().session).toBeNull()
+  })
+
+  it('200 — pairing cu codul QR expirat e raportat ca disconnected (anti „Asociere…" lipicios)', async () => {
+    const token = await registerAndLogin('wa-session-stale-pairing@example.com')
+    const headers = { authorization: `Bearer ${token}` }
+    // Inițiem un pairing (mock requestQrCode → status pairing, expiră în 60s)...
+    await app.inject({ method: 'POST', url: '/api/v1/whatsapp/connect', headers })
+    const { session: fresh } = (await app.inject({ method: 'GET', url: '/api/v1/whatsapp/session', headers })).json()
+    expect(fresh.status).toBe('pairing')
+
+    // ...apoi forțăm expirarea codului în trecut (QR nescanat / reconectare de fundal).
+    await db.update(whatsappSessions)
+      .set({ pairingCodeExpiresAt: Date.now() - 1000 })
+      .where(eq(whatsappSessions.id, fresh.id))
+
+    const { session } = (await app.inject({ method: 'GET', url: '/api/v1/whatsapp/session', headers })).json()
+    expect(session.status).toBe('disconnected')
+    expect(session.pairingCode).toBeNull()
   })
 })
 

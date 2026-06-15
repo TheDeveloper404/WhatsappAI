@@ -6,7 +6,17 @@ import type { WhatsappSession } from '../../db/schema.js'
 
 export const whatsappService = {
   async getSession(userId: string): Promise<WhatsappSession | null> {
-    return (await whatsappRepository.findByUserId(userId)) ?? null
+    const session = await whatsappRepository.findByUserId(userId)
+    if (!session) return null
+    // Pairing „lipicios": codul QR expiră în 60s, dar nimic nu reseta starea → cardul rămânea
+    // blocat pe „Asociere…" la nesfârșit, inclusiv după o reconectare de fundal cu credențiale
+    // moarte care re-aprinde un QR fără acțiunea owner-ului. Normalizăm la CITIRE: un pairing cu
+    // codul expirat = practic deconectat (read pur, fără write pe GET). Acoperă ambele căi (QR
+    // nescanat + reconectare automată) și toate intrările (load inițial + poll).
+    if (session.status === 'pairing' && session.pairingCodeExpiresAt && session.pairingCodeExpiresAt < Date.now()) {
+      return { ...session, status: 'disconnected', pairingCode: null }
+    }
+    return session
   },
 
   async connect(userId: string): Promise<{ qrCode: string }> {

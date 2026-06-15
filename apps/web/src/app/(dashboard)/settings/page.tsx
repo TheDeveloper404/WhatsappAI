@@ -25,6 +25,30 @@ function CharCount({ value, max }: { value: string; max: number }) {
   return <p className={`font-mono-ui text-[12px] text-right mt-1.5 ${color}`}>{n} / {max}</p>
 }
 
+// Selector de oră 24h garantat pe ORICE browser. `<input type="time">` afișează AM/PM după
+// locale-ul browserului/OS (Firefox ignoră `lang="ro-RO"`) → folosim două <select> în loc.
+// Valoarea rămâne „HH:MM" 24h, identică cu ce stoca inputul nativ.
+const HOUR_OPTS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'))
+const MINUTE_OPTS = ['00', '15', '30', '45']
+const timeSelCls = 'rounded-lg border border-line px-2 py-1.5 text-[13px] text-ink bg-cardhi focus:outline-hidden focus:ring-2 focus:ring-acid/40 focus:border-acid transition-colors'
+
+function TimeSelect({ value, onChange, label }: { value: string; onChange: (v: string) => void; label: string }) {
+  const [h = '00', m = '00'] = (value || '00:00').split(':')
+  // Dacă minutul stocat nu e pe grilă (ex. valoare veche „17:45"), îl includem ca opțiune ca să nu-l pierdem.
+  const minutes = MINUTE_OPTS.includes(m) ? MINUTE_OPTS : [...MINUTE_OPTS, m].sort()
+  return (
+    <span className="inline-flex items-center gap-1">
+      <select value={h} onChange={e => onChange(`${e.target.value}:${m}`)} className={timeSelCls} aria-label={`${label} — ora`}>
+        {HOUR_OPTS.map(hh => <option key={hh} value={hh}>{hh}</option>)}
+      </select>
+      <span className="font-mono-ui text-[13px] text-dim">:</span>
+      <select value={m} onChange={e => onChange(`${h}:${e.target.value}`)} className={timeSelCls} aria-label={`${label} — minut`}>
+        {minutes.map(mm => <option key={mm} value={mm}>{mm}</option>)}
+      </select>
+    </span>
+  )
+}
+
 // Program de funcționare (0.5.3): zilele în ordine RO (luni-first) + etichete.
 const WEEKDAYS: { id: Weekday; label: string }[] = [
   { id: 'mon', label: 'Luni' }, { id: 'tue', label: 'Marți' }, { id: 'wed', label: 'Miercuri' },
@@ -531,21 +555,9 @@ export default function SettingsPage() {
                     <span className="font-mono-ui text-[13px] text-ink w-20">{label}</span>
                     {isOpen ? (
                       <div className="flex items-center gap-2">
-                        <input
-                          type="time"
-                          lang="ro-RO"
-                          value={hours.open}
-                          onChange={e => setDayTime(id, 'open', e.target.value)}
-                          className="rounded-lg border border-line px-2.5 py-1.5 text-[13px] text-ink bg-cardhi focus:outline-hidden focus:ring-2 focus:ring-acid/40 focus:border-acid transition-colors"
-                        />
+                        <TimeSelect value={hours.open} onChange={v => setDayTime(id, 'open', v)} label={`${label} deschidere`} />
                         <span className="font-mono-ui text-[13px] text-dim">–</span>
-                        <input
-                          type="time"
-                          lang="ro-RO"
-                          value={hours.close}
-                          onChange={e => setDayTime(id, 'close', e.target.value)}
-                          className="rounded-lg border border-line px-2.5 py-1.5 text-[13px] text-ink bg-cardhi focus:outline-hidden focus:ring-2 focus:ring-acid/40 focus:border-acid transition-colors"
-                        />
+                        <TimeSelect value={hours.close} onChange={v => setDayTime(id, 'close', v)} label={`${label} închidere`} />
                       </div>
                     ) : (
                       <span className="font-mono-ui text-[13px] text-dimmer">închis</span>

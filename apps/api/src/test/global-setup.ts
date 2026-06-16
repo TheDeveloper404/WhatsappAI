@@ -128,6 +128,13 @@ export async function setup() {
       updated_at BIGINT NOT NULL,
       UNIQUE(user_id, contact_phone)
     )`,
+    // A6 (S12) — idempotență inbound WhatsApp: dedup pe (user, msg.key.id).
+    `CREATE TABLE IF NOT EXISTS processed_messages (
+      user_id TEXT NOT NULL,
+      id TEXT NOT NULL,
+      created_at BIGINT NOT NULL,
+      PRIMARY KEY (user_id, id)
+    )`,
     `CREATE TABLE IF NOT EXISTS stripe_events (
       id TEXT PRIMARY KEY,
       type TEXT NOT NULL,
@@ -261,6 +268,8 @@ export async function setup() {
       updated_at BIGINT NOT NULL,
       PRIMARY KEY (user_id, period_month)
     )`,
+    // A2 (S1) — jid WhatsApp real al contactului (LID-aware), pentru sendToContact.
+    `ALTER TABLE conversation_messages ADD COLUMN IF NOT EXISTS remote_jid TEXT`,
   ]
 
   try {

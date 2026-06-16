@@ -7,7 +7,9 @@ import { verifyPassword } from '../../utils/password.js'
 import { generateSecureToken } from '../../utils/tokens.js'
 import { sendAccountDeletionEmail } from '../../utils/email.js'
 import { env } from '../../config/env.js'
-import { Errors } from '../../utils/errors.js'
+import { Errors, AppError } from '../../utils/errors.js'
+import { billingRepository } from '../billing/billing.repository.js'
+import { stripe } from '../../config/stripe.js'
 
 // Rate-limit dezactivat în test/E2E pentru a evita flakiness (ca în auth.routes).
 const rl = (max: number, timeWindow: string) =>
@@ -66,6 +68,20 @@ export async function userRoutes(app: FastifyInstance) {
     const tokenHash = createHmac('sha256', env.JWT_ACCESS_SECRET).update(result.data.token).digest('hex')
     const user = await authRepository.findUserByDeletionToken(tokenHash)
     if (!user) throw Errors.unprocessable('Link de ștergere invalid sau expirat.')
+
+    // A3 (S24): anulează abonamentul Stripe ÎNAINTE de orice altceva. Altfel cascade-ul ștergea rândul
+    // local, dar abonamentul rămânea ACTIV la Stripe → clientul era taxat în continuare după ce și-a șters
+    // contul (money/legal). Dacă anularea eșuează, ABANDONĂM ștergerea (retriabil) ca să nu rămânem
+    // niciodată cu „cont șters + abonament activ"; o facem prima, deci nimic altceva nu e atins la eșec.
+    const sub = await billingRepository.findByUserId(user.id)
+    if (sub?.stripeSubscriptionId && sub.status !== 'canceled') {
+      try {
+        await stripe.subscriptions.cancel(sub.stripeSubscriptionId)
+      } catch (err) {
+        app.log.error({ err: String(err), userId: user.id, stripeSubscriptionId: sub.stripeSubscriptionId }, 'A3: Stripe subscription cancel failed — aborting account deletion')
+        throw new AppError(503, 'STRIPE_UNAVAILABLE', 'Nu am putut anula abonamentul acum. Reîncearcă în câteva momente.')
+      }
+    }
 
     // Închide socket-ul WhatsApp din memorie + curăță starea de auth înainte de ștergere,
     // ca să nu rămână o sesiune orfană activă. Eșecul aici nu blochează ștergerea.

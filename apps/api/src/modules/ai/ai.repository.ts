@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto'
-import { eq, and, desc } from 'drizzle-orm'
+import { eq, and, desc, isNotNull } from 'drizzle-orm'
 import { db, pool } from '../../config/database.js'
 import { aiSettings, contactsBlacklist, conversationMessages, contactMemory, platformConfig, leadInsights, aiUsage } from '../../db/schema.js'
 import type { AiSettings } from '../../db/schema.js'
@@ -121,9 +121,12 @@ export const aiRepository = {
     return rows.map(r => r.phoneNumber)
   },
 
-  async saveMessage(userId: string, contactPhone: string, fromMe: boolean, body: string, waTimestamp: number, isAi = false): Promise<void> {
+  async saveMessage(userId: string, contactPhone: string, fromMe: boolean, body: string, waTimestamp: number, isAi = false, remoteJid?: string): Promise<void> {
     await db.insert(conversationMessages).values({
       id: randomUUID(), userId, contactPhone, fromMe, isAi, body, waTimestamp, createdAt: Date.now(),
+      // A2 (S1): doar calea de procesare a mesajelor reale trimite jid-ul; restul apelanților (mesaje
+      // proactive/de sistem) îl lasă undefined → coloana rămâne NULL pe acele rânduri (fallback la send).
+      ...(remoteJid ? { remoteJid } : {}),
     })
     // Curățenia (păstrăm ultimele 50) rulează probabilistic, nu la fiecare insert.
     // Plafonul de 50 e soft — un surplus temporar de câteva mesaje e acceptabil.
@@ -139,6 +142,20 @@ export const aiRepository = {
         )
       `, [userId, contactPhone])
     }
+  },
+
+  // A6 (S12): idempotență inbound — „rezervă" un msg.key.id. Întoarce true dacă e NOU (de procesat),
+  // false dacă a mai fost văzut (re-livrare la reconectare/history-sync → se sare). Cleanup probabilistic
+  // al rândurilor mai vechi de 24h ca tabela să rămână mică (mesajele re-livrate sunt mereu recente).
+  async markMessageProcessed(userId: string, msgId: string): Promise<boolean> {
+    const res = await pool.query(
+      `INSERT INTO processed_messages (user_id, id, created_at) VALUES ($1, $2, $3) ON CONFLICT (user_id, id) DO NOTHING`,
+      [userId, msgId, Date.now()],
+    )
+    if (Math.random() < 0.02) {
+      await pool.query(`DELETE FROM processed_messages WHERE created_at < $1`, [Date.now() - 24 * 60 * 60 * 1000]).catch(() => {})
+    }
+    return (res.rowCount ?? 0) > 0
   },
 
   async clearHistory(userId: string, contactPhone: string): Promise<void> {
@@ -158,6 +175,21 @@ export const aiRepository = {
       await db.delete(conversationMessages)
         .where(and(eq(conversationMessages.userId, userId), eq(conversationMessages.contactPhone, phone)))
     }
+  },
+
+  // A2 (S1): cel mai recent jid REAL al contactului (LID-aware), pentru livrarea notificărilor proactive
+  // prin `sendToContact`. NULL dacă n-avem niciun mesaj cu jid stocat (istoric vechi) → apelantul face fallback.
+  async getLatestJid(userId: string, contactPhone: string): Promise<string | null> {
+    const rows = await db.select({ remoteJid: conversationMessages.remoteJid })
+      .from(conversationMessages)
+      .where(and(
+        eq(conversationMessages.userId, userId),
+        eq(conversationMessages.contactPhone, contactPhone),
+        isNotNull(conversationMessages.remoteJid),
+      ))
+      .orderBy(desc(conversationMessages.waTimestamp))
+      .limit(1)
+    return rows[0]?.remoteJid ?? null
   },
 
   async getContext(userId: string, contactPhone: string, limit = 20) {

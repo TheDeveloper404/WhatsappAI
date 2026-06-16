@@ -139,6 +139,15 @@ export const migrationStatements = [
     type TEXT NOT NULL,
     created_at BIGINT NOT NULL
   )`,
+  // A6 (S12) — idempotență inbound WhatsApp: dedup pe (user, msg.key.id). La reconectare/history-sync,
+  // WhatsApp re-emite mesaje deja procesate; fără asta s-ar re-salva și re-declanșa (comenzi/răspunsuri
+  // duble). Cheia primară compusă blochează re-procesarea. Curățat periodic (rânduri vechi) din cod.
+  `CREATE TABLE IF NOT EXISTS processed_messages (
+    user_id TEXT NOT NULL,
+    id TEXT NOT NULL,
+    created_at BIGINT NOT NULL,
+    PRIMARY KEY (user_id, id)
+  )`,
   `CREATE TABLE IF NOT EXISTS products (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -281,4 +290,8 @@ export const migrationStatements = [
   `UPDATE notifications SET audience = 'admin' WHERE type IN ('new_user','payment_failed','subscription_canceled','subscription_updated')`,
   // 0.5.3 — program de funcționare per business (JSON serializat). Gol = neconfigurat → fail-open.
   `ALTER TABLE ai_settings ADD COLUMN IF NOT EXISTS working_hours TEXT NOT NULL DEFAULT ''`,
+  // A2 (S1) — jid-ul WhatsApp REAL al contactului (ex. `...@s.whatsapp.net` sau `...@lid`). `contact_phone`
+  // reține doar cifrele, fără sufix → `sendToContact` nu putea reconstrui corect jid-ul pe contactele LID
+  // (notificările de status nu ajungeau). NULL pe mesajele vechi → fallback la `<phone>@s.whatsapp.net`.
+  `ALTER TABLE conversation_messages ADD COLUMN IF NOT EXISTS remote_jid TEXT`,
 ]

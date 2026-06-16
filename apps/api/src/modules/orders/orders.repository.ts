@@ -37,15 +37,20 @@ export const ordersRepository = {
       createdAt: now,
       updatedAt: now,
     }
-    await db.insert(orders).values(order)
-    await db.insert(orderItems).values(items.map(it => ({
-      id: randomUUID(),
-      orderId: order.id,
-      productId: it.productId,
-      productName: it.productName,
-      unitPriceBani: it.unitPriceBani,
-      quantity: it.quantity,
-    })))
+    // A1 (S14): antet + linii într-o SINGURĂ tranzacție — ori intră tot, ori nimic. Înainte erau două
+    // INSERT-uri separate: dacă al doilea pica, rămânea o comandă fără linii (comandă-fantomă, total fără
+    // produse). Fără schimbare de comportament pe calea fericită.
+    await db.transaction(async (tx) => {
+      await tx.insert(orders).values(order)
+      await tx.insert(orderItems).values(items.map(it => ({
+        id: randomUUID(),
+        orderId: order.id,
+        productId: it.productId,
+        productName: it.productName,
+        unitPriceBani: it.unitPriceBani,
+        quantity: it.quantity,
+      })))
+    })
     return order
   },
 

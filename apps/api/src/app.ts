@@ -61,6 +61,12 @@ async function runStartupMigrations() {
       type TEXT NOT NULL,
       created_at BIGINT NOT NULL
     )`,
+    `CREATE TABLE IF NOT EXISTS processed_messages (
+      user_id TEXT NOT NULL,
+      id TEXT NOT NULL,
+      created_at BIGINT NOT NULL,
+      PRIMARY KEY (user_id, id)
+    )`,
     `CREATE TABLE IF NOT EXISTS admin_audit_log (
       id TEXT PRIMARY KEY,
       action TEXT NOT NULL,

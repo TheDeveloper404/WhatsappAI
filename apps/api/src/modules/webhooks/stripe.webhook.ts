@@ -47,7 +47,19 @@ export async function stripeWebhookRoutes(app: FastifyInstance) {
       }
     }
 
-    await handleEvent(event, app)
+    // A1 (S27): marca de deduplicare e inserată ÎNAINTE de handling (rezervare atomică, race-safe între
+    // livrări concurente), DAR dacă handling-ul eșuează o ȘTERGEM și răspundem 500 → Stripe reîncearcă și
+    // re-procesează. Înainte marca rămânea commit-uită chiar dacă handler-ul arunca → retry-ul respins ca
+    // duplicat → eveniment pierdut definitiv (ex. client plătit fără abonament activat).
+    try {
+      await handleEvent(event, app)
+    } catch (err) {
+      if (event.id) {
+        await pool.query(`DELETE FROM stripe_events WHERE id = $1`, [event.id]).catch(() => {})
+      }
+      app.log.error({ err: String(err), eventId: event.id, eventType: event.type }, 'Stripe handleEvent failed — dedup marker removed for retry')
+      return reply.status(500).send({ error: 'Webhook handling failed' })
+    }
     return reply.status(200).send({ received: true })
   })
 }

@@ -4,6 +4,7 @@ import { embedTexts } from '../ai/groq.client.js'
 import { knowledgeRepository, type ChunkInput } from './knowledge.repository.js'
 import { userTier, ragChunkLimit } from '../billing/entitlement.js'
 import { AppError } from '../../utils/errors.js'
+import { logger } from '../../utils/logger.js'
 import type { Document } from '../../db/schema.js'
 
 // MIME-uri acceptate. Validarea „hard" (whitelist + mărime) se face în rută; aici e dublată defensiv.
@@ -22,6 +23,11 @@ const MAX_CHUNKS = 400         // plafon per document (anti-abuz; ~800k caracter
 const MIN_TEXT_LEN = 20        // sub atât = document fără conținut util → respins
 const RETRIEVE_TOP_K = 3
 const RETRIEVE_MIN_SCORE = 0.5 // prag cosine: sub atât considerăm irelevant și nu injectăm
+// Dimensiunea vectorilor modelului de embedding curent (gemini-embedding-001 → 3072). Sursa de adevăr
+// pentru detectarea chunk-urilor STALE: dacă modelul de embedding se schimbă/depreciază (s-a întâmplat
+// deja: text-embedding-004 → gemini-embedding-001, 768 → 3072), vectorii vechi au altă dimensiune / alt
+// spațiu și NU mai sunt comparabili — cosine ar da 0 sau scoruri garbage, TĂCUT. Vezi S20 în audit.
+const EMBEDDING_DIM = 3072
 
 // Anti-DoS la parsing (M4). Un docx/pdf de 10 MB comprimat poate „exploda" la GB de text în RAM
 // (zip-bomb). Plafonăm textul extras (aliniat cu capacitatea de chunking — peste atât oricum n-am
@@ -172,7 +178,22 @@ export const knowledgeService = {
     }
     if (!queryVec) return []
 
-    return all
+    // Guard STALE (S20): chunk-urile cu altă dimensiune decât modelul curent sunt din alt model de
+    // embedding → necomparabile. Înainte scorau 0 tăcut și DISPĂREAU din retrieval fără urmă (un document
+    // întreg putea fi invizibil pentru AI). Acum le excludem explicit și logăm — owner-ul trebuie să
+    // re-încarce documentul ca să fie re-indexat cu modelul curent.
+    const dim = queryVec.length
+    let stale = 0
+    const comparable = all.filter(c => {
+      if (c.embedding.length === dim) return true
+      stale++
+      return false
+    })
+    if (stale > 0) {
+      logger.warn(`[RAG][${userId.slice(0, 8)}] ${stale} fragmente STALE ignorate (embedding cu dimensiune ≠ ${dim}) — indexate cu alt model; documentul necesită re-încărcare`, { stale, dim, expected: EMBEDDING_DIM })
+    }
+
+    return comparable
       .map(c => ({ content: c.content, score: cosineSimilarity(queryVec, c.embedding) }))
       .filter(c => c.score >= RETRIEVE_MIN_SCORE)
       .sort((a, b) => b.score - a.score)

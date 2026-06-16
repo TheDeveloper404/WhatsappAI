@@ -47,14 +47,18 @@ export const appointmentsRepository = {
       createdAt: now,
       updatedAt: now,
     }
-    await db.insert(appointments).values(appointment)
-    await db.insert(appointmentItems).values(services.map(s => ({
-      id: randomUUID(),
-      appointmentId: appointment.id,
-      productId: s.productId,
-      serviceName: s.serviceName,
-      unitPriceBani: s.unitPriceBani || 0,
-    })))
+    // A1 (S14): antet + linii într-o SINGURĂ tranzacție — ori intră tot, ori nimic. Înainte: două
+    // INSERT-uri separate → al doilea eșuat lăsa o programare fără servicii. Zero schimbare pe calea fericită.
+    await db.transaction(async (tx) => {
+      await tx.insert(appointments).values(appointment)
+      await tx.insert(appointmentItems).values(services.map(s => ({
+        id: randomUUID(),
+        appointmentId: appointment.id,
+        productId: s.productId,
+        serviceName: s.serviceName,
+        unitPriceBani: s.unitPriceBani || 0,
+      })))
+    })
     return appointment
   },
 

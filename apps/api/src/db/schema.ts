@@ -110,6 +110,10 @@ export const conversationMessages = pgTable('conversation_messages', {
   id: text('id').primaryKey(),
   userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   contactPhone: text('contact_phone').notNull(),
+  // Jid WhatsApp real al contactului (`...@s.whatsapp.net` sau `...@lid`). `contactPhone` reține doar
+  // cifrele (fără sufix) → `sendToContact` foloseste acest jid (A2/S1) ca să livreze și pe contactele LID.
+  // NULL pe mesajele vechi (de dinainte de coloană) → fallback la reconstrucția `<phone>@s.whatsapp.net`.
+  remoteJid: text('remote_jid'),
   fromMe: boolean('from_me').notNull().default(false),
   isAi: boolean('is_ai').notNull().default(false),
   body: text('body').notNull(),

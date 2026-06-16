@@ -90,6 +90,17 @@ async function reconnectAfterDrop(userId: string): Promise<void> {
 }
 
 function attachPersistentHandlers(sock: WASocket, userId: string) {
+  // A5 (S17): înregistrăm `messages.upsert` O SINGURĂ DATĂ per socket, în afara handler-ului de conexiune.
+  // Înainte era înregistrat în ramura `connection==='open'`, care se poate re-emite pe ACELAȘI socket →
+  // fiecare re-`open` adăuga încă un listener → același mesaj procesat de N ori (răspunsuri/comenzi
+  // multiplicate; amplifica și replay-ul la history-sync). `attachPersistentHandlers` rulează o dată per
+  // socket nou (la creare/reconectare), deci aici listener-ul e legat exact o dată.
+  sock.ev.on('messages.upsert', async ({ messages, type }) => {
+    logger.info(`[WA][${userId.slice(0, 8)}] messages.upsert`, { type, count: messages.length })
+    if (type !== 'notify') return
+    await handleMessages(userId, sock, messages)
+  })
+
   sock.ev.on('connection.update', async (update: any) => {
     try {
       const { connection, lastDisconnect, qr } = update
@@ -125,11 +136,7 @@ function attachPersistentHandlers(sock: WASocket, userId: string) {
       if (connection === 'open') {
         reconnectAttempts.delete(userId)
         connectedUsers.add(userId)
-        sock.ev.on('messages.upsert', async ({ messages, type }) => {
-          logger.info(`[WA][${userId.slice(0, 8)}] messages.upsert`, { type, count: messages.length })
-          if (type !== 'notify') return
-          await handleMessages(userId, sock, messages)
-        })
+        // (listener `messages.upsert` mutat în afara handler-ului — vezi A5/S17 sus, o dată per socket)
         const phoneNumber = sock.user?.id?.split(':')[0] ?? null
         logger.info(`[WA][${userId.slice(0, 8)}] CONECTAT`, { phone: maskPhone(phoneNumber) })
         await whatsappRepository.update(userId, {
@@ -209,7 +216,10 @@ export async function sendToContact(userId: string, contactPhone: string, text: 
   if (!sock || !connectedUsers.has(userId)) return false
   const phone = contactPhone.replace(/[^0-9]/g, '')
   if (!phone) return false
-  const jid = `${phone}@s.whatsapp.net`
+  // A2 (S1): foloseste jid-ul REAL al contactului (LID-aware), salvat din mesajele primite. Reconstrucția
+  // `<phone>@s.whatsapp.net` e greșită pe contactele `@lid` → notificările de status nu ajungeau. Fallback
+  // la reconstrucție doar pentru contacte fără jid stocat (istoric dinainte de coloana `remote_jid`).
+  const jid = (await aiRepository.getLatestJid(userId, phone)) ?? `${phone}@s.whatsapp.net`
   try {
     await sock.sendMessage(jid, { text })
     const now = Date.now()

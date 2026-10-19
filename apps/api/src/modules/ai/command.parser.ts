@@ -6,36 +6,32 @@ export type ParsedCommand =
   | { type: 'help' }
   | { type: 'setTimer'; minutes: number }
   | { type: 'clearHistory' }
-  | { type: 'confirmBooking'; ref: string; slotText: string }
-  | { type: 'cancelBooking'; ref: string }
-  | { type: 'completeBooking'; ref: string }
+  | { type: 'block' }
+  | { type: 'unblock' }
+  | { type: 'kb'; action: 'show' }
+  | { type: 'kb'; action: 'clear' }
+  | { type: 'kb'; action: 'set'; text: string }
+  | { type: 'kb'; action: 'add'; text: string }
+  | { type: 'prompt'; action: 'show' }
+  | { type: 'prompt'; action: 'reset' }
+  | { type: 'prompt'; action: 'set'; text: string }
+  | { type: 'learnStyle' }
 
-// Comenzi owner de gestionare a programărilor (#6). Numele fără diacritice; le tolerăm oricum
-// (normalizăm NFD) ca „/confirmă" să meargă la fel ca „/confirma".
-const BOOKING_COMMANDS: Record<string, 'confirmBooking' | 'cancelBooking' | 'completeBooking'> = {
-  '/confirma': 'confirmBooking',
-  '/anuleaza': 'cancelBooking',
-  '/finalizeaza': 'completeBooking',
-}
+// Plafon pentru textele lungi setate din WhatsApp (KB / prompt) — protejează contextul LLM.
+export const MAX_KB_CHARS = 30_000
+export const MAX_PROMPT_CHARS = 8_000
 
 export function parseCommand(body: string): ParsedCommand | null {
   const trimmed = body.trim()
   if (!trimmed.startsWith('/')) return null
 
   const parts = trimmed.split(/\s+/)
-  // Lowercase + elimină diacriticele din numele comenzii (ă→a, ț→t etc.).
-  const cmd = parts[0].toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
-
-  const bookingType = BOOKING_COMMANDS[cmd]
-  if (bookingType) {
-    const ref = (parts[1] ?? '').trim()
-    if (!/^prg_[a-z0-9]+$/i.test(ref)) return null
-    // La confirmare, owner-ul adaugă data+ora după ref (ex. „/confirma prg_x 18.06 09:00").
-    // Parsarea efectivă (strict, ora RO) se face în handler; aici doar capturăm textul.
-    if (bookingType === 'confirmBooking') {
-      return { type: 'confirmBooking', ref, slotText: parts.slice(2).join(' ').trim() }
-    }
-    return { type: bookingType, ref }
+  const cmd = parts[0].toLowerCase()
+  // Restul mesajului după comandă și sub-comandă, cu newline-urile păstrate (pt. /kb, /prompt).
+  const restAfter = (n: number) => {
+    let rest = trimmed
+    for (let i = 0; i < n; i++) rest = rest.replace(/^\S+\s*/, '')
+    return rest.trim()
   }
 
   if (cmd === '/activateai') return { type: 'activateAI' }
@@ -43,11 +39,13 @@ export function parseCommand(body: string): ParsedCommand | null {
   if (cmd === '/resumeai') return { type: 'activateAI' }
   if (cmd === '/status') return { type: 'status' }
   if (cmd === '/help') return { type: 'help' }
+  if (cmd === '/block') return { type: 'block' }
+  if (cmd === '/unblock') return { type: 'unblock' }
+  if (cmd === '/learnstyle') return { type: 'learnStyle' }
 
   if (cmd === '/pauseai') {
     const arg = parts[1] ?? ''
     // Acceptă „2h" sau „2". Plafon 1–720h (~30 zile): 0/lipsă/invalid → 1h, peste plafon → 720h.
-    // Evită pauze accidentale de ani (fără plafon, „/pauseai 99999h" oprea agentul ~11 ani).
     const match = arg.match(/^(\d+)h?$/i)
     const raw = match ? parseInt(match[1]) : 1
     const hours = Math.min(Math.max(raw, 1), 720)
@@ -66,19 +64,52 @@ export function parseCommand(body: string): ParsedCommand | null {
     return { type: 'setTimer', minutes }
   }
 
+  if (cmd === '/kb') {
+    const sub = (parts[1] ?? '').toLowerCase()
+    if (sub === '' || sub === 'show') return { type: 'kb', action: 'show' }
+    if (sub === 'clear') return { type: 'kb', action: 'clear' }
+    if (sub === 'set' || sub === 'add') {
+      const text = restAfter(2)
+      if (!text) return null
+      return sub === 'set' ? { type: 'kb', action: 'set', text } : { type: 'kb', action: 'add', text }
+    }
+    return null
+  }
+
+  if (cmd === '/prompt') {
+    const sub = (parts[1] ?? '').toLowerCase()
+    if (sub === '' || sub === 'show') return { type: 'prompt', action: 'show' }
+    if (sub === 'reset') return { type: 'prompt', action: 'reset' }
+    if (sub === 'set') {
+      const text = restAfter(2)
+      if (!text) return null
+      return { type: 'prompt', action: 'set', text }
+    }
+    return null
+  }
+
   return null
 }
 
-export const HELP_TEXT = `*Comenzi waai:*
+export const HELP_TEXT = `*Comenzi agent AI:*
 /activateAI — activează agentul
 /deactivateAI — dezactivează agentul
-/pauseAI 2h — pauză X ore
+/pauseAI 2h — pauză X ore (max 720)
 /resumeAI — scoate din pauză
-/setTimer 5min — timer inactivitate (min. 5 pe Pro · 1 pe Max, max 60)
-/clearHistory — șterge istoricul conversației curente
-/status — stare curentă agent
+/setTimer 5 — minute de inactivitate până răspunde AI-ul (1–60)
+/status — stare curentă
 
-*Programări:*
-/confirma prg_xxxxxx 18.06 09:00 — confirmă cu dată+oră (anunță clientul)
-/anuleaza prg_xxxxxx — anulează o programare (anunță clientul)
-/finalizeaza prg_xxxxxx — marchează programarea ca finalizată`
+*În chatul unui contact:*
+/clearHistory — șterge istoricul conversației curente
+/block — AI-ul nu mai răspunde acestui contact
+/unblock — reactivează AI-ul pentru acest contact
+
+*Doar în chatul cu tine („Tu"):*
+/kb — arată knowledge base
+/kb set <text> — înlocuiește knowledge base
+/kb add <text> — adaugă la knowledge base
+/kb clear — golește knowledge base
+/prompt — arată promptul
+/prompt set <text> — setează promptul
+/prompt reset — revine la promptul implicit
+/learnStyle — învață stilul tău din mesajele trimise`

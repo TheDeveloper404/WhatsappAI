@@ -6,6 +6,28 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed (2026-10-19) — Conversie în agent personal single-user
+
+Proiectul nu mai e SaaS multi-tenant: un singur utilizator (`OWNER_ID`, default `owner`), control din WhatsApp.
+- **Removed:** register/login/JWT, abonamente + Stripe (billing, webhooks, entitlement, tiers), admin panel + TOTP,
+  notificări în-app, GDPR multi-user, email (Resend), Turnstile, rute de test E2E, frontend Next.js (`apps/web`), Playwright (`apps/e2e`).
+- **Removed:** fluxurile comerciale (catalog produse, comenzi cu stoc, programări `/confirma|/anuleaza|/finalizeaza`, devize,
+  calificare lead-uri, statistici avansate), RAG cu documente + embeddings Gemini, vision, gatekeeper LLM, program de funcționare.
+  Tabelele lor rămân în bazele existente, nefolosite (vezi `docs/DEPLOY_VPS.md` §6 pentru curățare).
+- **Changed:** LLM = OpenRouter (`OPENROUTER_API_KEY`, `LLM_MODEL`, `LLM_FALLBACK_MODEL` opțional) în locul Groq/Gemini;
+  Groq rămâne doar opțional pentru Whisper (`GROQ_API_KEY`).
+- **Added:** comenzi `/kb`, `/prompt`, `/learnStyle`, `/block`, `/unblock`; răspunsurile la comenzi merg în self-chat;
+  comenzile nu mai intră în istoricul trimis la LLM.
+- **Added:** pornire automată WhatsApp (reconectare sau QR în terminal), dashboard minimal servit de API
+  (`DASHBOARD_PASSWORD`, HTTP Basic): status, QR, on/off agent, timer, conversații recente.
+- **Added:** `Dockerfile` multi-stage, `docker-compose.yml` (Postgres + API + profile Caddy / Cloudflare Tunnel), `docs/DEPLOY_VPS.md`.
+- **Fixed (review):** variabilele opționale lăsate goale (`DASHBOARD_PASSWORD=`, `WHATSAPP_ENC_KEY=`) nu mai opresc boot-ul;
+  `/kb add` face append atomic în DB (fără scrieri pierdute la comenzi concurente); erorile OpenRouter/Groq nu mai
+  includ corpul răspunsului (posibil PII) în loguri; knowledge base marcat în prompt ca date, nu instrucțiuni;
+  `docs/DEPLOY_VPS.md` urmărit în git.
+- **Changed:** env redus la `DATABASE_URL`, `OPENROUTER_API_KEY`, `LLM_MODEL` (+ opționale); dependențe eliminate:
+  stripe, resend, bcryptjs, otplib, mammoth, pdf-parse, disposable-email-domains, @fastify/cookie|cors|multipart.
+
 ### Fixed (2026-06-16) — Idempotență la mesajele WhatsApp primite (A6, S12)
 
 Plan de remediere din `docs/AUDIT_FLUXURI.md`, faza A — consistență. Nu exista nicio deduplicare pe `msg.key.id`: la reconectare sau history-sync, WhatsApp re-emite mesaje deja procesate → se re-salvau în istoric și **re-declanșau** pipeline-ul (comenzi owner `/confirma` rulate de două ori, răspunsuri AI duble, comenzi/programări duplicate). Complementar cu A5 (A5 oprește listener-ele duble; A6 oprește re-procesarea aceluiași mesaj).

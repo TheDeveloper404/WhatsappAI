@@ -1,0 +1,68 @@
+# WhatsApp AI — deploy single-user pe VPS.
+#   docker compose up -d --build                      # db + api (dashboard doar pe 127.0.0.1:3001)
+#   docker compose --profile caddy up -d --build      # + HTTPS public prin Caddy (DOMAIN în .env)
+#   docker compose --profile tunnel up -d --build     # + Cloudflare Tunnel (CLOUDFLARE_TUNNEL_TOKEN în .env)
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: whatsapp
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Setează POSTGRES_PASSWORD în .env}
+      POSTGRES_DB: whatsapp_ai
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U whatsapp -d whatsapp_ai"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      PORT: "3001"
+      DATABASE_URL: postgresql://whatsapp:${POSTGRES_PASSWORD}@db:5432/whatsapp_ai
+    # Doar pe loopback: accesibil local / prin SSH tunnel / prin Caddy sau cloudflared (rețeaua internă).
+    ports:
+      - "127.0.0.1:3001:3001"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  caddy:
+    image: caddy:2-alpine
+    profiles: ["caddy"]
+    restart: unless-stopped
+    depends_on: [api]
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    profiles: ["tunnel"]
+    restart: unless-stopped
+    depends_on: [api]
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

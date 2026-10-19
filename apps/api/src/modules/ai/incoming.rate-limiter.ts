@@ -1,15 +1,12 @@
-// Cost-cap anti-DoS financiar pe mesajele PRIMITE (H6). Fiecare mesaj de la un contact declanșează
-// până la ~5 apeluri LLM (clasificare scope, intent comandă/programare, răspuns, memorie) plus
-// transcriere audio / vision la media — toate pe chei GROQ/GEMINI partajate la nivel de platformă.
-// Un contact ostil (fără cont în app) poate inunda un business conectat și goli bugetul tuturor.
+// Cost-cap anti-flood pe mesajele PRIMITE. Fiecare mesaj de la un contact declanșează 1-2 apeluri
+// LLM (răspuns + memorie) plus transcriere audio — pe cheia ta OpenRouter/Groq. Un contact ostil
+// poate inunda numărul și goli bugetul.
 //
 // Limităm câte mesaje primite declanșează pipeline-ul AI, pe fereastră glisantă, pe DOUĂ niveluri:
-//  - per (user, contact): oprește un singur număr care spamează un business;
-//  - per user (agregat): plafonează costul total al unui business chiar dacă spam-ul vine de la
-//    multe numere diferite.
+//  - per contact: oprește un singur număr care spamează;
+//  - agregat: plafonează costul total chiar dacă spam-ul vine de la multe numere.
 //
-// In-memory (ca `pendingResponses` / inactivity tracker) — app-ul rulează ca instanță unică pe
-// Railway; un restart resetează contoarele, ceea ce e acceptabil pentru atenuare de abuz.
+// In-memory — un restart resetează contoarele, acceptabil pentru atenuare de abuz.
 
 const perContact = new Map<string, number[]>() // cheie: `${userId}:${contactPhone}` → timestamps ms
 const perUser = new Map<string, number[]>()     // cheie: userId → timestamps ms

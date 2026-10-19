@@ -1,0 +1,6 @@
+# HTTPS automat (Let's Encrypt) pentru dashboard. DOMAIN vine din .env (ex. wa.domeniultau.ro),
+# cu un record DNS A către IP-ul VPS-ului. Dashboard-ul e protejat de DASHBOARD_PASSWORD (HTTP Basic).
+{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy api:3001
+}

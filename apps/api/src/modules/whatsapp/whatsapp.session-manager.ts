@@ -1,12 +1,13 @@
 import { createRequire } from 'module'
+import { randomUUID } from 'crypto'
 import type { WASocket } from '@whiskeysockets/baileys'
 import { Boom } from '@hapi/boom'
 import NodeCache from 'node-cache'
+import QRCode from 'qrcode'
 import { whatsappRepository } from './whatsapp.repository.js'
 import { usePostgresAuthState, clearAuthState } from './whatsapp.auth-state.js'
 import { handleMessages } from '../ai/message.handler.js'
-import { aiRepository } from '../ai/ai.repository.js'
-import { appEvents } from '../../utils/events.js'
+import { OWNER_ID } from '../../config/owner.js'
 import { logger, maskPhone } from '../../utils/logger.js'
 
 const _require = createRequire(import.meta.url)
@@ -36,17 +37,15 @@ const waLogger: any = {
   child: () => waLogger,
 }
 
-const QR_TIMEOUT_MS = 60_000
-
-const sessions = new Map<string, WASocket>()
-const msgRetryCache = new NodeCache()
-const reconnectAttempts = new Map<string, number>()
 const MAX_RECONNECT_ATTEMPTS = 5
+const QR_TTL_MS = 60_000
 
-// Stare REALĂ a conexiunii (set pe connection 'open', șters pe 'close'). Distinctă de `sessions`,
-// care conține socket-ul și în timpul reconectării (socket „connecting" pus înainte de 'open').
-// Folosit de `sendToContact` ca să nu raporteze fals „notificat" trimițând pe un socket nedeschis.
-const connectedUsers = new Set<string>()
+// Stare unică (single-user). `sock` există și în timpul reconectării; `connected` doar după 'open'.
+let sock: WASocket | null = null
+let connected = false
+let currentQr: { value: string; expiresAt: number } | null = null
+let reconnectAttempts = 0
+const msgRetryCache = new NodeCache()
 
 async function getBaileysVersion(): Promise<[number, number, number]> {
   try {
@@ -57,231 +56,152 @@ async function getBaileysVersion(): Promise<[number, number, number]> {
   }
 }
 
-async function reconnectAfterDrop(userId: string): Promise<void> {
-  if (sessions.has(userId)) return
-
-  const attempts = (reconnectAttempts.get(userId) ?? 0) + 1
-  if (attempts > MAX_RECONNECT_ATTEMPTS) {
-    logger.warn(`[WA][${userId.slice(0, 8)}] prea multe reconectări, opresc`, { attempts })
-    reconnectAttempts.delete(userId)
-    await whatsappRepository.update(userId, { status: 'disconnected', pairingCode: null, pairingCodeExpiresAt: null, connectedAt: null })
-    return
-  }
-  reconnectAttempts.set(userId, attempts)
-
-  try {
-    const { state, saveCreds } = await usePostgresAuthState(userId)
-    const version = await getBaileysVersion()
-    const sock: WASocket = makeWASocket({
-      version,
-      auth: { creds: state.creds, keys: makeCacheableSignalKeyStore(state.keys, waLogger) },
-      msgRetryCounterCache: msgRetryCache,
-      printQRInTerminal: false,
-      browser: ['waai', 'Chrome', '1.0.0'],
-      logger: waLogger,
-    })
-    sessions.set(userId, sock)
-    sock.ev.on('creds.update', saveCreds)
-    attachPersistentHandlers(sock, userId)
-    logger.info(`[WA][${userId.slice(0, 8)}] reconnectAfterDrop tentativa ${attempts}`)
-  } catch (err) {
-    logger.error(`[WA][${userId.slice(0, 8)}] reconnectAfterDrop eșuat`, { err: String(err) })
-  }
+async function ensureSessionRow(): Promise<void> {
+  if (await whatsappRepository.findByUserId(OWNER_ID)) return
+  const now = Date.now()
+  await whatsappRepository.upsert({
+    id: randomUUID(), userId: OWNER_ID, phoneNumber: null, status: 'disconnected',
+    pairingCode: null, pairingCodeExpiresAt: null, connectedAt: null, createdAt: now, updatedAt: now,
+  })
 }
 
-function attachPersistentHandlers(sock: WASocket, userId: string) {
-  // A5 (S17): înregistrăm `messages.upsert` O SINGURĂ DATĂ per socket, în afara handler-ului de conexiune.
-  // Înainte era înregistrat în ramura `connection==='open'`, care se poate re-emite pe ACELAȘI socket →
-  // fiecare re-`open` adăuga încă un listener → același mesaj procesat de N ori (răspunsuri/comenzi
-  // multiplicate; amplifica și replay-ul la history-sync). `attachPersistentHandlers` rulează o dată per
-  // socket nou (la creare/reconectare), deci aici listener-ul e legat exact o dată.
-  sock.ev.on('messages.upsert', async ({ messages, type }) => {
-    logger.info(`[WA][${userId.slice(0, 8)}] messages.upsert`, { type, count: messages.length })
+function printQrToTerminal(qr: string) {
+  QRCode.toString(qr, { type: 'terminal', small: true })
+    .then(ascii => process.stdout.write(`\n[WA] Scanează codul QR din WhatsApp → Dispozitive conectate → Conectează un dispozitiv:\n${ascii}\n`))
+    .catch(() => {})
+}
+
+// Creează un socket cu starea de auth din Postgres. Fără creds înregistrate, Baileys emite QR.
+async function createSocket(): Promise<void> {
+  const { state, saveCreds } = await usePostgresAuthState(OWNER_ID)
+  const version = await getBaileysVersion()
+  const s: WASocket = makeWASocket({
+    version,
+    auth: { creds: state.creds, keys: makeCacheableSignalKeyStore(state.keys, waLogger) },
+    msgRetryCounterCache: msgRetryCache,
+    printQRInTerminal: false,
+    browser: ['WhatsApp AI', 'Chrome', '1.0.0'],
+    connectTimeoutMs: 20_000,
+    logger: waLogger,
+  })
+  sock = s
+  s.ev.on('creds.update', saveCreds)
+  attachHandlers(s)
+}
+
+function attachHandlers(s: WASocket) {
+  // `messages.upsert` legat o singură dată per socket (nu în handler-ul de 'open', care se poate re-emite).
+  s.ev.on('messages.upsert', async ({ messages, type }) => {
     if (type !== 'notify') return
-    await handleMessages(userId, sock, messages)
+    await handleMessages(OWNER_ID, s, messages)
   })
 
-  sock.ev.on('connection.update', async (update: any) => {
+  s.ev.on('connection.update', async (update: any) => {
+    // Un socket înlocuit (pairing nou / disconnect) nu mai are voie să modifice starea globală.
+    if (s !== sock) return
     try {
       const { connection, lastDisconnect, qr } = update
 
       if (qr) {
-        await whatsappRepository.update(userId, {
-          status: 'pairing',
-          pairingCode: qr,
-          pairingCodeExpiresAt: Date.now() + 60_000,
+        currentQr = { value: qr, expiresAt: Date.now() + QR_TTL_MS }
+        printQrToTerminal(qr)
+        await whatsappRepository.update(OWNER_ID, { status: 'pairing', pairingCode: null, pairingCodeExpiresAt: currentQr.expiresAt })
+      }
+
+      if (connection === 'open') {
+        reconnectAttempts = 0
+        connected = true
+        currentQr = null
+        const phoneNumber = s.user?.id?.split(':')[0] ?? null
+        logger.info('[WA] CONECTAT', { phone: maskPhone(phoneNumber) })
+        await whatsappRepository.update(OWNER_ID, {
+          status: 'connected', phoneNumber, pairingCode: null, pairingCodeExpiresAt: null, connectedAt: Date.now(),
         })
       }
 
       if (connection === 'close') {
         const reason = (lastDisconnect?.error as Boom)?.output?.statusCode
-        // 440 = altă instanță a preluat sesiunea (deploy Railway) — nu reconecta, instanța nouă e activă
-        const shouldReconnect = reason !== DisconnectReason.loggedOut && reason !== 440
-        logger.info(`[WA][${userId.slice(0, 8)}] closed`, { reason, shouldReconnect })
+        connected = false
+        currentQr = null
+        sock = null
+        await whatsappRepository.update(OWNER_ID, { status: 'disconnected', pairingCode: null, pairingCodeExpiresAt: null, connectedAt: null })
 
-        await whatsappRepository.update(userId, {
-          status: 'disconnected',
-          pairingCode: null,
-          pairingCodeExpiresAt: null,
-          connectedAt: null,
-        })
-        sessions.delete(userId)
-        connectedUsers.delete(userId)
-
-        if (shouldReconnect) {
-          setTimeout(() => reconnectAfterDrop(userId), 3000)
+        if (reason === DisconnectReason.loggedOut) {
+          // Dispozitivul a fost deconectat din telefon → creds-urile sunt moarte.
+          logger.warn('[WA] delogat din telefon — reasociază din dashboard sau repornește serviciul')
+          await clearAuthState(OWNER_ID)
+          return
         }
-      }
+        // 440 = sesiunea a fost preluată de altă instanță (ex. alt container pornit cu aceeași bază).
+        if (reason === 440) {
+          logger.warn('[WA] sesiune preluată de altă instanță — nu reconectez')
+          return
+        }
 
-      if (connection === 'open') {
-        reconnectAttempts.delete(userId)
-        connectedUsers.add(userId)
-        // (listener `messages.upsert` mutat în afara handler-ului — vezi A5/S17 sus, o dată per socket)
-        const phoneNumber = sock.user?.id?.split(':')[0] ?? null
-        logger.info(`[WA][${userId.slice(0, 8)}] CONECTAT`, { phone: maskPhone(phoneNumber) })
-        await whatsappRepository.update(userId, {
-          status: 'connected',
-          phoneNumber,
-          pairingCode: null,
-          pairingCodeExpiresAt: null,
-          connectedAt: Date.now(),
-        })
+        reconnectAttempts++
+        if (reconnectAttempts > MAX_RECONNECT_ATTEMPTS) {
+          logger.warn('[WA] prea multe reconectări, opresc', { attempts: reconnectAttempts })
+          reconnectAttempts = 0
+          return
+        }
+        logger.info('[WA] conexiune închisă, reconectez', { reason, attempt: reconnectAttempts })
+        setTimeout(() => {
+          if (sock) return
+          createSocket().catch(err => logger.error('[WA] reconectare eșuată', { err: String(err) }))
+        }, 3000)
       }
-    } catch {
-      // ignorăm erorile din event handler
+    } catch (err) {
+      logger.error('[WA] eroare connection.update', { err: String(err) })
     }
   })
 }
 
-export async function requestQrCode(userId: string): Promise<string> {
-  const existing = sessions.get(userId)
-  if (existing) {
-    try { existing.end(undefined) } catch {}
-    sessions.delete(userId)
+// La pornire: reconectează cu creds-urile salvate sau, dacă nu există, emite QR de asociere.
+export async function startWhatsapp(): Promise<void> {
+  await ensureSessionRow()
+  if (sock) return
+  await createSocket()
+}
+
+// Asociere nouă: șterge creds-urile vechi și pornește un socket proaspăt (QR async, vezi getWhatsappState).
+export async function startPairing(): Promise<void> {
+  await ensureSessionRow()
+  const old = sock
+  sock = null
+  connected = false
+  currentQr = null
+  reconnectAttempts = 0
+  if (old) { try { old.end(undefined) } catch {} }
+  await clearAuthState(OWNER_ID)
+  await createSocket()
+}
+
+export async function disconnectSession(): Promise<void> {
+  const old = sock
+  sock = null
+  connected = false
+  currentQr = null
+  if (old) {
+    // logout() deconectează și dispozitivul din telefon; end() doar închide socket-ul local.
+    try { await old.logout() } catch { try { old.end(undefined) } catch {} }
   }
-  connectedUsers.delete(userId)
-
-  // Șterge auth state vechi din DB — user-ul va scana QR nou
-  await clearAuthState(userId)
-
-  const { state, saveCreds } = await usePostgresAuthState(userId)
-  const version = await getBaileysVersion()
-
-  const sock: WASocket = makeWASocket({
-    version,
-    auth: { creds: state.creds, keys: makeCacheableSignalKeyStore(state.keys, waLogger) },
-    msgRetryCounterCache: msgRetryCache,
-    printQRInTerminal: false,
-    browser: ['waai', 'Chrome', '1.0.0'],
-    connectTimeoutMs: 20_000,
-    logger: waLogger,
-  })
-
-  sessions.set(userId, sock)
-  sock.ev.on('creds.update', saveCreds)
-
-  logger.info(`[WA] socket creat pentru user ${userId.slice(0, 8)}`, { version })
-
-  const firstQr = await new Promise<string>((resolve, reject) => {
-    const timer = setTimeout(() => {
-      reject(new Error('Timeout: WhatsApp nu a răspuns în 60 de secunde.'))
-    }, QR_TIMEOUT_MS)
-
-    sock.ev.on('connection.update', (update: any) => {
-      const { qr, connection } = update
-      if (connection === 'close') {
-        clearTimeout(timer)
-        reject(new Error('Conexiunea cu WhatsApp a fost închisă.'))
-        return
-      }
-      if (qr) {
-        clearTimeout(timer)
-        resolve(qr)
-      }
-    })
-  })
-
-  attachPersistentHandlers(sock, userId)
-  return firstQr
+  await clearAuthState(OWNER_ID)
+  await whatsappRepository.update(OWNER_ID, { status: 'disconnected', pairingCode: null, pairingCodeExpiresAt: null, connectedAt: null })
 }
 
-// Trimite un mesaj proactiv către un contact (ex: notificare schimbare status comandă).
-// Folosește sesiunea WA activă a owner-ului. Fail-soft: dacă nu e conectat, returnează false
-// (nu aruncă — owner-ul vede comanda în dashboard oricum). Mesajul se salvează în istoric ca
-// `is_ai` și se emite pe stream-ul de conversații, ca să apară în UI.
-export async function sendToContact(userId: string, contactPhone: string, text: string): Promise<boolean> {
-  const sock = sessions.get(userId)
-  // Conexiune REALĂ deschisă, nu doar socket prezent (vezi `connectedUsers`): altfel un socket
-  // în curs de reconectare ar accepta mesajul fără să-l livreze → fals „notificat".
-  if (!sock || !connectedUsers.has(userId)) return false
-  const phone = contactPhone.replace(/[^0-9]/g, '')
-  if (!phone) return false
-  // A2 (S1): foloseste jid-ul REAL al contactului (LID-aware), salvat din mesajele primite. Reconstrucția
-  // `<phone>@s.whatsapp.net` e greșită pe contactele `@lid` → notificările de status nu ajungeau. Fallback
-  // la reconstrucție doar pentru contacte fără jid stocat (istoric dinainte de coloana `remote_jid`).
-  const jid = (await aiRepository.getLatestJid(userId, phone)) ?? `${phone}@s.whatsapp.net`
-  try {
-    await sock.sendMessage(jid, { text })
-    const now = Date.now()
-    await aiRepository.saveMessage(userId, phone, true, text, now, true)
-    appEvents.emit(`conv:${userId}`, { contactPhone: phone, lastMessage: text, lastAt: now, fromMe: true })
-    return true
-  } catch (err) {
-    logger.error(`[WA][${userId.slice(0, 8)}] sendToContact eșuat`, { err: String(err) })
-    return false
-  }
-}
-
-export async function disconnectSession(userId: string): Promise<void> {
-  const sock = sessions.get(userId)
-  if (sock) {
-    try { sock.end(undefined) } catch {}
-    sessions.delete(userId)
-  }
-  connectedUsers.delete(userId)
-  await clearAuthState(userId)
-  await whatsappRepository.update(userId, {
-    status: 'disconnected',
-    pairingCode: null,
-    pairingCodeExpiresAt: null,
-    connectedAt: null,
-  })
-}
-
-export function getActiveSessionCount(): number {
-  return sessions.size
-}
-
-export async function restoreAllSessions(): Promise<void> {
-  const connected = await whatsappRepository.findAllConnected()
-  logger.info(`[WA] restaurez ${connected.length} sesiuni la startup`)
-  for (const session of connected) {
-    await restoreSession(session.userId)
-  }
-}
-
-export async function restoreSession(userId: string): Promise<void> {
-  const session = await whatsappRepository.findByUserId(userId)
-  if (!session || session.status !== 'connected') return
-  if (sessions.has(userId)) return
-
-  try {
-    const { state, saveCreds } = await usePostgresAuthState(userId)
-    const version = await getBaileysVersion()
-
-    const sock: WASocket = makeWASocket({
-      version,
-      auth: { creds: state.creds, keys: makeCacheableSignalKeyStore(state.keys, waLogger) },
-      msgRetryCounterCache: msgRetryCache,
-      printQRInTerminal: false,
-      browser: ['waai', 'Chrome', '1.0.0'],
-      logger: waLogger,
-    })
-
-    sessions.set(userId, sock)
-    sock.ev.on('creds.update', saveCreds)
-    attachPersistentHandlers(sock, userId)
-  } catch (err) {
-    logger.error(`[WA][${userId.slice(0, 8)}] restoreSession eșuat`, { err: String(err) })
+export async function getWhatsappState(): Promise<{
+  status: 'connected' | 'pairing' | 'connecting' | 'disconnected'
+  phoneNumber: string | null
+  connectedAt: number | null
+  qrDataUrl: string | null
+}> {
+  const row = await whatsappRepository.findByUserId(OWNER_ID)
+  const qrValid = currentQr && currentQr.expiresAt > Date.now()
+  const status = connected ? 'connected' : qrValid ? 'pairing' : sock ? 'connecting' : 'disconnected'
+  return {
+    status,
+    phoneNumber: row?.phoneNumber ?? null,
+    connectedAt: connected ? (row?.connectedAt ?? null) : null,
+    qrDataUrl: qrValid ? await QRCode.toDataURL(currentQr!.value, { margin: 1, width: 280 }) : null,
   }
 }

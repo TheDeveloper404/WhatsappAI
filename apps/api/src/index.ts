@@ -1,20 +1,25 @@
 import 'dotenv/config'
 import { env } from './config/env.js'
+import { OWNER_ID } from './config/owner.js'
 import { Pool } from 'pg'
-import { migrationStatements } from './db/migration-statements.js'
+import { migrationStatements, ownerSeedStatement } from './db/migration-statements.js'
 
-process.stdout.write('[BOOT] Starting, PORT=' + env.PORT + ' NODE_ENV=' + env.NODE_ENV + '\n')
+process.stdout.write('[BOOT] Starting, PORT=' + env.PORT + ' NODE_ENV=' + env.NODE_ENV + ' LLM_MODEL=' + env.LLM_MODEL + '\n')
 
-// Migrare cu retry (Postgres pe Railway Hobby poate dormi la startup)
+// Migrare + seed owner, cu retry (containerul Postgres poate porni după API în docker compose).
 async function runMigrations() {
-  const pool = new Pool({ connectionString: process.env.DATABASE_URL })
-  for (const sql of migrationStatements) {
-    await pool.query(sql)
+  const pool = new Pool({ connectionString: env.DATABASE_URL })
+  try {
+    for (const sql of migrationStatements) {
+      await pool.query(sql)
+    }
+    await pool.query(ownerSeedStatement, [OWNER_ID, Date.now()])
+  } finally {
+    await pool.end().catch(() => {})
   }
-  await pool.end().catch(() => {})
 }
 
-for (let attempt = 1; attempt <= 5; attempt++) {
+for (let attempt = 1; attempt <= 10; attempt++) {
   try {
     process.stdout.write('[BOOT] Migration attempt ' + attempt + '\n')
     await runMigrations()
@@ -22,7 +27,7 @@ for (let attempt = 1; attempt <= 5; attempt++) {
     break
   } catch (err) {
     process.stdout.write('[BOOT] Migration failed: ' + String(err).split('\n')[0] + '\n')
-    if (attempt === 5) {
+    if (attempt === 10) {
       process.stdout.write('[BOOT] All migration attempts failed, exiting\n')
       process.exit(1)
     }
@@ -31,18 +36,12 @@ for (let attempt = 1; attempt <= 5; attempt++) {
 }
 
 const { buildApp } = await import('./app.js')
-const { restoreAllSessions } = await import('./modules/whatsapp/whatsapp.session-manager.js')
-const { authRepository } = await import('./modules/auth/auth.repository.js')
-
-process.stdout.write('[BOOT] Modules loaded, starting server\n')
+const { startWhatsapp } = await import('./modules/whatsapp/whatsapp.session-manager.js')
 
 const app = await buildApp()
 await app.listen({ port: env.PORT, host: '0.0.0.0' })
 
 process.stdout.write('[BOOT] API running on port ' + env.PORT + '\n')
 
-restoreAllSessions().catch(err => process.stdout.write('[WA] restore error: ' + String(err) + '\n'))
-authRepository.cleanOldLoginAttempts().catch(() => {})
-authRepository.cleanExpiredRefreshTokens().catch(() => {})
-setInterval(() => authRepository.cleanOldLoginAttempts().catch(() => {}), 60 * 60 * 1000)
-setInterval(() => authRepository.cleanExpiredRefreshTokens().catch(() => {}), 60 * 60 * 1000)
+// Restaurează sesiunea salvată sau, dacă nu există, pornește asocierea (QR în loguri + dashboard).
+startWhatsapp().catch(err => process.stdout.write('[WA] start error: ' + String(err) + '\n'))

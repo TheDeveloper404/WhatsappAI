@@ -1,167 +1,63 @@
-# WhatsApp AI
+# WhatsApp AI — agent personal
 
-SaaS platform care conectează WhatsApp-ul unui business cu un agent AI. Agentul răspunde automat în locul proprietarului când acesta este inactiv, folosind stilul lui de scriere.
-
-**Producție:** [waai.ro](https://waai.ro) · API: [api.waai.ro](https://api.waai.ro) (Railway, fronted de Cloudflare)
+Agent WhatsApp **single-user**: se conectează la numărul tău (Baileys, ca un dispozitiv asociat) și
+răspunde automat în locul tău când ești inactiv, în stilul tău. Control din WhatsApp prin comenzi;
+dashboard web minimal opțional (status, QR, conversații recente).
 
 ## Funcționalități
-
-- **Agent AI** — răspunde automat la mesaje WhatsApp când proprietarul e inactiv
-- **Personality cloning** — agentul analizează mesajele trimise anterior și mimează stilul de scriere al proprietarului
-- **Memorie per contact** — agentul reține informații despre fiecare client (nume, nevoi, context)
-- **Knowledge base** — informații despre business injectate în prompt (servicii, prețuri, program)
-- **RAG / documente** — owner-ul încarcă PDF/DOCX/TXT (max 10 MB); agentul caută în ele (embeddings Gemini + cosine în cod) și răspunde din conținutul real, fără să inventeze
-- **Comenzi prin WhatsApp** — catalog de produse (cu import CSV), AI extrage comanda din conversație, owner o gestionează în dashboard. Prețurile/totalul se calculează în cod din DB, niciodată de LLM
-- **Preț estimativ („de la")** — servicii pe proiect custom: agentul nu propune total fix, strânge cerințele și predă owner-ului pentru ofertă personalizată
-- **Programări** — servicii rezervabile (frizerie, clinică): agentul strânge serviciul + intervalul + numele, creează o programare și predă owner-ului confirmarea intervalului (pagina Programări)
-- **Calificare lead-uri** — fiecare contact e clasificat automat hot/warm/cold (scor + justificare) după criteriile owner-ului; AI-ul doar clasifică, validarea output-ului e în cod (pagina Lead-uri)
-- **Vision (citește poze)** — clientul trimite o imagine (ex. captură de comandă); agentul extrage datele relevante (Gemini vision, procesare in-memory)
-- **Gatekeeper business-only** — refuză cereri off-topic (bancuri, rețete) și prompt injection (keyword + LLM)
-- **Statistici & metrici** — activitate AI (azi/7z/lună) + performanță agent (rată rezolvare, escaladări, grafic 7 zile)
-- **Transcriere vocale** — mesajele audio sunt transcrise automat (Groq Whisper)
-- **Detecție sentiment** — mesajele urgente sau frustrante primesc răspunsuri adaptate
-- **Timer de inactivitate** — configurabil (min. 5 min pe Pro, 1 min pe Max; implicit 5)
-- **Blacklist contacte** — exclude anumiți clienți de la răspunsuri automate
-- **Pauză temporară** — agent oprit X ore fără a-l dezactiva complet
-- **Notificări în-app** — clopoțel în dashboard cu evenimente de cont (ex. prelungire trial de către admin); badge necitite + marcare „citit"
-- **Admin panel** — gestionare utilizatori, subscripții, configurare platformă
-- **Subscripții Stripe** — două tiere (**Pro** / **Max**), plan lunar și anual cu perioadă de trial; plafoanele și funcțiile premium (vision, calificare lead-uri, statistici avansate, timer sub 5 min, volum AI/RAG) sunt enforce-uite fail-closed pe tier
-- **GDPR** — ștergere cont self-service în 48h din pagina `/gdpr`
-
-## Securitate
-
-- CSP + HSTS pe API și frontend
-- Rate limiting per rută (login, register, admin auth, WhatsApp connect, AI analyze)
-- JWT access token 15min + refresh token 7 zile cu rotație, hash în DB
-- Token hash stocat în DB (compromiterea DB nu expune tokens)
-- XSS escaping în toate emailurile trimise
-- PII exclus din loguri de producție
-- E2E_MODE blocat în producție (rute de test dublu-gated: `NODE_ENV !== 'production'` + header `x-e2e-secret`)
-- IDOR-safe: toate resursele scopate pe `userId`, cu verificare de proprietate înainte de update/delete
-- Stripe webhook cu verificare de semnătură (raw body) + deduplicare evenimente
-- Pârghiile de tier/abonament enforce-uite fail-closed pe **toate căile** (rute API + comenzi WhatsApp)
-- Audit securitate: Semgrep (~200 reguli OWASP) + pentest live + review manual → 0 vulnerabilități critice/high; re-audituri post-upgrade și de coerență (vezi `docs/SECURITY.md`)
+- **Răspuns automat la inactivitate** — dacă n-ai răspuns unui contact în ultimele N minute (`/setTimer`), AI-ul răspunde.
+- **LLM prin OpenRouter** — orice model (`LLM_MODEL=google/gemini-2.5-flash`, `anthropic/claude-sonnet-4.5`, ...), cu fallback opțional.
+- **Memorie per contact** — rezumat actualizat automat (nume, nevoi, context).
+- **Knowledge base** — text liber setat din WhatsApp (`/kb set ...`), injectat în prompt.
+- **Stilul tău** — `/learnStyle` analizează mesajele tale și le imită tonul.
+- **Vocale** — transcriere cu Groq Whisper (opțional, `GROQ_API_KEY`).
+- **Siguranță** — filtru off-topic/prompt-injection, alertă la mesaje sensibile (avocat, ANPC, rambursare), anti-flood pe cost, blocare contacte.
+- **Sesiune în Postgres** (criptată) — reconectare automată după restart/redeploy.
 
 ## Comenzi WhatsApp
+Trimise de pe numărul tău. Configurația se schimbă din chatul cu tine însuți („Tu").
 
-Controlezi agentul direct din WhatsApp, trimițindu-ți ție însuți comenzi:
-
-```
-/activateAI       — activează agentul
-/deactivateAI     — dezactivează agentul
-/pauseAI 2h       — pauză temporară X ore
-/resumeAI         — scoate din pauză
-/setTimer 10min   — schimbă timerul de inactivitate (min. 5 pe Pro · 1 pe Max, max 60)
-/clearHistory     — șterge istoricul conversației curente
-/status           — stare curentă agent
-/help             — lista tuturor comenzilor
-```
-
-## Stack
-
-| Layer | Tehnologie |
+| Comandă | Efect |
 |---|---|
-| Backend | Fastify 5, Node.js 20+, TypeScript |
-| Frontend | Next.js 16 App Router, Tailwind CSS, Zustand |
-| Bază de date | PostgreSQL, Drizzle ORM |
-| AI | Groq (Llama 3.3 70B) sau Gemini 2.5 Flash — comutabil via `LLM_PROVIDER`; voce mereu pe Groq Whisper; vision + embeddings (RAG) pe Gemini |
-| WhatsApp | Baileys (`@whiskeysockets/baileys`) |
-| Email | Resend |
-| Plăți | Stripe |
-| Monorepo | pnpm workspaces |
-| Deploy | Railway (API) + Vercel (Frontend) |
+| `/activateAI` · `/deactivateAI` | pornește / oprește agentul |
+| `/pauseAI 2h` · `/resumeAI` | pauză temporară / reluare |
+| `/setTimer 5` | minute de inactivitate (1–60) |
+| `/status` | stare, timer, nr. răspunsuri AI în 24h |
+| `/clearHistory` · `/block` · `/unblock` | în chatul unui contact: șterge istoricul / exclude / reinclude |
+| `/kb` · `/kb set <text>` · `/kb add <text>` · `/kb clear` | knowledge base |
+| `/prompt` · `/prompt set <text>` · `/prompt reset` | instrucțiunile agentului |
+| `/learnStyle` | învață stilul tău de scriere |
+| `/help` | lista comenzilor |
+
+## Pornire locală
+```bash
+pnpm install
+cp apps/api/.env.example apps/api/.env      # OPENROUTER_API_KEY, DATABASE_URL, ...
+docker run -d --name wa-pg -e POSTGRES_PASSWORD=dev -e POSTGRES_DB=whatsapp_ai -p 5432:5432 postgres:16-alpine
+pnpm dev:api                                # scanează QR-ul din terminal sau din http://localhost:3001
+```
+
+## Deploy
+VPS cu Docker Compose + Postgres + Caddy sau Cloudflare Tunnel: vezi [`docs/DEPLOY_VPS.md`](docs/DEPLOY_VPS.md).
+
+## Documentație
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — flux și decizii non-evidente
+- [`docs/ENV_VARS.md`](docs/ENV_VARS.md) — variabile de mediu
+- [`docs/DEV_SETUP.md`](docs/DEV_SETUP.md) — dezvoltare locală
+- [`docs/CHANGELOG.md`](docs/CHANGELOG.md)
 
 ## Structură
-
 ```
-apps/
-  api/          — backend Fastify (REST API)
-  web/          — frontend Next.js
-  e2e/          — teste Playwright
-docs/
-  ARCHITECTURE.md     — decizii de design non-evidente
-  CHANGELOG.md        — istoricul versiunilor
-  BACKLOG.md          — ce rămâne de făcut (necesare / nice-to-have / pe viitor) + referințe livrate
-  FLUX_APLICATIE.md   — ghidul complet din perspectiva owner-ului (setări dashboard, exemple)
-  DEV_SETUP.md        — comenzi dev și setup local
-  RUNBOOK.md          — proceduri de incident
-  env_vars.md         — documentație variabile de mediu
-  security.md         — audit de securitate + postură (Semgrep + review manual)
+apps/api/src
+├── index.ts                 # boot: migrări + seed owner, server, pornire WhatsApp
+├── app.ts                   # Fastify: helmet, rate-limit, dashboard, /health
+├── config/                  # env (zod), database (pg + drizzle), owner (OWNER_ID)
+├── db/                      # schema.ts + migration-statements.ts (source of truth)
+└── modules/
+    ├── whatsapp/            # session manager (Baileys), auth state în Postgres
+    ├── ai/                  # message.handler, llm.client (OpenRouter), comenzi, anti-flood
+    └── dashboard/           # pagina minimală + API protejat cu HTTP Basic
 ```
 
-## Rulare locală
-
-### Cerințe
-
-- Node.js 20+
-- pnpm 9+
-- PostgreSQL 14+
-
-### Setup
-
-```bash
-# Instalează dependențele
-pnpm install
-
-# Configurează variabilele de mediu
-cp apps/api/.env.example apps/api/.env
-# editează apps/api/.env cu valorile tale (vezi docs/env_vars.md)
-
-# Creează bazele de date (UTF-8 obligatoriu pe Windows)
-# În psql -U postgres:
-# CREATE DATABASE whatsapp_ai      ENCODING='UTF8' LC_COLLATE='C' LC_CTYPE='C' TEMPLATE=template0;
-# CREATE DATABASE whatsapp_ai_test ENCODING='UTF8' LC_COLLATE='C' LC_CTYPE='C' TEMPLATE=template0;
-# CREATE DATABASE whatsapp_ai_e2e  ENCODING='UTF8' LC_COLLATE='C' LC_CTYPE='C' TEMPLATE=template0;
-
-# Rulează migrările
-pnpm --filter api db:migrate
-
-# Pornește în development
-pnpm dev:api   # Terminal 1 — API pe http://localhost:3001
-pnpm dev:web   # Terminal 2 — Frontend pe http://localhost:3000
-```
-
-### Creare cont admin
-
-```bash
-pnpm --filter api exec tsx src/scripts/set-admin.ts admin@example.com
-```
-
-## Variabile de mediu
-
-Vezi [`docs/env_vars.md`](docs/env_vars.md) pentru documentație completă și template `.env`.
-
-Variabilele obligatorii:
-
-| Variabilă | Descriere |
-|---|---|
-| `DATABASE_URL` | Connection string PostgreSQL |
-| `JWT_ACCESS_SECRET` | Secret JWT acces (min 32 chars) |
-| `JWT_REFRESH_SECRET` | Secret JWT refresh (min 32 chars) |
-| `GROQ_API_KEY` | Cheie API Groq (AI + transcriere; necesar mereu, chiar pe Gemini) |
-| `LLM_PROVIDER` | `groq` (default) sau `gemini` — furnizor text (opțional) |
-| `GEMINI_API_KEY` | Cheie Google Gemini (doar dacă `LLM_PROVIDER=gemini`) |
-| `STRIPE_SECRET_KEY` | Cheie secretă Stripe |
-| `STRIPE_PRICE_PRO_MONTHLY` / `_PRO_ANNUAL` | ID prețuri tier Pro (lunar/anual) din Stripe |
-| `STRIPE_PRICE_MAX_MONTHLY` / `_MAX_ANNUAL` | ID prețuri tier Max (lunar/anual) din Stripe |
-| `STRIPE_WEBHOOK_SECRET` | Secret webhook Stripe |
-| `RESEND_API_KEY` | Cheie API Resend (email) |
-| `EMAIL_FROM` | Adresa expeditor email |
-| `APP_URL` | URL frontend (ex: `https://app.example.com`) |
-| `CORS_ORIGINS` | Origini CORS extra, separate prin virgulă (opțional) |
-| `ADMIN_SECRET` | Cod acces panou admin (min 32 chars; login emite token de sesiune de 2h) |
-| `E2E_SECRET` | Header secret pentru rutele de test (opțional, min 16 chars) |
-
-## Teste
-
-```bash
-# Unit + integration
-pnpm --filter api test
-
-# E2E Playwright (54 teste)
-cd apps/e2e && pnpm exec playwright test
-```
-
-## Licență
-
-Privat — toate drepturile rezervate.
+> Notă: utilizarea unui client WhatsApp neoficial (Baileys) încalcă, cel mai probabil, termenii WhatsApp
+> și poate duce la blocarea numărului. Folosește-l pe propria răspundere.

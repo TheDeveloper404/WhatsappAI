@@ -28,8 +28,4 @@ export const whatsappRepository = {
       .set({ ...data, updatedAt: Date.now() })
       .where(eq(whatsappSessions.userId, userId))
   },
-
-  async findAllConnected(): Promise<WhatsappSession[]> {
-    return db.select().from(whatsappSessions).where(eq(whatsappSessions.status, 'connected'))
-  },
 }

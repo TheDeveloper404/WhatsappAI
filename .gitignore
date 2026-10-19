@@ -50,7 +50,11 @@ npm-debug.log*
 
 # Documente locale (conținutul docs/ e ignorat, cu excepții urmărite explicit mai jos)
 docs/*
-!docs/FLUX_APLICATIE.md
+!docs/ARCHITECTURE.md
+!docs/CHANGELOG.md
+!docs/DEPLOY_VPS.md
+!docs/DEV_SETUP.md
+!docs/ENV_VARS.md
 
 # Backup valori producție (referință locală, nu se commitează)
 .env.production

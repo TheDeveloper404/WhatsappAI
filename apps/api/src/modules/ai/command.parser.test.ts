@@ -69,8 +69,8 @@ describe('parseCommand', () => {
 
   it('/clearHistory returnează { type: clearHistory } indiferent de argument', () => {
     expect(parseCommand('/clearHistory')).toEqual({ type: 'clearHistory' })
-    expect(parseCommand('/clearHistory +40758154490')).toEqual({ type: 'clearHistory' })
-    expect(parseCommand('/clearHistory 40758154490')).toEqual({ type: 'clearHistory' })
+    expect(parseCommand('/clearHistory +40722123456')).toEqual({ type: 'clearHistory' })
+    expect(parseCommand('/clearHistory 40722123456')).toEqual({ type: 'clearHistory' })
   })
 
   it('/block, /unblock, /learnStyle', () => {

@@ -1,13 +1,12 @@
 import { z } from 'zod'
 
-// docker compose / .env trimit `VAR=` ca string gol, nu ca lipsă. Tratăm gol = nesetat, ca
+// .env trimite `VAR=` ca string gol, nu ca lipsă. Tratăm gol = nesetat, ca
 // `.optional()` / `.default()` să se aplice (altfel `.min(n)` respinge '' și boot-ul se oprește).
 const blankToUndefined = (v: unknown) => (typeof v === 'string' && v.trim() === '' ? undefined : v)
 const optionalStr = (min = 1) => z.preprocess(blankToUndefined, z.string().min(min).optional())
 
 const envSchema = z.object({
   NODE_ENV: z.preprocess(blankToUndefined, z.enum(['development', 'production', 'test']).default('production')),
-  PORT: z.preprocess(blankToUndefined, z.coerce.number().default(3001)),
 
   DATABASE_URL: z.string().min(1),
 
@@ -23,16 +22,9 @@ const envSchema = z.object({
   // Criptare AES-256-GCM a credențialelor WhatsApp în Postgres. Generează: openssl rand -hex 32.
   WHATSAPP_ENC_KEY: optionalStr(32),
 
-  // Parola dashboard-ului minimal (HTTP Basic, user oricare). Lipsă → dashboard dezactivat
-  // (QR-ul apare oricum în loguri).
-  DASHBOARD_PASSWORD: optionalStr(12),
-
   // Override pentru userId-ul unic (doar la migrarea datelor dintr-o instalare SaaS existentă).
   // Folosit în config/owner.ts; validat aici doar ca documentare.
   OWNER_USER_ID: optionalStr(),
-
-  // Nr. de proxy-uri de încredere în fața API-ului (Caddy / cloudflared = 1). NU folosi `true`.
-  TRUST_PROXY_HOPS: z.preprocess(blankToUndefined, z.coerce.number().int().min(0).max(10).default(1)),
 })
 
 const parsed = envSchema.safeParse(process.env)

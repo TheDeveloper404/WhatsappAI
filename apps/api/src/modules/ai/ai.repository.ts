@@ -212,7 +212,7 @@ export const aiRepository = {
       })
   },
 
-  // Număr de răspunsuri AI în ultimele 24h (afișat în /status și dashboard).
+  // Număr de răspunsuri AI în ultimele 24h (afișat în /status).
   async countAiRepliesSince(userId: string, since: number): Promise<number> {
     const res = await pool.query(
       `SELECT COUNT(*)::int AS n FROM conversation_messages WHERE user_id = $1 AND is_ai = true AND created_at >= $2`,

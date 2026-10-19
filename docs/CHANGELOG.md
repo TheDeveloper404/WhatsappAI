@@ -6,6 +6,16 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Removed (2026-10-19) — Docker și dashboard web
+
+- **Removed:** `Dockerfile`, `docker-compose.yml`, Caddy/Cloudflare Tunnel, `.env.example` din rădăcină; dashboard-ul web
+  (`modules/dashboard`), serverul HTTP (`app.ts`, Fastify, helmet, rate-limit) și env-urile `PORT`, `DASHBOARD_PASSWORD`,
+  `TRUST_PROXY_HOPS`. Configurarea agentului se face exclusiv din WhatsApp.
+- **Added:** deploy nativ pe VPS cu systemd (`deploy/whatsapp-ai.service`, `docs/DEPLOY_VPS.md`); comanda `/notify on|off`;
+  `/status` afișează modelul și starea notificărilor; oprire curată pe SIGTERM.
+- **Changed:** reconectare WhatsApp nelimitată cu backoff (3s → 60s) pentru sesiunea asociată; QR nescanat → oprire după
+  5 cicluri (restart serviciu = QR nou). Node minim 22.
+
 ### Changed (2026-10-19) — Conversie în agent personal single-user
 
 Proiectul nu mai e SaaS multi-tenant: un singur utilizator (`OWNER_ID`, default `owner`), control din WhatsApp.

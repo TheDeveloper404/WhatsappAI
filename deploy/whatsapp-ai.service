@@ -1,0 +1,21 @@
+# systemd unit — copiază în /etc/systemd/system/whatsapp-ai.service
+# Înlocuiește `ubuntu` cu userul tău de pe VPS dacă e altul.
+[Unit]
+Description=WhatsApp AI agent (personal)
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/whatsapp-ai/apps/api
+# .env-ul din WorkingDirectory e încărcat de aplicație (dotenv).
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node dist/index.js
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

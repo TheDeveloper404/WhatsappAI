@@ -1,11 +1,11 @@
 # ARCHITECTURE — WhatsApp AI (personal, single-user)
 
 ## Stack
-- **Runtime:** Node 20+, TypeScript (ESM), Fastify 5.
+- **Runtime:** Node 22+, TypeScript (ESM). Un singur proces, fără server HTTP, rulat de systemd.
 - **WhatsApp:** Baileys 6 (`@whiskeysockets/baileys`), sesiune stocată în Postgres.
 - **DB:** PostgreSQL + Drizzle ORM (query builder) + raw `pg` acolo unde contează volumul.
 - **LLM:** OpenRouter (API OpenAI-compatible), model din `LLM_MODEL`. Whisper pe Groq, opțional.
-- **UI:** dashboard minimal (HTML + JS vanilla servit de API), control principal din WhatsApp.
+- **UI:** niciunul — configurarea se face din WhatsApp (comenzi în self-chat).
 
 ## Flux mesaj primit
 ```
@@ -43,14 +43,16 @@ Simbolurile runtime (`makeWASocket`, `DisconnectReason`, `initAuthCreds`, ...) s
 `createRequire(import.meta.url)`; din pachet se importă ESM doar tipuri și `downloadMediaMessage`.
 
 ### 5. Pornire = reconectare sau QR
-`startWhatsapp()` creează mereu un socket cu creds-urile din DB: dacă sunt înregistrate se
-reconectează, altfel Baileys emite QR (afișat în terminal + dashboard). Reconectare automată la
-drop (max 5 încercări consecutive); `loggedOut` șterge creds-urile; `440` (altă instanță) oprește.
+`startWhatsapp()` creează mereu un socket cu creds-urile din DB: dacă sunt asociate se reconectează,
+altfel Baileys emite QR (afișat în terminal / `journalctl`). Sesiune asociată → reconectare la
+nesfârșit cu backoff (3s → 60s). Neasociată → oprire după 5 cicluri de QR (restart serviciu = QR nou).
+`loggedOut` șterge creds-urile; `440` (altă instanță) oprește. Un `setInterval` ține procesul viu
+când socket-ul e oprit, ca systemd să nu intre în buclă de restart.
 
 ### 6. State în RAM — o singură instanță
 `pendingResponses` (timere), throttles de notificare/memorie, anti-flood și `inactivity.tracker` sunt
 în memorie: se pierd la restart (după restart AI-ul răspunde imediat) și nu se sincronizează între
-instanțe. Rulează **un singur** container `api`.
+instanțe. Rulează **un singur** proces.
 
 ### 7. LLM-ul nu are unelte
 Agentul doar conversează. Nu poate trimite emailuri, crea comenzi etc. — de aici „honesty guard"-ul
@@ -61,8 +63,3 @@ din system prompt. Memoria contactului și KB-ul sunt marcate ca **date, nu inst
 Vin pe calea `fromMe` direct din socket. Configurația (`/kb`, `/prompt`, `/learnStyle`) se
 modifică doar din self-chat; răspunsurile la comenzi merg mereu în self-chat, ca un contact să nu
 vadă setările. Comenzile nu se salvează în istoric (nu ajung în contextul LLM).
-
-### 9. Dashboard
-Servit de API la `/` doar dacă `DASHBOARD_PASSWORD` e setat; HTTP Basic verificat în `preHandler`
-(după rate-limit, ca brute-force-ul să fie numărat). CSP `script-src 'self'`; textul din DB e
-inserat doar cu `textContent` (fără XSS din mesajele contactelor).

@@ -31,8 +31,13 @@ Trimise de pe numărul tău. Configurația se schimbă din chatul cu tine însu�
 | `/help` | lista comenzilor |
 
 ## Deploy
-VPS Ubuntu cu Node 22 + PostgreSQL + systemd: vezi [`docs/DEPLOY_VPS.md`](docs/DEPLOY_VPS.md).
+VPS Ubuntu cu Node 22 + PostgreSQL + systemd: vezi [`docs/DEPLOY_VPS.md`](docs/DEPLOY_VPS.md)
+(include OpenRouter, alegerea modelelor free + fallback, configurarea agentului și depanare).
 QR-ul de asociere apare în loguri (`journalctl -u whatsapp-ai -f -o cat`).
+
+## Git
+Un singur branch: `main`. Varianta SaaS veche (multi-tenant, Stripe, dashboard Next.js) e păstrată în tag-ul
+`saas-final` (`git checkout saas-final` doar pentru consultare). Modificările noi: branch → PR → `main`.
 
 ## Documentație
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — flux și decizii non-evidente

@@ -6,6 +6,24 @@ pornit de systemd. Configurarea agentului se face din WhatsApp (comenzile `/help
 > **O singură instanță.** Nu rula aplicația în două locuri cu același număr: WhatsApp închide una
 > dintre conexiuni (cod 440), iar timer-ele de răspuns sunt în memorie.
 
+## 0. Înainte: OpenRouter
+
+1. Cont pe https://openrouter.ai → **Keys** → **Create Key** (începe cu `sk-or-v1-`). Cheia se pune DOAR
+   în `apps/api/.env` pe VPS — niciodată în git, chat sau capturi de ecran. Dacă a fost expusă, revoc-o.
+2. Alege modelele: https://openrouter.ai/models. Lista gratuită (id-uri cu sufixul `:free`) se schimbă des:
+   ```powershell
+   (Invoke-RestMethod https://openrouter.ai/api/v1/models).data | Where-Object { $_.id -like "*:free" } | Select-Object id, context_length
+   ```
+   Pentru WhatsApp alege un model de chat/instruct; evită modelele de cod, „reasoning", „safety" și cele foarte mici.
+3. Modelele `:free` pot da des **429** (pool comun la provider, „temporarily rate-limited upstream").
+   Pune mereu și un `LLM_FALLBACK_MODEL` — aplicația îl încearcă automat când primul pică. Cel mai sigur:
+   fallback pe un model plătit ieftin, cu câțiva dolari credit în OpenRouter.
+
+```env
+LLM_MODEL=nvidia/nemotron-3-ultra-550b-a55b:free
+LLM_FALLBACK_MODEL=google/gemma-4-31b-it:free      # sau un model plătit, ex. google/gemini-2.5-flash
+```
+
 ## 1. Server (o singură dată)
 
 ```bash
@@ -25,7 +43,8 @@ sudo ufw allow OpenSSH && sudo ufw --force enable
 ## 2. Baza de date
 
 ```bash
-DB_PASS=$(openssl rand -hex 24); echo "$DB_PASS"     # o folosești în .env la pasul 3
+DB_PASS=$(openssl rand -hex 24); echo "$DB_PASS"     # notează-o: o folosești în .env la pasul 3
+# (variabila se pierde dacă închizi sesiunea SSH — atunci o pui manual în DATABASE_URL)
 sudo -u postgres psql -c "CREATE USER whatsapp WITH PASSWORD '$DB_PASS';"
 sudo -u postgres psql -c "CREATE DATABASE whatsapp_ai OWNER whatsapp;"
 ```
@@ -36,7 +55,7 @@ Postgres ascultă implicit doar pe `localhost` — nu e expus în internet.
 
 ```bash
 sudo mkdir -p /opt/whatsapp-ai && sudo chown $USER /opt/whatsapp-ai
-git clone -b personal https://github.com/TheDeveloper404/WhatsappAI.git /opt/whatsapp-ai
+git clone https://github.com/TheDeveloper404/WhatsappAI.git /opt/whatsapp-ai      # branch-ul main
 cd /opt/whatsapp-ai
 pnpm install --frozen-lockfile
 pnpm build
@@ -45,7 +64,7 @@ cp apps/api/.env.example apps/api/.env
 sed -i "s/^NODE_ENV=.*/NODE_ENV=production/" apps/api/.env
 sed -i "s|^DATABASE_URL=.*|DATABASE_URL=postgresql://whatsapp:$DB_PASS@localhost:5432/whatsapp_ai|" apps/api/.env
 sed -i "s/^WHATSAPP_ENC_KEY=.*/WHATSAPP_ENC_KEY=$(openssl rand -hex 32)/" apps/api/.env
-nano apps/api/.env          # completează OPENROUTER_API_KEY (și opțional LLM_MODEL, GROQ_API_KEY)
+nano apps/api/.env          # completează OPENROUTER_API_KEY, LLM_MODEL, LLM_FALLBACK_MODEL (vezi §0)
 chmod 600 apps/api/.env
 grep WHATSAPP_ENC_KEY apps/api/.env   # salveaz-o într-un password manager
 ```
@@ -71,6 +90,21 @@ Sesiunea e salvată criptat în Postgres → după restart/reboot se reconecteaz
 Dacă QR-ul expiră nescanat (~5 cicluri) sau deconectezi dispozitivul din telefon:
 `sudo systemctl restart whatsapp-ai` → QR nou în loguri.
 
+## 4b. Configurarea agentului (din WhatsApp, chatul „Tu")
+
+```
+/prompt set Răspunzi în numele lui <nume>, <ce business>, când el nu e disponibil.
+Ton: prietenos, scurt. Dacă nu știi ceva, spune că revine <nume>.
+
+/kb set Program: L–V 9–18. Adresa: ... Prețuri: ...
+/kb add <informație nouă>
+/setTimer 5
+/activateAI
+/status
+```
+
+După ce ai trimis manual cel puțin 10 mesaje de pe numărul conectat: `/learnStyle`. Lista completă: `/help`.
+
 ## 5. Operare
 
 ```bash
@@ -91,6 +125,18 @@ pg_restore --clean --if-exists -d "postgresql://whatsapp:PAROLA@localhost/whatsa
 # Shell SQL
 psql "postgresql://whatsapp:PAROLA@localhost/whatsapp_ai"
 ```
+
+## 5b. Probleme frecvente
+
+| Simptom | Cauză / rezolvare |
+|---|---|
+| AI-ul nu răspunde, în loguri `OpenRouter HTTP 429` | Modelul free e aglomerat. Pune `LLM_FALLBACK_MODEL` (ideal plătit), apoi `sudo systemctl restart whatsapp-ai`. |
+| `OpenRouter HTTP 401` | Cheie greșită/revocată în `.env`. |
+| `Invalid environment variables` la pornire | Lipsește o variabilă obligatorie (`DATABASE_URL`, `OPENROUTER_API_KEY`) sau `WHATSAPP_ENC_KEY` are sub 32 caractere. |
+| `Migration failed` | Postgres oprit sau parolă greșită în `DATABASE_URL`: `systemctl status postgresql`. |
+| QR-ul nu mai apare | A expirat nescanat → `sudo systemctl restart whatsapp-ai`. |
+| AI-ul nu răspunde, fără erori | `/status`: agent inactiv/în pauză? Ai scris tu în chat în ultimele N minute (timer)? Contact blocat? |
+| Răspunsuri duble | Mai rulează o instanță veche (Railway/local) pe același număr — oprește-o. |
 
 ## 6. Migrare dintr-o instalare SaaS existentă (opțional)
 

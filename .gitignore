@@ -55,6 +55,8 @@ docs/*
 !docs/DEPLOY_VPS.md
 !docs/DEV_SETUP.md
 !docs/ENV_VARS.md
+CLAUDE.md
+/docs/CHANGELOG.md
 
 # Backup valori producție (referință locală, nu se commitează)
 .env.production

@@ -42,6 +42,24 @@ export const aiRepository = {
       .where(eq(aiSettings.userId, userId))
   },
 
+  // Adaugă o linie la knowledge base într-un SINGUR UPDATE (atomic sub row lock): două `/kb add`
+  // simultane nu mai citesc aceeași valoare veche și nu se suprascriu. Verificarea de lungime e tot
+  // în WHERE. Întoarce noua lungime sau null dacă ar depăși `maxChars` (nimic nu se scrie).
+  async appendKnowledgeBase(userId: string, text: string, maxChars: number): Promise<number | null> {
+    await this.getSettings(userId)
+    // Expresiile referă DIRECT coloana rândului (nu un CTE): la conflict pe row lock, Postgres
+    // re-evaluează SET și WHERE pe versiunea nouă a rândului (READ COMMITTED), deci nu pierde append-uri.
+    const merged = `CASE WHEN btrim(knowledge_base, E' \\t\\r\\n') = '' THEN $2
+      ELSE btrim(knowledge_base, E' \\t\\r\\n') || E'\\n' || $2 END`
+    const res = await pool.query(`
+      UPDATE ai_settings
+      SET knowledge_base = ${merged}, updated_at = $3
+      WHERE user_id = $1 AND char_length(${merged}) <= $4
+      RETURNING char_length(knowledge_base) AS len
+    `, [userId, text, Date.now(), maxChars])
+    return res.rows[0] ? Number(res.rows[0].len) : null
+  },
+
   async isBlacklisted(userId: string, phoneNumber: string): Promise<boolean> {
     const rows = await db.select().from(contactsBlacklist)
       .where(and(eq(contactsBlacklist.userId, userId), eq(contactsBlacklist.phoneNumber, phoneNumber)))

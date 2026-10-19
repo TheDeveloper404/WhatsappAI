@@ -21,6 +21,10 @@ Proiectul nu mai e SaaS multi-tenant: un singur utilizator (`OWNER_ID`, default 
 - **Added:** pornire automată WhatsApp (reconectare sau QR în terminal), dashboard minimal servit de API
   (`DASHBOARD_PASSWORD`, HTTP Basic): status, QR, on/off agent, timer, conversații recente.
 - **Added:** `Dockerfile` multi-stage, `docker-compose.yml` (Postgres + API + profile Caddy / Cloudflare Tunnel), `docs/DEPLOY_VPS.md`.
+- **Fixed (review):** variabilele opționale lăsate goale (`DASHBOARD_PASSWORD=`, `WHATSAPP_ENC_KEY=`) nu mai opresc boot-ul;
+  `/kb add` face append atomic în DB (fără scrieri pierdute la comenzi concurente); erorile OpenRouter/Groq nu mai
+  includ corpul răspunsului (posibil PII) în loguri; knowledge base marcat în prompt ca date, nu instrucțiuni;
+  `docs/DEPLOY_VPS.md` urmărit în git.
 - **Changed:** env redus la `DATABASE_URL`, `OPENROUTER_API_KEY`, `LLM_MODEL` (+ opționale); dependențe eliminate:
   stripe, resend, bcryptjs, otplib, mammoth, pdf-parse, disposable-email-domains, @fastify/cookie|cors|multipart.
 

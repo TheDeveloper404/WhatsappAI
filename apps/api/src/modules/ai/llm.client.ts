@@ -30,16 +30,18 @@ async function callOpenRouter(model: string, messages: ChatMessage[], options?: 
   })
 
   if (!res.ok) {
-    // Corpul erorii poate conține ecoul promptului la unii provideri → trunchiat, fără PII în log.
-    const text = (await res.text()).slice(0, 300)
-    throw new Error(`OpenRouter ${res.status} (${model}): ${text}`)
+    // Corpul erorii NU intră în mesaj: unii provideri ecouează promptul (mesajele contactelor = PII),
+    // iar eroarea ajunge în loguri. Păstrăm doar statusul și modelul.
+    await res.body?.cancel().catch(() => {})
+    throw new Error(`OpenRouter HTTP ${res.status} (${model})`)
   }
 
   const data = await res.json() as {
     choices?: Array<{ message?: { content?: string | null } }>
-    error?: { message?: string }
+    error?: { code?: number | string }
   }
-  if (data.error) throw new Error(`OpenRouter error (${model}): ${data.error.message ?? 'unknown'}`)
+  // Doar codul erorii (nu mesajul, care poate cita conținutul cererii).
+  if (data.error) throw new Error(`OpenRouter error (${model}): code ${data.error.code ?? 'unknown'}`)
   const content = data.choices?.[0]?.message?.content
   if (typeof content !== 'string' || !content.trim()) {
     throw new Error(`OpenRouter (${model}): răspuns gol`)
@@ -73,7 +75,10 @@ export async function transcribeAudio(buffer: Buffer, mimeType = 'audio/ogg'): P
     body: formData,
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   })
-  if (!res.ok) throw new Error(`Groq Whisper error ${res.status}: ${(await res.text()).slice(0, 300)}`)
+  if (!res.ok) {
+    await res.body?.cancel().catch(() => {})
+    throw new Error(`Groq Whisper HTTP ${res.status}`)
+  }
   const data = await res.json() as { text: string }
   return data.text.trim()
 }

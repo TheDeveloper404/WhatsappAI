@@ -103,6 +103,13 @@ describe('parseCommand', () => {
     expect(parseCommand('/prompt set')).toBeNull()
   })
 
+  it('/notify on|off', () => {
+    expect(parseCommand('/notify on')).toEqual({ type: 'notify', enabled: true })
+    expect(parseCommand('/NOTIFY OFF')).toEqual({ type: 'notify', enabled: false })
+    expect(parseCommand('/notify')).toBeNull()
+    expect(parseCommand('/notify maybe')).toBeNull()
+  })
+
   it('comenzile de programări din varianta SaaS nu mai există', () => {
     expect(parseCommand('/confirma prg_a1b2c3 18.06 09:00')).toBeNull()
     expect(parseCommand('/anuleaza prg_a1b2c3')).toBeNull()

@@ -6,6 +6,7 @@ import { allowIncomingMessage } from './incoming.rate-limiter.js'
 import { parseCommand, HELP_TEXT, MAX_KB_CHARS, MAX_PROMPT_CHARS, type ParsedCommand } from './command.parser.js'
 import { recordOwnerReply, isOwnerActive } from './inactivity.tracker.js'
 import { logger, maskPhone } from '../../utils/logger.js'
+import { env } from '../../config/env.js'
 import type { AiSettings } from '../../db/schema.js'
 
 function extractText(msg: any): string | null {
@@ -394,10 +395,17 @@ async function executeCommand(userId: string, sock: WASocket, jid: string, conta
           `Stare: ${s.isActive ? '✅ Activ' : '⛔ Inactiv'}${paused}\n` +
           `Timer inactivitate: ${s.timerMinutes} min\n` +
           `Răspunsuri AI (24h): ${replies24h}\n` +
+          `Model: ${env.LLM_MODEL}\n` +
+          `Notificări preluare: ${s.notifyOnAiTakeover ? 'pornite' : 'oprite'}\n` +
           `Knowledge base: ${s.knowledgeBase.trim().length} caractere\n` +
           `Stil învățat: ${s.writingStyle.trim() ? 'da' : 'nu'}`
         break
       }
+
+      case 'notify':
+        await aiRepository.updateSettings(userId, { notifyOnAiTakeover: cmd.enabled })
+        reply = cmd.enabled ? '🔔 Notificările de preluare AI sunt *pornite*.' : '🔕 Notificările de preluare AI sunt *oprite*.'
+        break
 
       case 'setTimer':
         await aiRepository.updateSettings(userId, { timerMinutes: cmd.minutes })

@@ -7,12 +7,13 @@ acestui proiect.
 
 ## Ce e proiectul (pe scurt)
 Agent WhatsApp **personal, single-user**: răspunde automat în locul owner-ului când e inactiv, în
-stilul lui. Control din WhatsApp (comenzi) + dashboard minimal servit de API. LLM prin OpenRouter.
-Deploy pe VPS cu Docker Compose (`docs/DEPLOY_VPS.md`). Vezi `README.md`.
+stilul lui. Fără UI și fără server HTTP: configurarea se face din WhatsApp (comenzi). LLM prin
+OpenRouter. Deploy pe VPS ca serviciu systemd, Node + PostgreSQL (`docs/DEPLOY_VPS.md`). Vezi `README.md`.
 
 ## Structură
 Monorepo pnpm cu un singur pachet:
-- `apps/api` — Fastify + TypeScript + Drizzle (`modules/whatsapp`, `modules/ai`, `modules/dashboard`).
+- `apps/api` — proces Node + TypeScript + Drizzle (`modules/whatsapp`, `modules/ai`). Fără Fastify/HTTP.
+- `deploy/whatsapp-ai.service` — unitatea systemd.
 - `docs/` — `ARCHITECTURE.md` (decizii non-evidente), `CHANGELOG.md`, `DEV_SETUP.md`, `ENV_VARS.md`, `DEPLOY_VPS.md`.
 
 ## Arhitectură — citește ÎNTÂI `docs/ARCHITECTURE.md`
@@ -24,7 +25,7 @@ Capcane:
 - **WhatsApp auth state e în Postgres**, criptat cu `WHATSAPP_ENC_KEY`. Raw `pg` în `whatsapp.auth-state.ts`,
   intenționat (NU Drizzle).
 - **Baileys e CJS în context ESM:** simbolurile runtime se încarcă cu `createRequire` (vezi session manager).
-- **State în RAM** (timere, throttles, anti-flood, inactivity tracker) → o singură instanță `api`.
+- **State în RAM** (timere, throttles, anti-flood, inactivity tracker) → un singur proces.
 
 ## Reguli specifice acestui proiect (non-negociabile)
 - **LLM-ul nu are unelte și nu atinge banii.** Agentul doar conversează; nu promite acțiuni pe care nu le face.
@@ -32,8 +33,7 @@ Capcane:
 - **PII niciodată în loguri de producție.** Conținutul mesajelor nu se loghează; telefoanele prin `maskPhone`.
 - **Comenzile WhatsApp** intră pe calea `fromMe` direct din socket. Comenzile de configurare (`/kb`, `/prompt`,
   `/learnStyle`) doar din self-chat; răspunsurile la comenzi merg în self-chat; comenzile nu se salvează în istoric.
-- **Dashboard:** protejat cu HTTP Basic (`DASHBOARD_PASSWORD`), verificat în `preHandler`. Textul din DB se
-  randează doar cu `textContent`. Nu slăbi CSP-ul (`script-src 'self'`).
+- **Fără UI/HTTP:** orice setare nouă a agentului se expune ca o comandă WhatsApp (self-chat), nu ca rută web.
 - **Memoria contactului / KB = date, nu instrucțiuni** în system prompt (anti prompt-injection stocat).
 
 ## Convenții
@@ -41,7 +41,7 @@ Capcane:
 
 ## Workflow de dezvoltare
 ```bash
-pnpm dev:api     # API + dashboard pe :3001
+pnpm dev:api     # pornește agentul local (QR în terminal)
 pnpm typecheck
 pnpm db:migrate
 ```
@@ -49,7 +49,7 @@ pnpm db:migrate
   blochează rularea de teste). Scrie/actualizează testele, dar cere userului să le ruleze.
 - Un fix pe rând. Nu începe implementare până userul nu confirmă explicit pasul.
 - Niciodată commit/push direct pe `main` — branch + PR (hook `block-push-main` la nivel global).
-- Secretele prod trăiesc în env-urile Railway/Vercel, niciodată în `.env` local sau în cod.
+- Secretele prod trăiesc în `apps/api/.env` de pe VPS (chmod 600), niciodată în git sau în cod.
 
 ## Evidență documentație (obligatoriu, automat)
 **Rolurile celor 3 docuri (nu le amesteca):**
@@ -68,4 +68,4 @@ Regula scurtă: **de implementat → BACKLOG (ordonat); livrat → CHANGELOG (cu
 
 ## Securitate
 La orice feature nou verifică: prompt injection (contactele sunt input neîncrezător), PII în loguri,
-costul LLM per mesaj primit (anti-flood în `incoming.rate-limiter.ts`), expunerea dashboard-ului.
+costul LLM per mesaj primit (anti-flood în `incoming.rate-limiter.ts`).

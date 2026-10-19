@@ -14,13 +14,10 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@fastify/helmet": "^13.0.2",
-    "@fastify/rate-limit": "^10.3.0",
     "@hapi/boom": "^10.0.1",
     "@whiskeysockets/baileys": "6.17.16",
     "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.2",
-    "fastify": "^5.8.5",
     "node-cache": "^5.1.2",
     "pg": "^8.21.0",
     "qrcode": "^1.5.4",

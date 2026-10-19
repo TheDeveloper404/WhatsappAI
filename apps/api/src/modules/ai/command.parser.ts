@@ -16,6 +16,7 @@ export type ParsedCommand =
   | { type: 'prompt'; action: 'reset' }
   | { type: 'prompt'; action: 'set'; text: string }
   | { type: 'learnStyle' }
+  | { type: 'notify'; enabled: boolean }
 
 // Plafon pentru textele lungi setate din WhatsApp (KB / prompt) — protejează contextul LLM.
 export const MAX_KB_CHARS = 30_000
@@ -42,6 +43,13 @@ export function parseCommand(body: string): ParsedCommand | null {
   if (cmd === '/block') return { type: 'block' }
   if (cmd === '/unblock') return { type: 'unblock' }
   if (cmd === '/learnstyle') return { type: 'learnStyle' }
+
+  if (cmd === '/notify') {
+    const arg = (parts[1] ?? '').toLowerCase()
+    if (arg === 'on') return { type: 'notify', enabled: true }
+    if (arg === 'off') return { type: 'notify', enabled: false }
+    return null
+  }
 
   if (cmd === '/pauseai') {
     const arg = parts[1] ?? ''
@@ -98,6 +106,7 @@ export const HELP_TEXT = `*Comenzi agent AI:*
 /resumeAI — scoate din pauză
 /setTimer 5 — minute de inactivitate până răspunde AI-ul (1–60)
 /status — stare curentă
+/notify on|off — notificări „AI a preluat conversația”
 
 *În chatul unui contact:*
 /clearHistory — șterge istoricul conversației curente

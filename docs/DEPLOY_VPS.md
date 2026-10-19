@@ -1,100 +1,101 @@
-# Deploy pe VPS (Ubuntu 22.04 / 24.04) — Docker Compose + Postgres
+# Deploy pe VPS (Ubuntu 24.04) — Node + PostgreSQL + systemd
 
-Stack: `db` (Postgres 16) + `api` (Fastify + Baileys) și, opțional, `caddy` (HTTPS public) sau
-`cloudflared` (Cloudflare Tunnel, fără porturi deschise). API-ul ascultă doar pe `127.0.0.1:3001`.
+Fără Docker și fără server web: aplicația e un singur proces Node care ține conexiunea WhatsApp,
+pornit de systemd. Configurarea agentului se face din WhatsApp (comenzile `/help`).
 
-> **O singură instanță.** Nu porni două containere `api` pe aceeași bază: WhatsApp acceptă o singură
-> conexiune per dispozitiv asociat (a doua o închide pe prima — cod 440), iar timer-ele de răspuns sunt în RAM.
+> **O singură instanță.** Nu rula aplicația în două locuri cu același număr: WhatsApp închide una
+> dintre conexiuni (cod 440), iar timer-ele de răspuns sunt în memorie.
 
-## 1. Pregătire server (o singură dată)
+## 1. Server (o singură dată)
 
 ```bash
-# Docker Engine + plugin compose (scriptul oficial Docker)
-curl -fsSL https://get.docker.com | sudo sh
-sudo usermod -aG docker $USER && newgrp docker
-docker compose version
+sudo apt update && sudo apt -y upgrade
+sudo apt install -y git curl postgresql
 
-# Firewall: doar SSH (+ 80/443 dacă folosești Caddy)
-sudo ufw allow OpenSSH
-sudo ufw allow 80,443/tcp      # DOAR pentru varianta Caddy
-sudo ufw enable
+# Node.js 22 LTS (NodeSource) + pnpm prin corepack
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+sudo apt install -y nodejs
+sudo corepack enable
+node -v && pnpm -v
+
+# Firewall: doar SSH (aplicația nu ascultă pe niciun port)
+sudo ufw allow OpenSSH && sudo ufw --force enable
 ```
 
-> Atenție: porturile publicate de Docker (`80:80`, `443:443`) ocolesc regulile ufw. `api` e publicat
-> doar pe `127.0.0.1`, deci nu e expus; `db` nu e publicat deloc.
+## 2. Baza de date
 
-## 2. Cod + configurare
+```bash
+DB_PASS=$(openssl rand -hex 24); echo "$DB_PASS"     # o folosești în .env la pasul 3
+sudo -u postgres psql -c "CREATE USER whatsapp WITH PASSWORD '$DB_PASS';"
+sudo -u postgres psql -c "CREATE DATABASE whatsapp_ai OWNER whatsapp;"
+```
+
+Postgres ascultă implicit doar pe `localhost` — nu e expus în internet.
+
+## 3. Cod + configurare
 
 ```bash
 sudo mkdir -p /opt/whatsapp-ai && sudo chown $USER /opt/whatsapp-ai
-git clone -b <branch> https://github.com/TheDeveloper404/WhatsappAI.git /opt/whatsapp-ai
+git clone -b personal https://github.com/TheDeveloper404/WhatsappAI.git /opt/whatsapp-ai
 cd /opt/whatsapp-ai
+pnpm install --frozen-lockfile
+pnpm build
 
-cp .env.example .env
-sed -i "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=$(openssl rand -hex 24)/" .env
-sed -i "s/^WHATSAPP_ENC_KEY=.*/WHATSAPP_ENC_KEY=$(openssl rand -hex 32)/" .env
-nano .env        # completează OPENROUTER_API_KEY, LLM_MODEL, DASHBOARD_PASSWORD (+ DOMAIN sau CLOUDFLARE_TUNNEL_TOKEN)
-chmod 600 .env
+cp apps/api/.env.example apps/api/.env
+sed -i "s/^NODE_ENV=.*/NODE_ENV=production/" apps/api/.env
+sed -i "s|^DATABASE_URL=.*|DATABASE_URL=postgresql://whatsapp:$DB_PASS@localhost:5432/whatsapp_ai|" apps/api/.env
+sed -i "s/^WHATSAPP_ENC_KEY=.*/WHATSAPP_ENC_KEY=$(openssl rand -hex 32)/" apps/api/.env
+nano apps/api/.env          # completează OPENROUTER_API_KEY (și opțional LLM_MODEL, GROQ_API_KEY)
+chmod 600 apps/api/.env
+grep WHATSAPP_ENC_KEY apps/api/.env   # salveaz-o într-un password manager
 ```
 
-Salvează `WHATSAPP_ENC_KEY` și într-un password manager: fără ea, sesiunea WhatsApp din DB nu mai
-poate fi decriptată (trebuie reasociat telefonul).
+Repo privat → la `git clone`, parola = un GitHub Personal Access Token (fine-grained, doar acest repo,
+„Contents: Read").
 
-## 3. Pornire — alege o variantă
+## 4. Serviciul systemd
 
 ```bash
-# A) Doar local + SSH tunnel (cel mai sigur, nimic public):
-docker compose up -d --build
-#   de pe laptop: ssh -L 3001:127.0.0.1:3001 user@vps  → http://localhost:3001
-
-# B) HTTPS public cu Caddy (record DNS A: DOMAIN → IP VPS):
-docker compose --profile caddy up -d --build
-
-# C) Cloudflare Tunnel (fără porturi deschise). În Zero Trust → Networks → Tunnels: creează tunel
-#    „Cloudflared", copiază token-ul în CLOUDFLARE_TUNNEL_TOKEN, iar la Public Hostname setează
-#    Service = http://api:3001.
-docker compose --profile tunnel up -d --build
+sed -i "s/^User=.*/User=$USER/" deploy/whatsapp-ai.service
+sudo cp deploy/whatsapp-ai.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now whatsapp-ai
+journalctl -u whatsapp-ai -f -o cat      # aici apare QR-ul
 ```
 
-## 4. Asociere WhatsApp (QR)
+Scanează QR-ul: WhatsApp → **Dispozitive conectate** → **Conectează un dispozitiv** (dacă QR-ul arată
+deformat, mărește fereastra terminalului sau micșorează fontul). Ieși din loguri cu Ctrl+C.
+Apoi, în chatul cu tine însuți („Tu"): `/help`, `/activateAI`, `/status`.
 
-```bash
-docker compose logs -f api      # QR-ul apare în terminal la prima pornire
-```
-
-Sau deschide dashboard-ul (`/`, user oricare + `DASHBOARD_PASSWORD`) și scanează QR-ul de acolo:
-WhatsApp → **Dispozitive conectate** → **Conectează un dispozitiv**. Apoi, din chatul cu tine însuți
-(„Tu"), trimite `/activateAI` și `/status`.
-
-Sesiunea se salvează criptat în Postgres → la restart/redeploy se reconectează singură.
+Sesiunea e salvată criptat în Postgres → după restart/reboot se reconectează singură, fără QR.
+Dacă QR-ul expiră nescanat (~5 cicluri) sau deconectezi dispozitivul din telefon:
+`sudo systemctl restart whatsapp-ai` → QR nou în loguri.
 
 ## 5. Operare
 
 ```bash
-docker compose ps
-docker compose logs -f --tail=200 api
-docker compose restart api
+systemctl status whatsapp-ai
+journalctl -u whatsapp-ai -f -o cat             # loguri live
+sudo systemctl restart whatsapp-ai
 
 # Update la o versiune nouă
-git pull && docker compose up -d --build        # (+ --profile caddy / tunnel, ca la pornire)
-docker image prune -f
+cd /opt/whatsapp-ai && git pull && pnpm install --frozen-lockfile && pnpm build && sudo systemctl restart whatsapp-ai
 
 # Backup zilnic DB (crontab -e):
-# 0 3 * * * cd /opt/whatsapp-ai && docker compose exec -T db pg_dump -U whatsapp -Fc whatsapp_ai > /opt/backups/wa-$(date +\%F).dump && find /opt/backups -name 'wa-*.dump' -mtime +14 -delete
-mkdir -p /opt/backups
+# 0 3 * * * pg_dump -Fc "postgresql://whatsapp:PAROLA@localhost/whatsapp_ai" > /opt/backups/wa-$(date +\%F).dump && find /opt/backups -name 'wa-*.dump' -mtime +14 -delete
+sudo mkdir -p /opt/backups && sudo chown $USER /opt/backups
 
 # Restore
-docker compose exec -T db pg_restore -U whatsapp -d whatsapp_ai --clean --if-exists < /opt/backups/wa-YYYY-MM-DD.dump
+pg_restore --clean --if-exists -d "postgresql://whatsapp:PAROLA@localhost/whatsapp_ai" /opt/backups/wa-YYYY-MM-DD.dump
 
 # Shell SQL
-docker compose exec db psql -U whatsapp -d whatsapp_ai
+psql "postgresql://whatsapp:PAROLA@localhost/whatsapp_ai"
 ```
 
 ## 6. Migrare dintr-o instalare SaaS existentă (opțional)
 
-1. `pg_dump -Fc` din baza veche → `pg_restore` în containerul `db` (comanda de restore de mai sus).
-2. Află id-ul contului tău: `SELECT id, email FROM users;` și pune-l în `.env` ca `OWNER_USER_ID=<id>`
-   (altfel seed-ul userului `owner` pică pe coloana veche `users.email NOT NULL`).
+1. `pg_dump -Fc` din baza veche → `pg_restore` în baza nouă (comanda de restore de mai sus).
+2. Află id-ul contului tău: `SELECT id, email FROM users;` și pune-l în `apps/api/.env` ca `OWNER_USER_ID=<id>`.
 3. Folosește **aceeași** `WHATSAPP_ENC_KEY` ca înainte, altfel sesiunea salvată nu se poate decripta.
 4. Tabelele SaaS nefolosite rămân în bază, inofensive. Curățare opțională (ireversibil — fă backup):
    ```sql

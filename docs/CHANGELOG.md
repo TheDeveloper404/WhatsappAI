@@ -6,6 +6,15 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed (2026-10-19) — Vocale prin OpenRouter (fără Groq)
+
+- Transcrierea vocalelor trece de pe Groq Whisper pe OpenRouter (`input_audio`, același `callOpenRouter`):
+  model din `LLM_AUDIO_MODEL` nou (opțional; nesetat → vocalele ignorate). `GROQ_API_KEY` eliminat.
+- Probă reală (vocal ogg/opus, 33s, RO): modelele audio `:free` nu merg prin API (Nemotron Nano Omni pierde audio-ul,
+  Inkling e restricționat la aplicații „agentic"); `google/gemini-2.5-flash-lite` → transcriere corectă, ~2s, $0.0003.
+  Modelele de text rămân `:free`.
+- Test: `llm.client.test.ts` (payload `input_audio`, format din mimetype, erori fără corp).
+
 ### Changed (2026-10-19) — Blacklist pe LID
 
 - `contacts_blacklist.lid` (coloană nouă): la `/block` se cere LID-ul numărului de la WhatsApp (`lidMapping.getLIDForPN`);

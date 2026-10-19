@@ -5,13 +5,17 @@ import { logger } from '../../utils/logger.js'
 // Modelul vine din LLM_MODEL (ex. `google/gemini-2.5-flash`, `anthropic/claude-sonnet-4.5`);
 // opțional LLM_FALLBACK_MODEL e încercat dacă primul apel eșuează.
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
-const GROQ_WHISPER_URL = 'https://api.groq.com/openai/v1/audio/transcriptions'
 const REQUEST_TIMEOUT_MS = 45_000
 
 export type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string }
 type LLMOptions = { maxTokens?: number; temperature?: number }
+// Content multimodal (doar pentru transcriere): text + audio base64.
+type ContentPart =
+  | { type: 'text'; text: string }
+  | { type: 'input_audio'; input_audio: { data: string; format: string } }
+type OpenRouterMessage = ChatMessage | { role: 'user'; content: ContentPart[] }
 
-async function callOpenRouter(model: string, messages: ChatMessage[], options?: LLMOptions): Promise<string> {
+async function callOpenRouter(model: string, messages: OpenRouterMessage[], options?: LLMOptions): Promise<string> {
   const res = await fetch(OPENROUTER_URL, {
     method: 'POST',
     headers: {
@@ -59,28 +63,20 @@ export async function chat(messages: ChatMessage[], options?: LLMOptions): Promi
   }
 }
 
-export const isTranscriptionEnabled = Boolean(env.GROQ_API_KEY)
+export const isTranscriptionEnabled = Boolean(env.LLM_AUDIO_MODEL)
 
-// Transcriere vocală (Groq Whisper). Apelată doar când GROQ_API_KEY e setat.
+// Transcriere vocală prin OpenRouter (model cu input audio, din LLM_AUDIO_MODEL).
+// Apelată doar când LLM_AUDIO_MODEL e setat. Vocalele WhatsApp vin ca `audio/ogg; codecs=opus` → format `ogg`.
 export async function transcribeAudio(buffer: Buffer, mimeType = 'audio/ogg'): Promise<string> {
-  if (!env.GROQ_API_KEY) throw new Error('GROQ_API_KEY nesetat — transcrierea e dezactivată')
-  const formData = new FormData()
-  formData.append('file', new Blob([new Uint8Array(buffer)], { type: mimeType }), 'audio.ogg')
-  formData.append('model', 'whisper-large-v3')
-  formData.append('response_format', 'json')
-
-  const res = await fetch(GROQ_WHISPER_URL, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${env.GROQ_API_KEY}` },
-    body: formData,
-    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-  })
-  if (!res.ok) {
-    await res.body?.cancel().catch(() => {})
-    throw new Error(`Groq Whisper HTTP ${res.status}`)
-  }
-  const data = await res.json() as { text: string }
-  return data.text.trim()
+  if (!env.LLM_AUDIO_MODEL) throw new Error('LLM_AUDIO_MODEL nesetat — transcrierea e dezactivată')
+  const format = mimeType.split(';')[0].split('/')[1]?.trim() || 'ogg'
+  return callOpenRouter(env.LLM_AUDIO_MODEL, [{
+    role: 'user',
+    content: [
+      { type: 'text', text: 'Transcrie exact, cuvânt cu cuvânt, acest mesaj vocal. Returnează doar textul transcris.' },
+      { type: 'input_audio', input_audio: { data: buffer.toString('base64'), format } },
+    ],
+  }], { maxTokens: 1000, temperature: 0 })
 }
 
 export async function extractWritingStyle(ownerMessages: string[]): Promise<string> {

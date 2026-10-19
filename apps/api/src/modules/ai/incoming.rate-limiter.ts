@@ -1,5 +1,5 @@
 // Cost-cap anti-flood pe mesajele PRIMITE. Fiecare mesaj de la un contact declanșează 1-2 apeluri
-// LLM (răspuns + memorie) plus transcriere audio — pe cheia ta OpenRouter/Groq. Un contact ostil
+// LLM (răspuns + memorie) plus transcriere audio — pe cheia ta OpenRouter. Un contact ostil
 // poate inunda numărul și goli bugetul.
 //
 // Limităm câte mesaje primite declanșează pipeline-ul AI, pe fereastră glisantă, pe DOUĂ niveluri:

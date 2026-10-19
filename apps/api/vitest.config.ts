@@ -11,6 +11,7 @@ export default defineConfig({
       DATABASE_URL: 'postgresql://127.0.0.1:5432/whatsapp_ai_test',
       OPENROUTER_API_KEY: 'test_openrouter_key',
       LLM_MODEL: 'test/model',
+      LLM_AUDIO_MODEL: 'test/audio-model',
     },
   },
 })

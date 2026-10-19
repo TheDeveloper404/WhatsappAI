@@ -10,7 +10,7 @@ WhatsApp prin comenzi. Rulează pe un VPS ca serviciu systemd (Node + PostgreSQL
 - **Memorie per contact** — rezumat actualizat automat (nume, nevoi, context).
 - **Knowledge base** — text liber setat din WhatsApp (`/kb set ...`), injectat în prompt.
 - **Stilul tău** — `/learnStyle` analizează mesajele tale și le imită tonul.
-- **Vocale** — transcriere cu Groq Whisper (opțional, `GROQ_API_KEY`).
+- **Vocale** — transcriere prin OpenRouter, model cu input audio (opțional, `LLM_AUDIO_MODEL`).
 - **Siguranță** — filtru off-topic/prompt-injection, alertă la mesaje sensibile (avocat, ANPC, rambursare), anti-flood pe cost, blocare contacte.
 - **Sesiune în Postgres** (criptată) — reconectare automată după restart/redeploy.
 

@@ -4,7 +4,7 @@
 - **Runtime:** Node 22+, TypeScript (ESM). Un singur proces, fără server HTTP, rulat de systemd.
 - **WhatsApp:** Baileys 7 (`baileys@7.0.0-rc14`, ESM), sesiune stocată în Postgres.
 - **DB:** PostgreSQL + Drizzle ORM (query builder) + raw `pg` acolo unde contează volumul.
-- **LLM:** OpenRouter (API OpenAI-compatible), model din `LLM_MODEL`. Whisper pe Groq, opțional.
+- **LLM:** OpenRouter (API OpenAI-compatible), model din `LLM_MODEL`. Vocale tot prin OpenRouter (`input_audio`), model din `LLM_AUDIO_MODEL`, opțional.
 - **UI:** niciunul — configurarea se face din WhatsApp (comenzi în self-chat).
 
 ## Flux mesaj primit
@@ -13,7 +13,7 @@ Baileys messages.upsert (notify)
   → dedup msg.key.id (processed_messages)
   → self-chat? → doar comenzi (/status, /kb, ...)
   → anti-flood (incoming.rate-limiter, RAM)
-  → audio → Groq Whisper (dacă GROQ_API_KEY) | text/caption
+  → audio → OpenRouter input_audio (dacă LLM_AUDIO_MODEL) | text/caption
   → fromMe? → comandă (nu se salvează) | salvează + marchează owner activ (inactivity.tracker)
   → salvează mesaj → agent activ / nu e pauză / contact neblocat?
   → owner activ în ultimele N min? → programează răspuns după timer : răspunde acum

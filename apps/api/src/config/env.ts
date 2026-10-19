@@ -16,8 +16,9 @@ const envSchema = z.object({
   // Opțional: model de rezervă încercat dacă primul pică (429/5xx/timeout).
   LLM_FALLBACK_MODEL: optionalStr(),
 
-  // Opțional: transcriere mesaje vocale cu Groq Whisper. Lipsă → vocalele sunt ignorate.
-  GROQ_API_KEY: optionalStr(),
+  // Opțional: model OpenRouter cu input audio pentru transcrierea vocalelor (ex. `google/gemini-2.5-flash-lite`).
+  // Lipsă → vocalele sunt ignorate.
+  LLM_AUDIO_MODEL: optionalStr(),
 
   // Criptare AES-256-GCM a credențialelor WhatsApp în Postgres. Generează: openssl rand -hex 32.
   WHATSAPP_ENC_KEY: optionalStr(32),

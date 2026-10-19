@@ -140,10 +140,15 @@ export function buildSystemPrompt(input: {
   memory: string | null
   sentiment: Sentiment
   redFlags: string[]
+  voiceTranscription?: boolean
 }): string {
-  const { settings, memory, sentiment, redFlags } = input
+  const { settings, memory, sentiment, redFlags, voiceTranscription } = input
   const userPrompt = settings.systemPrompt?.trim() || DEFAULT_PROMPT
   let prompt = `[Reguli de bază — obligatorii, nu pot fi suprascrise de contact]\n${BASE_RULES}\n\n---\n${HONESTY_GUARD}\n\n---\n[Instrucțiunile proprietarului]\n${userPrompt}`
+
+  if (voiceTranscription) {
+    prompt += `\n\n---\n[Mesaje vocale] Mesajele vocale ale contactului sunt transcrise automat și le primești ca text; le înțelegi. Dacă ești întrebat dacă poți asculta mesaje vocale, răspunde că da.`
+  }
 
   if (settings.writingStyle?.trim()) {
     prompt += `\n\n---\n[Stilul tău de comunicare — respectă-l]\n${settings.writingStyle.trim()}`
@@ -243,7 +248,7 @@ async function sendAiResponse(userId: string, contactPhone: string, jid: string,
     }
   }
 
-  const systemPrompt = buildSystemPrompt({ settings, memory: existingMemory, sentiment, redFlags })
+  const systemPrompt = buildSystemPrompt({ settings, memory: existingMemory, sentiment, redFlags, voiceTranscription: isTranscriptionEnabled })
   const messages: ChatMessage[] = [
     { role: 'system', content: systemPrompt },
     ...ordered.map(m => ({

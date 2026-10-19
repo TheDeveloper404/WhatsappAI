@@ -6,6 +6,12 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed (2026-10-19) — AI-ul nega că înțelege vocale
+
+- Cu transcrierea activă (`LLM_AUDIO_MODEL` setat), system prompt-ul spune acum că vocalele contactului vin transcrise
+  ca text. Înainte, agentul primea transcrierea, dar răspundea „nu pot asculta mesaje vocale".
+- Test: `buildSystemPrompt` — blocul `[Mesaje vocale]` apare doar cu transcrierea activă.
+
 ### Changed (2026-10-19) — Vocale prin OpenRouter (fără Groq)
 
 - Transcrierea vocalelor trece de pe Groq Whisper pe OpenRouter (`input_audio`, același `callOpenRouter`):

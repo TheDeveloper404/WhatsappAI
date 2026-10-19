@@ -143,4 +143,11 @@ describe('buildSystemPrompt', () => {
     expect(p).toContain('cerere urgentă')
     expect(p).toContain('GDPR/date personale')
   })
+
+  it('anunță transcrierea vocalelor doar când e activă', () => {
+    const on = buildSystemPrompt({ settings: base, memory: null, sentiment: 'normal', redFlags: [], voiceTranscription: true })
+    const off = buildSystemPrompt({ settings: base, memory: null, sentiment: 'normal', redFlags: [] })
+    expect(on).toContain('[Mesaje vocale]')
+    expect(off).not.toContain('[Mesaje vocale]')
+  })
 })

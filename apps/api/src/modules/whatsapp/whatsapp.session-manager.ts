@@ -5,7 +5,7 @@ import NodeCache from 'node-cache'
 import QRCode from 'qrcode'
 import { whatsappRepository } from './whatsapp.repository.js'
 import { usePostgresAuthState, clearAuthState } from './whatsapp.auth-state.js'
-import { handleMessages } from '../ai/message.handler.js'
+import { handleMessages, resolveBlacklistLids } from '../ai/message.handler.js'
 import { OWNER_ID } from '../../config/owner.js'
 import { logger, maskPhone } from '../../utils/logger.js'
 
@@ -117,6 +117,8 @@ function attachHandlers(s: WASocket) {
         await whatsappRepository.update(OWNER_ID, {
           status: 'connected', phoneNumber, pairingCode: null, pairingCodeExpiresAt: null, connectedAt: Date.now(),
         })
+        resolveBlacklistLids(OWNER_ID, s)
+          .catch(err => logger.error('[WA] eroare completare LID-uri blacklist', { err: String(err) }))
       }
 
       if (connection === 'close') {

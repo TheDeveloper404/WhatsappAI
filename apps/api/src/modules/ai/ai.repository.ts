@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto'
-import { eq, and, desc, isNotNull } from 'drizzle-orm'
+import { eq, and, or, desc, isNotNull, isNull } from 'drizzle-orm'
 import { db, pool } from '../../config/database.js'
 import { aiSettings, contactsBlacklist, conversationMessages, contactMemory } from '../../db/schema.js'
 import type { AiSettings } from '../../db/schema.js'
@@ -60,20 +60,33 @@ export const aiRepository = {
     return res.rows[0] ? Number(res.rows[0].len) : null
   },
 
-  async isBlacklisted(userId: string, phoneNumber: string): Promise<boolean> {
+  // `id` = număr sau LID — se potrivește pe oricare dintre coloane.
+  async isBlacklisted(userId: string, id: string): Promise<boolean> {
     const rows = await db.select().from(contactsBlacklist)
-      .where(and(eq(contactsBlacklist.userId, userId), eq(contactsBlacklist.phoneNumber, phoneNumber)))
+      .where(and(eq(contactsBlacklist.userId, userId), or(eq(contactsBlacklist.phoneNumber, id), eq(contactsBlacklist.lid, id))))
     return rows.length > 0
   },
 
-  async addBlacklist(userId: string, phoneNumber: string): Promise<void> {
+  async addBlacklist(userId: string, phoneNumber: string, lid: string | null): Promise<void> {
     await db.insert(contactsBlacklist).values({
-      id: randomUUID(), userId, phoneNumber, createdAt: Date.now(),
-    }).onConflictDoNothing()
+      id: randomUUID(), userId, phoneNumber, lid, createdAt: Date.now(),
+    }).onConflictDoUpdate({ target: [contactsBlacklist.userId, contactsBlacklist.phoneNumber], set: { lid } })
   },
 
-  async removeBlacklist(userId: string, phoneNumber: string): Promise<void> {
+  async removeBlacklist(userId: string, id: string): Promise<void> {
     await db.delete(contactsBlacklist)
+      .where(and(eq(contactsBlacklist.userId, userId), or(eq(contactsBlacklist.phoneNumber, id), eq(contactsBlacklist.lid, id))))
+  },
+
+  // Numerele blocate al căror LID nu e încă aflat.
+  async getUnresolvedBlacklist(userId: string): Promise<string[]> {
+    const rows = await db.select({ phoneNumber: contactsBlacklist.phoneNumber }).from(contactsBlacklist)
+      .where(and(eq(contactsBlacklist.userId, userId), isNull(contactsBlacklist.lid)))
+    return rows.map(r => r.phoneNumber)
+  },
+
+  async setBlacklistLid(userId: string, phoneNumber: string, lid: string): Promise<void> {
+    await db.update(contactsBlacklist).set({ lid })
       .where(and(eq(contactsBlacklist.userId, userId), eq(contactsBlacklist.phoneNumber, phoneNumber)))
   },
 

@@ -6,6 +6,13 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed (2026-10-19) — Blacklist pe LID
+
+- `contacts_blacklist.lid` (coloană nouă): la `/block` se cere LID-ul numărului de la WhatsApp (`lidMapping.getLIDForPN`);
+  rândurile fără LID se completează la fiecare conectare. Blocarea se potrivește pe număr sau LID.
+- Fail-closed-ul pentru mesaje `@lid` fără număr se aplică doar cât timp există numere blocate cu LID neaflat — altfel AI-ul
+  răspunde normal contactelor `@lid`. Confirmarea `/block` avertizează când LID-ul nu s-a putut afla.
+
 ### Changed (2026-10-19) — Upgrade Baileys 6.17.16 → 7.0.0-rc14
 
 - Pachetul `@whiskeysockets/baileys` înlocuit cu `baileys@7.0.0-rc14` (ESM): importuri directe în loc de `createRequire`.

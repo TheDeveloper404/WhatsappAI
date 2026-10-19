@@ -39,6 +39,8 @@ export const contactsBlacklist = pgTable('contacts_blacklist', {
   id: text('id').primaryKey(),
   userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   phoneNumber: text('phone_number').notNull(),
+  // LID-ul WhatsApp al numărului (fără `@lid`). NULL = încă neaflat.
+  lid: text('lid'),
   createdAt: bigint('created_at', { mode: 'number' }).notNull(),
 }, (t) => ({
   userPhoneUnique: unique().on(t.userId, t.phoneNumber),

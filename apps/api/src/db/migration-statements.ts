@@ -54,6 +54,8 @@ export const migrationStatements = [
     created_at BIGINT NOT NULL,
     UNIQUE(user_id, phone_number)
   )`,
+  // LID-ul WhatsApp (`...@lid`, fără sufix) al numărului blocat — contactele vin tot mai des doar cu LID.
+  `ALTER TABLE contacts_blacklist ADD COLUMN IF NOT EXISTS lid TEXT`,
   `CREATE TABLE IF NOT EXISTS conversation_messages (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

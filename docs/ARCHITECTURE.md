@@ -41,9 +41,11 @@ AES-256-GCM cu `WHATSAPP_ENC_KEY`. Raw `pg` (nu Drizzle) — Baileys face sute d
 ### 4. Baileys 7 (ESM) și contactele `@lid`
 Pachetul `baileys` v7 e ESM-only → importuri normale (`import makeWASocket, { ... } from 'baileys'`).
 WhatsApp trimite tot mai multe chaturi cu un ID de confidențialitate (`...@lid`) în loc de număr. Numărul real
-vine din `msg.key.remoteJidAlt` sau din `sock.signalRepository.lidMapping.getPNForLID()`. Blacklist-ul verifică
-atât `contactPhone` (LID/număr), cât și numărul real. Dacă un mesaj `@lid` vine fără număr cunoscut, AI-ul
-**nu răspunde** (fail-closed: nu putem garanta că nu e un contact blocat) și owner-ul primește o notificare.
+vine din `msg.key.remoteJidAlt` sau din `sock.signalRepository.lidMapping.getPNForLID()` — în practică des lipsește.
+De aceea blacklist-ul ține și **LID-ul** fiecărui număr blocat (`contacts_blacklist.lid`), aflat cu
+`lidMapping.getLIDForPN()` (interogare USync la serverele WhatsApp) la `/block` și, pentru rândurile fără LID, la
+fiecare conectare. Potrivirea se face pe număr SAU LID. Dacă există vreun număr blocat cu LID încă neaflat, un mesaj
+`@lid` fără număr cunoscut **nu primește răspuns** (fail-closed) și owner-ul e anunțat.
 
 ### 5. Pornire = reconectare sau QR
 `startWhatsapp()` creează mereu un socket cu creds-urile din DB: dacă sunt asociate se reconectează,

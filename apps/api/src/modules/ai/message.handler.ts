@@ -27,6 +27,31 @@ function extractPhone(jid: string): string {
   return jid.split('@')[0].split(':')[0]
 }
 
+// LID-ul WhatsApp al unui număr (Baileys îl cere de la serverele WhatsApp dacă nu-l are). null = nu s-a putut afla.
+async function resolveLid(sock: WASocket, phone: string): Promise<string | null> {
+  try {
+    const lid = await sock.signalRepository.lidMapping.getLIDForPN(`${phone}@s.whatsapp.net`)
+    return lid ? extractPhone(lid) : null
+  } catch (err) {
+    logger.error('[AI] eroare aflare LID', { err: String(err) })
+    return null
+  }
+}
+
+// La conectare: completează LID-ul numerelor blocate care nu-l au încă.
+export async function resolveBlacklistLids(userId: string, sock: WASocket): Promise<void> {
+  const phones = await aiRepository.getUnresolvedBlacklist(userId)
+  let resolved = 0
+  for (const phone of phones) {
+    const lid = await resolveLid(sock, phone)
+    if (lid) {
+      await aiRepository.setBlacklistLid(userId, phone, lid)
+      resolved++
+    }
+  }
+  if (phones.length) logger.info('[AI] LID-uri blacklist aflate', { resolved, total: phones.length })
+}
+
 function isIndividualChat(jid: string): boolean {
   return jid.endsWith('@s.whatsapp.net') || jid.endsWith('@lid')
 }
@@ -349,8 +374,9 @@ async function processMessage(userId: string, sock: WASocket, msg: any): Promise
   const settings = await aiRepository.getSettings(userId)
   if (!isAgentAvailable(settings)) return
   if (await aiRepository.isBlacklisted(userId, contactPhone)) return
-  // Contact venit ca `@lid`: verifică și numărul lui real. Fără număr nu putem garanta blacklist-ul → nu răspundem.
-  if (jid.endsWith('@lid') && !realPhone) {
+  // Contact venit ca `@lid` fără număr cunoscut: dacă vreun număr blocat n-are încă LID-ul aflat, nu putem
+  // garanta că nu e el → nu răspundem.
+  if (jid.endsWith('@lid') && !realPhone && (await aiRepository.getUnresolvedBlacklist(userId)).length > 0) {
     const now = Date.now()
     if (now - (lastNotified.get(contactPhone) ?? 0) > NOTIFY_THROTTLE_MS) {
       lastNotified.set(contactPhone, now)
@@ -438,8 +464,12 @@ async function executeCommand(userId: string, sock: WASocket, jid: string, conta
 
       case 'block': {
         const phone = cmd.phone ?? contactPhone
-        await aiRepository.addBlacklist(userId, phone)
-        reply = `🚫 AI-ul nu va mai răspunde lui +${phone}.`
+        // În chatul unui contact venit ca `@lid`, contactPhone e chiar LID-ul; altfel îl cerem de la WhatsApp.
+        const lid = !cmd.phone && jid.endsWith('@lid') ? contactPhone : await resolveLid(sock, phone)
+        await aiRepository.addBlacklist(userId, phone, lid)
+        reply = lid
+          ? `🚫 AI-ul nu va mai răspunde lui +${phone}.`
+          : `🚫 AI-ul nu va mai răspunde lui +${phone}.\n⚠️ Nu am putut afla ID-ul lui WhatsApp (LID) — până îl aflu, AI-ul nu răspunde contactelor necunoscute.`
         break
       }
 

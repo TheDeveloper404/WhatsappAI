@@ -6,8 +6,8 @@ export type ParsedCommand =
   | { type: 'help' }
   | { type: 'setTimer'; minutes: number }
   | { type: 'clearHistory' }
-  | { type: 'block' }
-  | { type: 'unblock' }
+  | { type: 'block'; phone?: string }
+  | { type: 'unblock'; phone?: string }
   | { type: 'kb'; action: 'show' }
   | { type: 'kb'; action: 'clear' }
   | { type: 'kb'; action: 'set'; text: string }
@@ -40,8 +40,16 @@ export function parseCommand(body: string): ParsedCommand | null {
   if (cmd === '/resumeai') return { type: 'activateAI' }
   if (cmd === '/status') return { type: 'status' }
   if (cmd === '/help') return { type: 'help' }
-  if (cmd === '/block') return { type: 'block' }
-  if (cmd === '/unblock') return { type: 'unblock' }
+  if (cmd === '/block' || cmd === '/unblock') {
+    const type = cmd === '/block' ? 'block' : 'unblock'
+    const arg = restAfter(1)
+    if (!arg) return { type }
+    // „+40 722 123 456", „0722-123-456" → „40722123456". Număr RO local (07...) → prefix 40.
+    let phone = arg.replace(/\D/g, '')
+    if (/^07\d{8}$/.test(phone)) phone = `4${phone}`
+    if (!/^\d{8,15}$/.test(phone)) return null
+    return { type, phone }
+  }
   if (cmd === '/learnstyle') return { type: 'learnStyle' }
 
   if (cmd === '/notify') {
@@ -121,4 +129,6 @@ export const HELP_TEXT = `*Comenzi agent AI:*
 /prompt — arată promptul
 /prompt set <text> — setează promptul
 /prompt reset — revine la promptul implicit
-/learnStyle — învață stilul tău din mesajele trimise`
+/learnStyle — învață stilul tău din mesajele trimise
+/block 0722123456 — AI-ul nu mai răspunde numărului dat
+/unblock 0722123456 — reactivează AI-ul pentru numărul dat`

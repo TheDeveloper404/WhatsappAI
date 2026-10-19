@@ -6,6 +6,14 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added (2026-10-19) — `/block <număr>` din self-chat + mapare LID
+
+- `/block <număr>` și `/unblock <număr>` merg din chatul „Tu", fără mesaj trimis contactului. Acceptă `07...`,
+  `+40 ...`, `40...` (normalizat la `40...`). `/block` fără număr, în chatul contactului, rămâne ca înainte.
+- Tabel nou `contact_lids` (LID → număr), umplut din `contacts.upsert`/`contacts.update`/`messaging-history.set`/
+  `chats.phoneNumberShare`. Blacklist-ul verifică și numărul mapat pentru contactele care vin ca `@lid`
+  (Baileys 6 nu expune numărul pe mesaj). Acoperire parțială: doar contactele pentru care WhatsApp trimite maparea.
+
 ### Changed (2026-10-19) — Documentație deploy după unificarea pe `main`
 
 - `docs/DEPLOY_VPS.md`: clonare din `main` (branch-ul `personal` nu mai există); secțiune nouă OpenRouter (cheie,

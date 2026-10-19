@@ -83,6 +83,14 @@ export const migrationStatements = [
     created_at BIGINT NOT NULL,
     PRIMARY KEY (user_id, id)
   )`,
+  // Mapare LID (`...@lid`) → număr de telefon, din sync-ul de contacte Baileys. Folosită la blacklist.
+  `CREATE TABLE IF NOT EXISTS contact_lids (
+    user_id TEXT NOT NULL,
+    lid TEXT NOT NULL,
+    phone_number TEXT NOT NULL,
+    updated_at BIGINT NOT NULL,
+    PRIMARY KEY (user_id, lid)
+  )`,
 ]
 
 // Seed pentru userul unic. INSERT ... WHERE NOT EXISTS (nu ON CONFLICT) ca să nu atingem un rând

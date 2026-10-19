@@ -341,6 +341,11 @@ async function processMessage(userId: string, sock: WASocket, msg: any): Promise
   const settings = await aiRepository.getSettings(userId)
   if (!isAgentAvailable(settings)) return
   if (await aiRepository.isBlacklisted(userId, contactPhone)) return
+  // Contact venit ca `@lid`: verifică și numărul de telefon mapat din sync-ul de contacte.
+  if (jid.endsWith('@lid')) {
+    const mappedPhone = await aiRepository.getPhoneForLid(userId, contactPhone)
+    if (mappedPhone && await aiRepository.isBlacklisted(userId, mappedPhone)) return
+  }
 
   const sentiment = detectSentiment(body)
 
@@ -362,7 +367,8 @@ async function executeCommand(userId: string, sock: WASocket, jid: string, conta
   // Comenzile care afișează/modifică configurația merg DOAR din self-chat (nu le expunem în chatul unui contact).
   const selfOnly = cmd.type === 'kb' || cmd.type === 'prompt' || cmd.type === 'learnStyle'
   // Comenzile care se referă la contactul curent n-au sens în self-chat.
-  const contactOnly = cmd.type === 'clearHistory' || cmd.type === 'block' || cmd.type === 'unblock'
+  // `/block <număr>` / `/unblock <număr>` țintesc numărul dat → merg și din self-chat.
+  const contactOnly = cmd.type === 'clearHistory' || ((cmd.type === 'block' || cmd.type === 'unblock') && !cmd.phone)
 
   if (selfOnly && !isSelfChat) {
     reply = '🔒 Comanda asta merge doar în chatul cu tine („Tu" / „Mesaje către mine").'
@@ -417,15 +423,19 @@ async function executeCommand(userId: string, sock: WASocket, jid: string, conta
         reply = `🗑️ Istoricul și memoria pentru +${contactPhone} au fost șterse.`
         break
 
-      case 'block':
-        await aiRepository.addBlacklist(userId, contactPhone)
-        reply = `🚫 AI-ul nu va mai răspunde lui +${contactPhone}.`
+      case 'block': {
+        const phone = cmd.phone ?? contactPhone
+        await aiRepository.addBlacklist(userId, phone)
+        reply = `🚫 AI-ul nu va mai răspunde lui +${phone}.`
         break
+      }
 
-      case 'unblock':
-        await aiRepository.removeBlacklist(userId, contactPhone)
-        reply = `✅ AI-ul poate răspunde din nou lui +${contactPhone}.`
+      case 'unblock': {
+        const phone = cmd.phone ?? contactPhone
+        await aiRepository.removeBlacklist(userId, phone)
+        reply = `✅ AI-ul poate răspunde din nou lui +${phone}.`
         break
+      }
 
       case 'kb': {
         const s = await aiRepository.getSettings(userId)

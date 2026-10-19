@@ -77,6 +77,22 @@ export const aiRepository = {
       .where(and(eq(contactsBlacklist.userId, userId), eq(contactsBlacklist.phoneNumber, phoneNumber)))
   },
 
+  async saveLidMappings(userId: string, pairs: { lid: string; phone: string }[]): Promise<void> {
+    const now = Date.now()
+    for (const { lid, phone } of pairs) {
+      await pool.query(
+        `INSERT INTO contact_lids (user_id, lid, phone_number, updated_at) VALUES ($1, $2, $3, $4)
+         ON CONFLICT (user_id, lid) DO UPDATE SET phone_number = EXCLUDED.phone_number, updated_at = EXCLUDED.updated_at`,
+        [userId, lid, phone, now],
+      )
+    }
+  },
+
+  async getPhoneForLid(userId: string, lid: string): Promise<string | null> {
+    const res = await pool.query(`SELECT phone_number FROM contact_lids WHERE user_id = $1 AND lid = $2`, [userId, lid])
+    return res.rows[0]?.phone_number ?? null
+  },
+
   async saveMessage(userId: string, contactPhone: string, fromMe: boolean, body: string, waTimestamp: number, isAi = false, remoteJid?: string): Promise<void> {
     await db.insert(conversationMessages).values({
       id: randomUUID(), userId, contactPhone, fromMe, isAi, body, waTimestamp, createdAt: Date.now(),

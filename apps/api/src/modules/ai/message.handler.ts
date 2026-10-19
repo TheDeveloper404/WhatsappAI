@@ -1,5 +1,4 @@
-import type { WASocket } from '@whiskeysockets/baileys'
-import { downloadMediaMessage } from '@whiskeysockets/baileys'
+import { downloadMediaMessage, isPnUser, type WASocket } from 'baileys'
 import { aiRepository, DEFAULT_PROMPT, BASE_RULES } from './ai.repository.js'
 import { chat, extractContactMemory, extractWritingStyle, transcribeAudio, isTranscriptionEnabled, type ChatMessage } from './llm.client.js'
 import { allowIncomingMessage } from './incoming.rate-limiter.js'
@@ -276,10 +275,19 @@ async function processMessage(userId: string, sock: WASocket, msg: any): Promise
 
   const fromMe: boolean = msg.key?.fromMe ?? false
   const ownerPhone = sock.user?.id ? extractPhone(sock.user.id) : null
+  // Self-chat-ul poate veni și ca `<lid-ul owner-ului>@lid`, nu doar pe număr.
+  const ownerLid = sock.user?.lid ? extractPhone(sock.user.lid) : null
   const contactPhone = extractPhone(jid)
+  // Numărul real al contactului când chatul vine ca `@lid`: din `remoteJidAlt` sau din maparea LID → PN a lui Baileys.
+  let realPhone: string | null = null
+  if (jid.endsWith('@lid')) {
+    const alt: string | undefined = msg.key?.remoteJidAlt
+    const pn = isPnUser(alt) ? alt : await sock.signalRepository.lidMapping.getPNForLID(jid)
+    realPhone = pn ? extractPhone(pn) : null
+  }
 
   // Self-chat („Tu"): aici ajung notificările către owner. Doar comenzi, fără istoric/AI.
-  if (ownerPhone && contactPhone === ownerPhone) {
+  if ((ownerPhone && (contactPhone === ownerPhone || realPhone === ownerPhone)) || (ownerLid && contactPhone === ownerLid)) {
     if (fromMe) {
       const text = extractText(msg) ?? ''
       const cmd = parseCommand(text)
@@ -341,11 +349,16 @@ async function processMessage(userId: string, sock: WASocket, msg: any): Promise
   const settings = await aiRepository.getSettings(userId)
   if (!isAgentAvailable(settings)) return
   if (await aiRepository.isBlacklisted(userId, contactPhone)) return
-  // Contact venit ca `@lid`: verifică și numărul de telefon mapat din sync-ul de contacte.
-  if (jid.endsWith('@lid')) {
-    const mappedPhone = await aiRepository.getPhoneForLid(userId, contactPhone)
-    if (mappedPhone && await aiRepository.isBlacklisted(userId, mappedPhone)) return
+  // Contact venit ca `@lid`: verifică și numărul lui real. Fără număr nu putem garanta blacklist-ul → nu răspundem.
+  if (jid.endsWith('@lid') && !realPhone) {
+    const now = Date.now()
+    if (now - (lastNotified.get(contactPhone) ?? 0) > NOTIFY_THROTTLE_MS) {
+      lastNotified.set(contactPhone, now)
+      sendToOwner(sock, `❔ Mesaj de la un contact al cărui număr nu-l cunosc (LID ${contactPhone}) — AI-ul NU a răspuns. Răspunde-i tu.`)
+    }
+    return
   }
+  if (realPhone && await aiRepository.isBlacklisted(userId, realPhone)) return
 
   const sentiment = detectSentiment(body)
 

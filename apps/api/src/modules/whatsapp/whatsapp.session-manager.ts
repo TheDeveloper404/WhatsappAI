@@ -1,23 +1,13 @@
-import { createRequire } from 'module'
 import { randomUUID } from 'crypto'
-import type { WASocket } from '@whiskeysockets/baileys'
+import makeWASocket, { DisconnectReason, fetchLatestBaileysVersion, makeCacheableSignalKeyStore, type WASocket } from 'baileys'
 import { Boom } from '@hapi/boom'
 import NodeCache from 'node-cache'
 import QRCode from 'qrcode'
 import { whatsappRepository } from './whatsapp.repository.js'
 import { usePostgresAuthState, clearAuthState } from './whatsapp.auth-state.js'
 import { handleMessages } from '../ai/message.handler.js'
-import { aiRepository } from '../ai/ai.repository.js'
 import { OWNER_ID } from '../../config/owner.js'
 import { logger, maskPhone } from '../../utils/logger.js'
-
-const _require = createRequire(import.meta.url)
-const {
-  makeWASocket,
-  DisconnectReason,
-  fetchLatestBaileysVersion,
-  makeCacheableSignalKeyStore,
-} = _require('@whiskeysockets/baileys') as any
 
 const noop = () => {}
 const waLogger: any = {
@@ -102,22 +92,7 @@ function scheduleReconnect(delayMs: number) {
   }, delayMs)
 }
 
-// Salvează perechile LID → număr venite din sync-ul de contacte (Baileys 6 nu pune numărul pe mesajele `@lid`).
-function saveLidMappings(pairs: { lid?: string | null; jid?: string | null }[]) {
-  const mapped = pairs
-    .filter(p => p.lid?.endsWith('@lid') && p.jid?.endsWith('@s.whatsapp.net'))
-    .map(p => ({ lid: p.lid!.split('@')[0].split(':')[0], phone: p.jid!.split('@')[0].split(':')[0] }))
-  if (!mapped.length) return
-  aiRepository.saveLidMappings(OWNER_ID, mapped)
-    .catch(err => logger.error('[WA] eroare salvare mapare LID', { err: String(err) }))
-}
-
 function attachHandlers(s: WASocket) {
-  s.ev.on('contacts.upsert', contacts => saveLidMappings(contacts.map(c => ({ lid: c.lid, jid: c.id }))))
-  s.ev.on('contacts.update', contacts => saveLidMappings(contacts.map(c => ({ lid: c.lid, jid: c.id }))))
-  s.ev.on('messaging-history.set', ({ contacts }) => saveLidMappings(contacts.map(c => ({ lid: c.lid, jid: c.id }))))
-  s.ev.on('chats.phoneNumberShare', ({ lid, jid }) => saveLidMappings([{ lid, jid }]))
-
   // `messages.upsert` legat o singură dată per socket (nu în handler-ul de 'open', care se poate re-emite).
   s.ev.on('messages.upsert', async ({ messages, type }) => {
     if (type !== 'notify') return

@@ -2,7 +2,7 @@
 
 ## Stack
 - **Runtime:** Node 22+, TypeScript (ESM). Un singur proces, fără server HTTP, rulat de systemd.
-- **WhatsApp:** Baileys 6 (`@whiskeysockets/baileys`), sesiune stocată în Postgres.
+- **WhatsApp:** Baileys 7 (`baileys@7.0.0-rc14`, ESM), sesiune stocată în Postgres.
 - **DB:** PostgreSQL + Drizzle ORM (query builder) + raw `pg` acolo unde contează volumul.
 - **LLM:** OpenRouter (API OpenAI-compatible), model din `LLM_MODEL`. Whisper pe Groq, opțional.
 - **UI:** niciunul — configurarea se face din WhatsApp (comenzi în self-chat).
@@ -38,9 +38,12 @@ Containerele sunt efemere; sesiunea (creds + chei Signal) stă în `whatsapp_aut
 AES-256-GCM cu `WHATSAPP_ENC_KEY`. Raw `pg` (nu Drizzle) — Baileys face sute de operații mici;
 `keys.set` scrie într-o singură tranzacție (o scriere parțială corupe sesiunea Signal).
 
-### 4. Baileys = CJS în proiect ESM
-Simbolurile runtime (`makeWASocket`, `DisconnectReason`, `initAuthCreds`, ...) se încarcă prin
-`createRequire(import.meta.url)`; din pachet se importă ESM doar tipuri și `downloadMediaMessage`.
+### 4. Baileys 7 (ESM) și contactele `@lid`
+Pachetul `baileys` v7 e ESM-only → importuri normale (`import makeWASocket, { ... } from 'baileys'`).
+WhatsApp trimite tot mai multe chaturi cu un ID de confidențialitate (`...@lid`) în loc de număr. Numărul real
+vine din `msg.key.remoteJidAlt` sau din `sock.signalRepository.lidMapping.getPNForLID()`. Blacklist-ul verifică
+atât `contactPhone` (LID/număr), cât și numărul real. Dacă un mesaj `@lid` vine fără număr cunoscut, AI-ul
+**nu răspunde** (fail-closed: nu putem garanta că nu e un contact blocat) și owner-ul primește o notificare.
 
 ### 5. Pornire = reconectare sau QR
 `startWhatsapp()` creează mereu un socket cu creds-urile din DB: dacă sunt asociate se reconectează,

@@ -68,7 +68,7 @@ export const contactMemory = pgTable('contact_memory', {
   userContactUnique: unique().on(t.userId, t.contactPhone),
 }))
 
-// `whatsapp_auth_state`, `processed_messages` și `contact_lids` sunt accesate cu raw `pg` (vezi
+// `whatsapp_auth_state` și `processed_messages` sunt accesate cu raw `pg` (vezi
 // whatsapp.auth-state.ts / ai.repository.ts) — definite doar în migration-statements.ts.
 
 export type WhatsappSession = typeof whatsappSessions.$inferSelect

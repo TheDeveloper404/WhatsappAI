@@ -1,9 +1,6 @@
-import { createRequire } from 'module'
+import { initAuthCreds, BufferJSON } from 'baileys'
 import { pool } from '../../config/database.js'
 import { encryptSecret, decryptSecret } from '../../utils/crypto.js'
-
-const _require = createRequire(import.meta.url)
-const { initAuthCreds, BufferJSON } = _require('@whiskeysockets/baileys') as any
 
 export async function usePostgresAuthState(userId: string) {
   const credsRow = await pool.query(

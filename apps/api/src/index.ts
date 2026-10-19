@@ -6,6 +6,17 @@ import { migrationStatements, ownerSeedStatement } from './db/migration-statemen
 
 process.stdout.write('[BOOT] Starting, NODE_ENV=' + env.NODE_ENV + ' LLM_MODEL=' + env.LLM_MODEL + '\n')
 
+// libsignal (dependință Baileys) loghează în consolă obiectul întreg al sesiunii Signal, cu chei private
+// (privKey, rootKey) — ar ajunge în journald. Mesajele astea se înghit.
+const SIGNAL_SESSION_LOGS = ['Closing session', 'Opening session', 'Removing old closed session', 'Session already closed']
+for (const level of ['info', 'warn'] as const) {
+  const original = console[level].bind(console)
+  console[level] = (...args: unknown[]) => {
+    if (typeof args[0] === 'string' && SIGNAL_SESSION_LOGS.some(p => (args[0] as string).startsWith(p))) return
+    original(...args)
+  }
+}
+
 // Migrare + seed owner, cu retry (Postgres poate porni după serviciu la boot-ul VPS-ului).
 async function runMigrations() {
   const pool = new Pool({ connectionString: env.DATABASE_URL })

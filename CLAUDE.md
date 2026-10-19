@@ -24,7 +24,8 @@ Capcane:
   `index.ts` cu retry). Orice tabel/coloană nouă se adaugă acolo și în `db/schema.ts`.
 - **WhatsApp auth state e în Postgres**, criptat cu `WHATSAPP_ENC_KEY`. Raw `pg` în `whatsapp.auth-state.ts`,
   intenționat (NU Drizzle).
-- **Baileys e CJS în context ESM:** simbolurile runtime se încarcă cu `createRequire` (vezi session manager).
+- **Baileys 7 (ESM) și contacte `@lid`:** numărul real vine din `key.remoteJidAlt` sau `signalRepository.lidMapping`;
+  un mesaj `@lid` fără număr cunoscut NU primește răspuns AI (blacklist-ul nu poate fi garantat) — vezi ARCHITECTURE §4.
 - **State în RAM** (timere, throttles, anti-flood, inactivity tracker) → un singur proces.
 
 ## Reguli specifice acestui proiect (non-negociabile)

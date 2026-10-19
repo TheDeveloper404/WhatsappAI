@@ -6,6 +6,24 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed (2026-10-19) — Upgrade Baileys 6.17.16 → 7.0.0-rc14
+
+- Pachetul `@whiskeysockets/baileys` înlocuit cu `baileys@7.0.0-rc14` (ESM): importuri directe în loc de `createRequire`.
+- Blacklist pe contacte `@lid`: numărul real din `key.remoteJidAlt` / `signalRepository.lidMapping`. Mesaj `@lid` fără
+  număr cunoscut → AI-ul nu răspunde și anunță owner-ul în „Tu" (fail-closed, max o dată la 30 min per contact).
+- **Removed:** tabelul și listener-ele `contact_lids` (varianta pe Baileys 6, adăugată tot azi) — înlocuite de maparea din v7.
+
+### Security (2026-10-19) — Chei Signal în loguri
+
+- `index.ts`: se înghit logurile libsignal `Closing/Opening session`, `Removing old closed session`, `Session already
+  closed`, care scriau în consolă (→ journald) obiectul sesiunii cu chei private (`privKey`, `rootKey`).
+
+### Fixed (2026-10-19) — Self-chat venit ca `@lid`
+
+- Chatul „Tu" e recunoscut și după LID-ul owner-ului (`sock.user.lid`), nu doar după număr. Înainte, pe conturile
+  unde WhatsApp trimite self-chat-ul ca `@lid`, `/prompt`, `/kb`, `/learnStyle` erau refuzate, iar `/block` fără număr
+  bloca chiar LID-ul owner-ului.
+
 ### Added (2026-10-19) — `/block <număr>` din self-chat + mapare LID
 
 - `/block <număr>` și `/unblock <număr>` merg din chatul „Tu", fără mesaj trimis contactului. Acceptă `07...`,

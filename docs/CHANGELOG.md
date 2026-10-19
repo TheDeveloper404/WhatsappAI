@@ -6,6 +6,12 @@ Format bazat pe [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed (2026-10-19) — Documentație deploy după unificarea pe `main`
+
+- `docs/DEPLOY_VPS.md`: clonare din `main` (branch-ul `personal` nu mai există); secțiune nouă OpenRouter (cheie,
+  modele `:free`, 429 + fallback), configurarea agentului din WhatsApp și tabel de depanare.
+- `README.md`: secțiune Git (`main` unic, tag `saas-final` pentru vechiul SaaS). `docs/ENV_VARS.md`: fallback recomandat.
+
 ### Removed (2026-10-19) — Docker și dashboard web
 
 - **Removed:** `Dockerfile`, `docker-compose.yml`, Caddy/Cloudflare Tunnel, `.env.example` din rădăcină; dashboard-ul web

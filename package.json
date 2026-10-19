@@ -1,7 +1,7 @@
 {
   "name": "whatsapp-ai",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "packageManager": "pnpm@9.0.0",
   "engines": {
     "node": ">=20"
@@ -14,15 +14,11 @@
     }
   },
   "scripts": {
-    "dev": "pnpm --parallel -r dev",
     "dev:api": "pnpm --filter api dev",
-    "dev:web": "pnpm --filter web dev",
-    "build": "pnpm -r build",
-    "lint": "pnpm -r lint",
-    "audit": "node scripts/audit-check.mjs",
-    "db:up": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/db-up.ps1",
-    "test:e2e": "pnpm --filter e2e test",
-    "test:e2e:ui": "pnpm --filter e2e test:ui",
-    "test:e2e:headed": "pnpm --filter e2e test:headed"
+    "build": "pnpm --filter api build",
+    "start": "pnpm --filter api start",
+    "typecheck": "pnpm --filter api typecheck",
+    "db:migrate": "pnpm --filter api db:migrate",
+    "audit": "node scripts/audit-check.mjs"
   }
 }

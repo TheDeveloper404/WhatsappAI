@@ -73,30 +73,38 @@ describe('parseCommand', () => {
     expect(parseCommand('/clearHistory 40758154490')).toEqual({ type: 'clearHistory' })
   })
 
-  // Comenzi programări owner (#6)
-  it('/confirma cu ref valid', () => {
-    expect(parseCommand('/confirma prg_a1b2c3')).toEqual({ type: 'confirmBooking', ref: 'prg_a1b2c3', slotText: '' })
-    expect(parseCommand('/CONFIRMA prg_A1B2C3')).toEqual({ type: 'confirmBooking', ref: 'prg_A1B2C3', slotText: '' })
+  it('/block, /unblock, /learnStyle', () => {
+    expect(parseCommand('/block')).toEqual({ type: 'block' })
+    expect(parseCommand('/unblock')).toEqual({ type: 'unblock' })
+    expect(parseCommand('/learnStyle')).toEqual({ type: 'learnStyle' })
   })
 
-  it('/confirma capturează data+ora după ref', () => {
-    expect(parseCommand('/confirma prg_a1b2c3 18.06 09:00')).toEqual({ type: 'confirmBooking', ref: 'prg_a1b2c3', slotText: '18.06 09:00' })
+  it('/kb fără argument sau show → afișare', () => {
+    expect(parseCommand('/kb')).toEqual({ type: 'kb', action: 'show' })
+    expect(parseCommand('/kb show')).toEqual({ type: 'kb', action: 'show' })
+    expect(parseCommand('/kb clear')).toEqual({ type: 'kb', action: 'clear' })
   })
 
-  it('/anuleaza și /finalizeaza cu ref valid', () => {
-    expect(parseCommand('/anuleaza prg_abc123')).toEqual({ type: 'cancelBooking', ref: 'prg_abc123' })
-    expect(parseCommand('/finalizeaza prg_abc123')).toEqual({ type: 'completeBooking', ref: 'prg_abc123' })
+  it('/kb set|add păstrează textul multi-linie', () => {
+    expect(parseCommand('/kb set Program: L-V 9-18\nAdresa: Str. X 1')).toEqual({ type: 'kb', action: 'set', text: 'Program: L-V 9-18\nAdresa: Str. X 1' })
+    expect(parseCommand('/kb add   o linie')).toEqual({ type: 'kb', action: 'add', text: 'o linie' })
   })
 
-  it('tolerează diacriticele în numele comenzii', () => {
-    expect(parseCommand('/confirmă prg_a1b2c3')).toEqual({ type: 'confirmBooking', ref: 'prg_a1b2c3', slotText: '' })
-    expect(parseCommand('/anulează prg_a1b2c3')).toEqual({ type: 'cancelBooking', ref: 'prg_a1b2c3' })
+  it('/kb set|add fără text sau sub-comandă necunoscută → null', () => {
+    expect(parseCommand('/kb set')).toBeNull()
+    expect(parseCommand('/kb add   ')).toBeNull()
+    expect(parseCommand('/kb delete')).toBeNull()
   })
 
-  it('returnează null pentru ref lipsă sau invalid', () => {
-    expect(parseCommand('/confirma')).toBeNull()
-    expect(parseCommand('/confirma abc123')).toBeNull()
-    expect(parseCommand('/confirma ord_a1b2c3')).toBeNull()
-    expect(parseCommand('/anuleaza prg_')).toBeNull()
+  it('/prompt show|reset|set', () => {
+    expect(parseCommand('/prompt')).toEqual({ type: 'prompt', action: 'show' })
+    expect(parseCommand('/prompt reset')).toEqual({ type: 'prompt', action: 'reset' })
+    expect(parseCommand('/prompt set Răspunde scurt.')).toEqual({ type: 'prompt', action: 'set', text: 'Răspunde scurt.' })
+    expect(parseCommand('/prompt set')).toBeNull()
+  })
+
+  it('comenzile de programări din varianta SaaS nu mai există', () => {
+    expect(parseCommand('/confirma prg_a1b2c3 18.06 09:00')).toBeNull()
+    expect(parseCommand('/anuleaza prg_a1b2c3')).toBeNull()
   })
 })

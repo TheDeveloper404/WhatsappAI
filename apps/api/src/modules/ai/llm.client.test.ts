@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { transcribeAudio, isTranscriptionEnabled } from './llm.client.js'
+import { chat, transcribeAudio, isTranscriptionEnabled } from './llm.client.js'
 
 function okResponse(content: string) {
   return new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 })
@@ -36,5 +36,22 @@ describe('transcribeAudio (OpenRouter input_audio)', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('echo: conținut sensibil', { status: 400 })))
 
     await expect(transcribeAudio(Buffer.from('x'), 'audio/ogg')).rejects.toThrow('OpenRouter HTTP 400 (test/audio-model)')
+  })
+})
+
+describe('chat (OpenRouter)', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('trimite reasoning dezactivat la LLM_MODEL (gândirea s-ar scădea din max_tokens)', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(okResponse('Bună!'))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await chat([{ role: 'user', content: 'Salut' }])
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body as string)
+    expect(body.model).toBe('test/model')
+    expect(body.reasoning).toEqual({ enabled: false })
   })
 })

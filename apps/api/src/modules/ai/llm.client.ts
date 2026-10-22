@@ -29,6 +29,9 @@ async function callOpenRouter(model: string, messages: OpenRouterMessage[], opti
       messages,
       max_tokens: options?.maxTokens ?? 600,
       temperature: options?.temperature ?? 0.7,
+      // Fără reasoning: la modelele care „gândesc" (ex. Claude Haiku 5.5) tokenii de gândire se scad din
+      // max_tokens → cu buget mic răspunsul vine gol. Răspunsurile WhatsApp sunt scurte, nu au nevoie de el.
+      reasoning: { enabled: false },
     }),
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   })

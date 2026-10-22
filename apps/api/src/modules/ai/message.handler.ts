@@ -190,9 +190,11 @@ function cancelPending(contactPhone: string) {
   }
 }
 
-function schedulePending(userId: string, contactPhone: string, jid: string, sock: WASocket, settings: AiSettings, sentiment: Sentiment) {
+// Owner inactiv: AI-ul așteaptă puțin după ultimul mesaj → mai multe mesaje la rând primesc un singur răspuns.
+const REPLY_DEBOUNCE_MS = 10 * 1000
+
+function schedulePending(userId: string, contactPhone: string, jid: string, sock: WASocket, settings: AiSettings, sentiment: Sentiment, delayMs = settings.timerMinutes * 60 * 1000) {
   cancelPending(contactPhone)
-  const delayMs = settings.timerMinutes * 60 * 1000
 
   const timeout = setTimeout(async () => {
     pendingResponses.delete(contactPhone)
@@ -208,7 +210,7 @@ function schedulePending(userId: string, contactPhone: string, jid: string, sock
   }, delayMs)
 
   pendingResponses.set(contactPhone, timeout)
-  logger.info('[AI] răspuns programat', { timerMin: settings.timerMinutes })
+  logger.info('[AI] răspuns programat', { delaySec: delayMs / 1000 })
 }
 
 function isAgentAvailable(settings: AiSettings): boolean {
@@ -398,7 +400,8 @@ async function processMessage(userId: string, sock: WASocket, msg: any): Promise
     return
   }
 
-  await sendAiResponse(userId, contactPhone, jid, sock, settings, sentiment)
+  // Înlocuiește și un răspuns programat mai devreme (când owner-ul era activ) → fără răspuns dublu.
+  schedulePending(userId, contactPhone, jid, sock, settings, sentiment, REPLY_DEBOUNCE_MS)
 }
 
 function preview(text: string, max = 3500): string {

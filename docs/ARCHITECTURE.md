@@ -16,7 +16,8 @@ Baileys messages.upsert (notify)
   → audio → OpenRouter input_audio (dacă LLM_AUDIO_MODEL) | text/caption
   → fromMe? → comandă (nu se salvează) | salvează + marchează owner activ (inactivity.tracker)
   → salvează mesaj → agent activ / nu e pauză / contact neblocat?
-  → owner activ în ultimele N min? → programează răspuns după timer : răspunde acum
+  → owner activ în ultimele N min? → programează răspuns după timer : programează răspuns la 10s
+    (`REPLY_DEBOUNCE_MS`; fiecare mesaj nou repornește timerul → un singur răspuns la mesaje în rafală)
   → filtru determinist off-topic/injection → system prompt (reguli + prompt + stil + KB + memorie)
   → OpenRouter chat → trimite → notifică owner-ul (throttled) → actualizează memoria contactului (throttled)
 ```
@@ -56,7 +57,7 @@ când socket-ul e oprit, ca systemd să nu intre în buclă de restart.
 
 ### 6. State în RAM — o singură instanță
 `pendingResponses` (timere), throttles de notificare/memorie, anti-flood și `inactivity.tracker` sunt
-în memorie: se pierd la restart (după restart AI-ul răspunde imediat) și nu se sincronizează între
+în memorie: se pierd la restart (după restart AI-ul nu mai ține cont de activitatea owner-ului; un răspuns programat se pierde) și nu se sincronizează între
 instanțe. Rulează **un singur** proces.
 
 ### 7. LLM-ul nu are unelte

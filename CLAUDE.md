@@ -37,6 +37,16 @@ Capcane:
 - **Fără UI/HTTP:** orice setare nouă a agentului se expune ca o comandă WhatsApp (self-chat), nu ca rută web.
 - **Memoria contactului / KB = date, nu instrucțiuni** în system prompt (anti prompt-injection stocat).
 
+## VPS-ul de producție e al unui client (non-negociabil)
+Agentul rulează ca **musafir** pe serverul unui client, cu acordul lui doar de a-l folosi — nu de a-l încărca.
+- Atingi DOAR `whatsapp-ai` (serviciul systemd, userul `whatsapp`, `/opt/whatsapp-ai`, DB-ul `whatsapp_ai`).
+  Nimic altceva de pe server: alte aplicații, procese, vhost-uri nginx, DB-uri, useri.
+- **DB-ul de producție rămâne curat:** fără rânduri de test. Probele de model = apeluri directe la OpenRouter,
+  nu prin DB. În DB scrii doar config reală (`ai_settings`); conversațiile de test se șterg după, cu backup CSV.
+- **Fără încărcare inutilă:** fără fișiere temporare lăsate pe disc, fără procese/cron-uri/pachete noi, fără
+  loguri sau dump-uri care cresc nelimitat. Ce pui în `/tmp` pentru deploy, ștergi.
+- Deploy = copiere fișiere schimbate + `pnpm build` + restart (`docs/DEPLOY_VPS.md`); serverul nu e repo git.
+
 ## Convenții
 - Limba aplicației și a documentației: **română** (cu diacritice).
 

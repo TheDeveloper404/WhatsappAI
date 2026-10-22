@@ -112,8 +112,14 @@ systemctl status whatsapp-ai
 journalctl -u whatsapp-ai -f -o cat             # loguri live
 sudo systemctl restart whatsapp-ai
 
-# Update la o versiune nouă
-cd /opt/whatsapp-ai && git pull && pnpm install --frozen-lockfile && pnpm build && sudo systemctl restart whatsapp-ai
+# Update la o versiune nouă — /opt/whatsapp-ai NU e repo git: se copiază fișierele schimbate de pe local.
+# (de pe local) compară: md5sum <fișier> vs. `sudo md5sum /opt/whatsapp-ai/<fișier>` pe VPS
+scp apps/api/src/modules/ai/<fișier>.ts ubuntu@VPS:/tmp/wa-upd.ts
+# (pe VPS) backup + înlocuire + build + restart
+F=/opt/whatsapp-ai/apps/api/src/modules/ai/<fișier>.ts
+sudo cp -p $F /tmp/<fișier>.ts.bak && sudo install -o whatsapp -g whatsapp -m 644 /tmp/wa-upd.ts $F
+sudo -u whatsapp bash -c "cd /opt/whatsapp-ai/apps/api && pnpm build" && sudo systemctl restart whatsapp-ai
+# Dependențe schimbate (package.json/pnpm-lock.yaml) → copiază-le și pe ele, apoi `pnpm install --frozen-lockfile` înainte de build.
 
 # Backup zilnic DB (crontab -e):
 # 0 3 * * * pg_dump -Fc "postgresql://whatsapp:PAROLA@localhost/whatsapp_ai" > /opt/backups/wa-$(date +\%F).dump && find /opt/backups -name 'wa-*.dump' -mtime +14 -delete

@@ -1,8 +1,11 @@
-# CLAUDE.md — WhatsApp AI
+# AGENTS.md — WhatsApp AI
+
+Sursa unica pentru ambii agenti: Codex citeste `AGENTS.md` nativ, Claude Code il importa din
+`CLAUDE.md` (`@AGENTS.md`). Orice regula noua se scrie AICI, nu in `CLAUDE.md`.
 
 Ghid de lucru în acest repo. Citește-l înainte de a modifica cod. Regulile globale de
 inginerie (clasificare SMALL/NORMAL/CRITICAL, quality gates, securitate) vin din
-`C:\dev\persist\claude\CLAUDE.md` și se aplică peste tot — aici stă **doar** ce e specific
+`~/.claude/CLAUDE.md` și se aplică peste tot — aici stă **doar** ce e specific
 acestui proiect.
 
 ## Ce e proiectul (pe scurt)
